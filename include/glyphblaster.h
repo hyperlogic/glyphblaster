@@ -1,0 +1,77 @@
+#include <stdint.h>
+
+// Glyph blaster context.
+typedef struct GB_Gb {
+    // List of all fonts
+    // List of all texts
+    // Other resources..
+} GB_GB;
+
+typedef struct GB_Font {
+    FT_Face face;
+    // atlas stuff.
+} GB_FONT;
+
+typedef struct GB_Text {
+    uint32_t color;
+    const char* utf8_string;
+    uint32_t min[2];
+    uint32_t max[2];
+    uint32_t horizontal_align;
+    uint32_t vertical_align;
+} GB_TEXT;
+
+typedef enum GB_Error_Code {
+    GB_NO_ERROR = 0,
+    GB_ERROR_OPENING_FILE,
+    GB_FILE_DOES_NOT_EXIST
+} GB_ERROR_CODE;
+
+typedef enum GB_Horizontal_Align {
+    GB_HORIZONTAL_ALIGN_LEFT = 0,
+    GB_HORIZONTAL_ALIGN_RIGHT,
+    GB_HORIZONTAL_ALIGN_CENTER
+} GB_HORIZONTAL_ALIGN;
+
+typedef enum GB_Vertical_Align {
+    GB_VERTICAL_ALIGN_TOP = 0,
+    GB_VERTICAL_ALIGN_BOTTOM,
+    GB_VERTICAL_ALIGN_CENTER
+} GB_VERTICAL_ALIGN;
+
+typedef struct GB_TextMetrics {
+    uint32_t min[2];
+    uint32_t max[2];
+} GB_TEXT_METRICS;
+
+typedef struct GB_GlyphQuad {
+    uint32_t min[2];
+    uint32_t max[2];
+    float min_uv[2];
+    float max_uv[2];
+    uint32_t color;
+} GB_GLYPH_QUAD;
+
+GB_ERROR_CODE GB_Init(GB_GB** gb_out);
+GB_ERROR_CODE GB_Shutdown(GB_GB* gb);
+
+GB_ERROR_CODE GB_MakeFont(GB_GB* gb, const char* filename, uint32_t point_size, GB_FONT** font_out);
+GB_ERROR_CODE GB_ReleaseFont(GB_GB* gb, GB_FONT* font);
+
+GB_ERROR_CODE GB_MakeText(GB_GB* gb, const char* utf8_string, GB_FONT* font, uint32_t color, uint32_t min[2], uint32_t max[2],
+                          GB_HORIZONTAL_ALIGN horizontal_align, GB_VERTICAL_ALIGN vertical_align, GB_TEXT** textOut);
+GB_ERROR_CODE GB_ReleaseText(GB_GB* gb, GB_TEXT* text);
+
+GB_ERROR_CODE GB_GetTextMetrics(GB_GB* gb, const char* utf8_string, GB_FONT* font, uint32_t min[2], uint32_t max[2],
+                                GB_HORIZONTAL_ALIGN horizontal_align, GB_VERTICAL_ALIGN vertical_align, GB_TEXT_METRICS* text_metrics_out);
+
+// Creates textures, packs and subloads glyphs into texture cache.
+// Should be called once a frame, before GB_DrawText
+// NOTE: issues OpenGL texture bind commands.
+GB_ERROR_CODE GB_Update(GB_GB* gb);
+
+// Renders given text using renderer func.
+GB_ERROR_CODE GB_DrawText(GB_GB* gb, GB_TEXT* text);
+
+// Renderer interface
+void RenderGlyphs(uint32_t texture, GB_GlyphQuad* glyphs, uint32_t numGlyphs);
