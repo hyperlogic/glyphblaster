@@ -84,15 +84,28 @@ int main(int argc, char* argv[])
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     SDL_GL_SwapBuffers();
 
-    GB_GB* gb = NULL;
-    GB_Init(&gb);
+    GB_ERROR err;
+    GB_GB* gb;
+    err = GB_Init(&gb);
+    if (err != GB_ERROR_NONE) {
+        fprintf(stderr, "GB_Init Error %d\n", err);
+        exit(1);
+    }
     GB_Font* droidFont = NULL;
-    GB_MakeFont(gb, "Droid-Sans/DroidSans.ttf", 32, &droidFont);
+    err = GB_MakeFont(gb, "Droid-Sans/DroidSans.ttf", 32, &droidFont);
+    if (err != GB_ERROR_NONE) {
+        fprintf(stderr, "GB_MakeFont Error %s\n", GB_ErrorToString(err));
+        exit(1);
+    }
     uint32_t min[2] = {0, 0};
     uint32_t max[2] = {videoInfo->current_w, videoInfo->current_h};
     GB_Text* helloText = NULL;
-    GB_MakeText(gb, "Hello World", droidFont, 0xffffffff, min, max, GB_HORIZONTAL_ALIGN_CENTER,
-                GB_VERTICAL_ALIGN_CENTER, &helloText);
+    err = GB_MakeText(gb, "Hello World", droidFont, 0xffffffff, min, max, GB_HORIZONTAL_ALIGN_CENTER,
+                      GB_VERTICAL_ALIGN_CENTER, &helloText);
+    if (err != GB_ERROR_NONE) {
+        fprintf(stderr, "GB_MakeText Error %s\n", GB_ErrorToString(err));
+        exit(1);
+    }
 
     int done = 0;
     while (!done)
@@ -137,15 +150,35 @@ int main(int argc, char* argv[])
 
         if (!done)
         {
-            GB_Update(gb);
-            GB_DrawText(gb, helloText);
+            err = GB_Update(gb);
+            if (err != GB_ERROR_NONE) {
+                fprintf(stderr, "GB_Update Error %s\n", GB_ErrorToString(err));
+                exit(1);
+            }
+            err = GB_DrawText(gb, helloText);
+            if (err != GB_ERROR_NONE) {
+                fprintf(stderr, "GB_DrawText Error %s\n", GB_ErrorToString(err));
+                exit(1);
+            }
             SDL_GL_SwapBuffers();
         }
     }
 
-    GB_ReleaseText(gb, helloText);
-    GB_ReleaseFont(gb, droidFont);
-    GB_Shutdown(gb);
+    err = GB_ReleaseText(gb, helloText);
+    if (err != GB_ERROR_NONE) {
+        fprintf(stderr, "GB_ReleaseText Error %s\n", GB_ErrorToString(err));
+        exit(1);
+    }
+    err = GB_ReleaseFont(gb, droidFont);
+    if (err != GB_ERROR_NONE) {
+        fprintf(stderr, "GB_ReleaseFont Error %s\n", GB_ErrorToString(err));
+        exit(1);
+    }
+    err = GB_Shutdown(gb);
+    if (err != GB_ERROR_NONE) {
+        fprintf(stderr, "GB_Shutdown Error %s\n", GB_ErrorToString(err));
+        exit(1);
+    }
 
     return 0;
 }
