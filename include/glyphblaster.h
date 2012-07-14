@@ -1,3 +1,7 @@
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 
 // Glyph blaster context.
@@ -8,7 +12,7 @@ typedef struct GB_Gb {
 } GB_GB;
 
 typedef struct GB_Font {
-    FT_Face face;
+    // FT_Face face;
     // atlas stuff.
 } GB_FONT;
 
@@ -22,9 +26,11 @@ typedef struct GB_Text {
 } GB_TEXT;
 
 typedef enum GB_Error_Code {
-    GB_NO_ERROR = 0,
-    GB_ERROR_OPENING_FILE,
-    GB_FILE_DOES_NOT_EXIST
+    GB_ERROR_NONE = 0,
+    GB_ERROR_NOENT,
+    GB_ERROR_NOMEM,
+    GB_ERROR_INVAL,
+    GB_ERROR_NOIMP,
 } GB_ERROR_CODE;
 
 typedef enum GB_Horizontal_Align {
@@ -55,15 +61,22 @@ typedef struct GB_GlyphQuad {
 GB_ERROR_CODE GB_Init(GB_GB** gb_out);
 GB_ERROR_CODE GB_Shutdown(GB_GB* gb);
 
-GB_ERROR_CODE GB_MakeFont(GB_GB* gb, const char* filename, uint32_t point_size, GB_FONT** font_out);
+GB_ERROR_CODE GB_MakeFont(GB_GB* gb, const char* filename, uint32_t point_size,
+                          GB_FONT** font_out);
 GB_ERROR_CODE GB_ReleaseFont(GB_GB* gb, GB_FONT* font);
 
-GB_ERROR_CODE GB_MakeText(GB_GB* gb, const char* utf8_string, GB_FONT* font, uint32_t color, uint32_t min[2], uint32_t max[2],
-                          GB_HORIZONTAL_ALIGN horizontal_align, GB_VERTICAL_ALIGN vertical_align, GB_TEXT** textOut);
+GB_ERROR_CODE GB_MakeText(GB_GB* gb, const char* utf8_string, GB_FONT* font,
+                          uint32_t color, uint32_t min[2], uint32_t max[2],
+                          GB_HORIZONTAL_ALIGN horizontal_align,
+                          GB_VERTICAL_ALIGN vertical_align,
+                          GB_TEXT** text_out);
 GB_ERROR_CODE GB_ReleaseText(GB_GB* gb, GB_TEXT* text);
 
-GB_ERROR_CODE GB_GetTextMetrics(GB_GB* gb, const char* utf8_string, GB_FONT* font, uint32_t min[2], uint32_t max[2],
-                                GB_HORIZONTAL_ALIGN horizontal_align, GB_VERTICAL_ALIGN vertical_align, GB_TEXT_METRICS* text_metrics_out);
+GB_ERROR_CODE GB_GetTextMetrics(GB_GB* gb, const char* utf8_string,
+                                GB_FONT* font, uint32_t min[2], uint32_t max[2],
+                                GB_HORIZONTAL_ALIGN horizontal_align,
+                                GB_VERTICAL_ALIGN vertical_align,
+                                GB_TEXT_METRICS* text_metrics_out);
 
 // Creates textures, packs and subloads glyphs into texture cache.
 // Should be called once a frame, before GB_DrawText
@@ -74,4 +87,8 @@ GB_ERROR_CODE GB_Update(GB_GB* gb);
 GB_ERROR_CODE GB_DrawText(GB_GB* gb, GB_TEXT* text);
 
 // Renderer interface
-void RenderGlyphs(uint32_t texture, GB_GlyphQuad* glyphs, uint32_t numGlyphs);
+void RenderGlyphs(uint32_t texture, GB_GLYPH_QUAD* glyphs, uint32_t numGlyphs);
+
+#ifdef __cplusplus
+}
+#endif
