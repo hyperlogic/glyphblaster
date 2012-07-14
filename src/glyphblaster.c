@@ -22,7 +22,7 @@ GB_ERROR GB_Shutdown(GB_GB* gb)
 }
 
 GB_ERROR GB_MakeFont(GB_GB* gb, const char* filename, uint32_t point_size,
-                          GB_FONT** font_out)
+                     GB_FONT** font_out)
 {
     if (gb && filename && font_out) {
         return GB_ERROR_NOIMP;
@@ -41,10 +41,10 @@ GB_ERROR GB_ReleaseFont(GB_GB* gb, GB_FONT* font)
 }
 
 GB_ERROR GB_MakeText(GB_GB* gb, const char* utf8_string, GB_FONT* font,
-                          uint32_t color, uint32_t min[2], uint32_t max[2],
-                          GB_HORIZONTAL_ALIGN horizontal_align,
-                          GB_VERTICAL_ALIGN vertical_align,
-                          GB_TEXT** text_out)
+                     uint32_t color, uint32_t min[2], uint32_t max[2],
+                     GB_HORIZONTAL_ALIGN horizontal_align,
+                     GB_VERTICAL_ALIGN vertical_align,
+                     GB_TEXT** text_out)
 {
     if (gb && utf8_string && font && text_out) {
         return GB_ERROR_NOIMP;
@@ -63,10 +63,10 @@ GB_ERROR GB_ReleaseText(GB_GB* gb, GB_TEXT* text)
 }
 
 GB_ERROR GB_GetTextMetrics(GB_GB* gb, const char* utf8_string,
-                                GB_FONT* font, uint32_t min[2], uint32_t max[2],
-                                GB_HORIZONTAL_ALIGN horizontal_align,
-                                GB_VERTICAL_ALIGN vertical_align,
-                                GB_TEXT_METRICS* text_metrics_out)
+                           GB_FONT* font, uint32_t min[2], uint32_t max[2],
+                           GB_HORIZONTAL_ALIGN horizontal_align,
+                           GB_VERTICAL_ALIGN vertical_align,
+                           GB_TEXT_METRICS* text_metrics_out)
 {
     if (gb && utf8_string && font && text_metrics_out) {
         return GB_ERROR_NOIMP;
