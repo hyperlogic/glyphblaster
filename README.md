@@ -10,3 +10,8 @@ Things:
   * Glyph packer
   * FreeType is used for rasterization.
   * utf8
+
+Dependencies
+-----------------
+  * FreeType2
+  * HarfBuzz-0.9.0

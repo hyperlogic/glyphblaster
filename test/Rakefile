@@ -5,6 +5,7 @@ require 'rake/clean'
 $C_FLAGS = ['-Wall',
             `sdl-config --cflags`.chomp,
             '-I../include',
+            `freetype-config --cflags`.chomp,
             '-DDARWIN'];
 
 $DEBUG_C_FLAGS = ['-g', '-DDEBUG'];
@@ -12,7 +13,9 @@ $DEBUG_C_FLAGS = ['-g', '-DDEBUG'];
 $OPT_C_FLAGS = ['-O3', '-DNDEBUG'];
 
 $L_FLAGS = [`sdl-config --libs`.chomp,
+            `freetype-config --libs`.chomp,
             '-lstdc++',
+            '-lharfbuzz',
             '-framework Cocoa',
             '-framework OpenGL',
             '-framework CoreServices',
@@ -20,7 +23,8 @@ $L_FLAGS = [`sdl-config --libs`.chomp,
 
 $OBJECTS = ['SDLMain.o',
             'main.o',
-            '../src/glyphblaster.o'];
+            '../src/glyphblaster.o',
+            '../src/glyphcache.o'];
 
 $DEPS = $OBJECTS.map {|f| f[0..-3] + '.d'}
 $EXE = 'gbtest'
