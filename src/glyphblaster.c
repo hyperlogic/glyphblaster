@@ -12,7 +12,7 @@ GB_ERROR GB_Init(GB_GB** gb_out)
             return GB_ERROR_FTERR;
         }
         GB_GLYPH_CACHE* glyph_cache = 0;
-        GB_ERROR err = GB_MakeGlyphCache(&glyph_cache);
+        GB_ERROR err = GB_GlyphCache_Make(&glyph_cache);
         if (err == GB_ERROR_NONE) {
             (*gb_out)->glyph_cache = glyph_cache;
         }
@@ -29,7 +29,7 @@ GB_ERROR GB_Shutdown(GB_GB* gb)
         if (gb->ft_library) {
             FT_Done_FreeType(gb->ft_library);
         }
-        GB_DestroyGlyphCache((GB_GLYPH_CACHE*)gb->glyph_cache);
+        GB_GlyphCache_Free((GB_GLYPH_CACHE*)gb->glyph_cache);
         free(gb);
         return GB_ERROR_NONE;
     } else {
@@ -114,34 +114,28 @@ static void _GB_UpdateGlyphCacheFromBuffer(GB_GB* gb, GB_TEXT* text)
 {
     int num_glyphs = hb_buffer_get_length(text->hb_buffer);
     hb_glyph_info_t* glyphs = hb_buffer_get_glyph_infos(text->hb_buffer, 0);
-    hb_glyph_info_t* info = hb_buffer_get_glyph_infos(text->hb_buffer, NULL);
-    int i;
-    for (i = 0; i < num_glyphs; i++) {
+    //hb_glyph_info_t* info = hb_buffer_get_glyph_infos(text->hb_buffer, NULL);
+    int font_index = text->font->index;
+
+    GB_GLYPH* new_glyphs = (GB_GLYPH*)malloc(sizeof(GB_GLYPH) * num_glyphs);
+
+    int i, num_new_glyphs;
+    for (i = 0, num_new_glyphs = 0; i < num_glyphs; i++) {
 
         int index = glyphs[i].codepoint;
-        int font_index = text->font->index;
-        uint32_t gl_tex = 0;
-        GB_GLYPH* glyph = NULL;
-
-        printf("Updating glyph index = %d, font_index = %d\n", index, font_index);
-
-        GB_FindInGlyphCache(gb->glyph_cache, index, font_index, &gl_tex, &glyph);
-        if (glyph) {
-            // found in glyph_cache
-            printf("    found in glyph_cache!\n");
-        } else {
-            // not found in glyph_cache
-            printf("    not found in glyph_cache!\n");
-            GB_GLYPH g;
-            g.index = index;
-            g.font_index = font_index;
-            g.origin_x = 0;
-            g.origin_y = 0;
-            g.size_x = 10; // TODO: fill in with actual width
-            g.size_y = 10;
+        if (!GB_GlyphCache_Find(gb->glyph_cache, index, font_index)) {
+            GB_GLYPH* g = new_glyphs + num_new_glyphs;
+            g->index = index;
+            g->font_index = font_index;
+            g->origin_x = 0;
+            g->origin_y = 0;
 
             // TODO: fill with actual ft rasterized glyph
-            uint32_t image[10*10];
+            g->size_x = 10;
+            g->size_y = 10;
+
+            // owner ship of image is passed to glyph_cache
+            uint8_t* image = (uint8_t*)malloc(sizeof(uint8_t) * g->size_x * g->size_y);
             int x, y;
             for (y = 0; y < 10; y++) {
                 for (x = 0; x < 10; x++) {
@@ -152,8 +146,14 @@ static void _GB_UpdateGlyphCacheFromBuffer(GB_GB* gb, GB_TEXT* text)
                     }
                 }
             }
+            g->image = image;
+            num_new_glyphs++;
         }
     }
+
+    // add new_glyphs to glyph cache
+    GB_GlyphCache_Insert(gb->glyph_cache, new_glyphs, num_new_glyphs);
+    free(new_glyphs);
 }
 
 GB_ERROR GB_MakeText(GB_GB* gb, const char* utf8_string, GB_FONT* font,
