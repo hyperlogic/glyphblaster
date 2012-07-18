@@ -117,14 +117,15 @@ static void _GB_UpdateGlyphCacheFromBuffer(GB_GB* gb, GB_TEXT* text)
     //hb_glyph_info_t* info = hb_buffer_get_glyph_infos(text->hb_buffer, NULL);
     int font_index = text->font->index;
 
-    GB_GLYPH* new_glyphs = (GB_GLYPH*)malloc(sizeof(GB_GLYPH) * num_glyphs);
-
-    int i, num_new_glyphs;
-    for (i = 0, num_new_glyphs = 0; i < num_glyphs; i++) {
-
+    GB_GLYPH** glyph_ptrs = (GB_GLYPH**)malloc(sizeof(GB_GLYPH*) * num_glyphs);
+    int num_glyph_ptrs;
+    int i;
+    for (i = 0, num_glyph_ptrs = 0; i < num_glyphs; i++) {
         int index = glyphs[i].codepoint;
         if (!GB_GlyphCache_Find(gb->glyph_cache, index, font_index)) {
-            GB_GLYPH* g = new_glyphs + num_new_glyphs;
+            GB_GLYPH* g = (GB_GLYPH*)malloc(sizeof(GB_GLYPH));
+
+            // init glyph
             g->index = index;
             g->font_index = font_index;
             g->origin_x = 0;
@@ -134,7 +135,7 @@ static void _GB_UpdateGlyphCacheFromBuffer(GB_GB* gb, GB_TEXT* text)
             g->size_x = 10;
             g->size_y = 10;
 
-            // owner ship of image is passed to glyph_cache
+            // owner ship of image is passed to glyph
             uint8_t* image = (uint8_t*)malloc(sizeof(uint8_t) * g->size_x * g->size_y);
             int x, y;
             for (y = 0; y < 10; y++) {
@@ -147,13 +148,16 @@ static void _GB_UpdateGlyphCacheFromBuffer(GB_GB* gb, GB_TEXT* text)
                 }
             }
             g->image = image;
-            num_new_glyphs++;
+
+            // add to glyph_ptr array
+            glyph_ptrs[num_glyph_ptrs++] = g;
         }
     }
 
-    // add new_glyphs to glyph cache
-    GB_GlyphCache_Insert(gb->glyph_cache, new_glyphs, num_new_glyphs);
-    free(new_glyphs);
+    // add glyphs to glyph cache
+    // ownership of glyph structures passes to cache, so we should not free them.
+    GB_GlyphCache_Insert(gb->glyph_cache, glyph_ptrs, num_glyph_ptrs);
+    free(glyph_ptrs);
 }
 
 GB_ERROR GB_MakeText(GB_GB* gb, const char* utf8_string, GB_FONT* font,

@@ -207,20 +207,15 @@ static int glyph_cmp(const void* a, const void* b)
     return ((GB_GLYPH*)b)->size_y - ((GB_GLYPH*)a)->size_y;
 }
 
-GB_ERROR GB_GlyphCache_Insert(GB_GLYPH_CACHE* cache, GB_GLYPH* glyphs, int num_glyphs)
+GB_ERROR GB_GlyphCache_Insert(GB_GLYPH_CACHE* cache, GB_GLYPH** glyph_ptrs, int num_glyph_ptrs)
 {
     int i;
 
-    // build array of ptrs to glyphs
-    GB_GLYPH** glyph_ptrs = (GB_GLYPH**)malloc(sizeof(GB_GLYPH*) * num_glyphs);
-    for (i = 0; i < num_glyphs; i++)
-        glyph_ptrs[i] = glyphs + i;
-
     // sort them in decreasing height
-    qsort(glyph_ptrs, num_glyphs, sizeof(GB_GLYPH*), glyph_cmp);
+    qsort(glyph_ptrs, num_glyph_ptrs, sizeof(GB_GLYPH*), glyph_cmp);
 
     // find first decreasing height heuristic.
-    for (i = 0; i < num_glyphs; i++) {
+    for (i = 0; i < num_glyph_ptrs; i++) {
         GB_GLYPH* glyph = glyph_ptrs[i];
         if (!_GB_GlyphCache_TryToInsertGlyph(cache, glyph)) {
             // compact and try again.

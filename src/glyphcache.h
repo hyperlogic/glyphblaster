@@ -46,6 +46,6 @@ GB_ERROR GB_GlyphCache_Free(GB_GLYPH_CACHE* cache);
 GB_GLYPH* GB_GlyphCache_Find(GB_GLYPH_CACHE* glyph, uint32_t index, uint32_t font_index);
 
 // will add the given glyphs to the glyph_cache.
-GB_ERROR GB_GlyphCache_Insert(GB_GLYPH_CACHE* glyph, GB_GLYPH* glyphs, int num_glyphs);
+GB_ERROR GB_GlyphCache_Insert(GB_GLYPH_CACHE* glyph, GB_GLYPH** glyph_ptrs, int num_glyph_ptrs);
 
 #endif
