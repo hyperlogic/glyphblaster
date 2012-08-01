@@ -7,16 +7,6 @@
 // all openGL textures in the cache have this size.
 #define GB_TEXTURE_SIZE 1024
 
-typedef struct GB_Glyph {
-    uint32_t index;
-    uint32_t font_index;
-    uint32_t origin_x;
-    uint32_t origin_y;
-    uint32_t size_x;
-    uint32_t size_y;
-    uint8_t* image;
-} GB_GLYPH;
-
 #define GB_MAX_GLYPHS_PER_LEVEL 128
 typedef struct GB_GlyphSheetLevel {
     GB_GLYPH* glyph[GB_MAX_GLYPHS_PER_LEVEL];

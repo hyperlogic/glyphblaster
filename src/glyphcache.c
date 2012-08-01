@@ -78,6 +78,7 @@ static GB_ERROR _GB_GlyphSheet_Init(GB_GLYPH_SHEET* sheet)
     return GB_ERROR_NONE;
 }
 
+/*
 static int _GB_GlyphSheet_TryToAddNewLevel(GB_GLYPH_SHEET* sheet, uint32_t height)
 {
     // TODO:
@@ -89,10 +90,15 @@ static void _GB_GlyphSheet_SubloadGlyph(GB_GLYPH_SHEET* sheet, GB_GLYPH* glyph)
     return;
 }
 
-static void _GB_GlyphCache_InsertIntoHash(GB_GLYPH_CACHE* cache, GB_GLYPH* glyph);
+static void _GB_GlyphCache_InsertIntoHash(GB_GLYPH_CACHE* cache, GB_GLYPH* glyph)
+{
+
+}
+*/
 
 static int _GB_GlyphSheet_TryToInsertGlyph(GB_GLYPH_CACHE* cache, GB_GLYPH_SHEET* sheet, GB_GLYPH* glyph)
 {
+    /*
     int i = 0;
     for (i = 0; i < sheet->num_levels; i++) {
         if (glyph->size_y <= sheet->level[i].height) {
@@ -142,6 +148,8 @@ static int _GB_GlyphSheet_TryToInsertGlyph(GB_GLYPH_CACHE* cache, GB_GLYPH_SHEET
         // out of room
         return 0;
     }
+    */
+    return 0;
 }
 
 GB_ERROR GB_GlyphCache_Make(GB_GLYPH_CACHE** cache_out)
@@ -168,11 +176,6 @@ GB_GLYPH* GB_GlyphCache_Find(GB_GLYPH_CACHE* glyph_cache, uint32_t index, uint32
 {
     // TODO:
     return NULL;
-}
-
-static void _GB_GlyphCache_InsertIntoHash(GB_GLYPH_CACHE* cache, GB_GLYPH* glyph)
-{
-
 }
 
 static int _GB_GlyphCache_TryToInsertGlyph(GB_GLYPH_CACHE* cache, GB_GLYPH* glyph)
@@ -204,7 +207,7 @@ static void _GB_GlyphCache_Compact(GB_GLYPH_CACHE* cache)
 // sort glyph ptrs in decreasing height
 static int glyph_cmp(const void* a, const void* b)
 {
-    return ((GB_GLYPH*)b)->size_y - ((GB_GLYPH*)a)->size_y;
+    return ((GB_GLYPH*)b)->size[1] - ((GB_GLYPH*)a)->size[1];
 }
 
 GB_ERROR GB_GlyphCache_Insert(GB_GLYPH_CACHE* cache, GB_GLYPH** glyph_ptrs, int num_glyph_ptrs)

@@ -300,28 +300,35 @@ int main(int argc, char* argv[])
 
     harfbuzz_test2();
 
+    // create the context
     GB_ERROR err;
-    GB_GB* gb;
-    err = GB_Init(&gb);
+    GB_CONTEXT* gb;
+    err = GB_ContextMake(&gb);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_Init Error %d\n", err);
         exit(1);
     }
+
+    // create a font
     GB_Font* droidFont = NULL;
-    err = GB_MakeFont(gb, "Droid-Sans/DroidSans.ttf", 32, &droidFont);
+    err = GB_FontMake(gb, "Droid-Sans/DroidSans.ttf", 32, &droidFont);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_MakeFont Error %s\n", GB_ErrorToString(err));
         exit(1);
     }
-    uint32_t min[2] = {0, 0};
-    uint32_t max[2] = {videoInfo->current_w, videoInfo->current_h};
+
+    // create a text
+    uint32_t origin[2] = {0, 0};
+    uint32_t size[2] = {videoInfo->current_w, videoInfo->current_h};
     GB_Text* helloText = NULL;
-    err = GB_MakeText(gb, "Hello World", droidFont, 0xffffffff, min, max, GB_HORIZONTAL_ALIGN_CENTER,
+    err = GB_TextMake(gb, "Hello World", droidFont, 0xffffffff, origin, size, GB_HORIZONTAL_ALIGN_CENTER,
                       GB_VERTICAL_ALIGN_CENTER, &helloText);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_MakeText Error %s\n", GB_ErrorToString(err));
         exit(1);
     }
+
+    // verify that glyphs have been inserted into text mask.
 
     int done = 0;
     while (!done)
@@ -366,26 +373,28 @@ int main(int argc, char* argv[])
 
         if (!done)
         {
+            /*
             err = GB_DrawText(gb, helloText);
             if (err != GB_ERROR_NONE) {
                 fprintf(stderr, "GB_DrawText Error %s\n", GB_ErrorToString(err));
                 exit(1);
             }
+            */
             SDL_GL_SwapBuffers();
         }
     }
 
-    err = GB_ReleaseText(gb, helloText);
+    err = GB_TextRelease(gb, helloText);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_ReleaseText Error %s\n", GB_ErrorToString(err));
         exit(1);
     }
-    err = GB_ReleaseFont(gb, droidFont);
+    err = GB_FontRelease(gb, droidFont);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_ReleaseFont Error %s\n", GB_ErrorToString(err));
         exit(1);
     }
-    err = GB_Shutdown(gb);
+    err = GB_ContextRelease(gb);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_Shutdown Error %s\n", GB_ErrorToString(err));
         exit(1);
