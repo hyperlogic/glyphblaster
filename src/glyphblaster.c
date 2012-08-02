@@ -4,6 +4,11 @@
 #include <assert.h>
 #include "uthash/src/utlist.h"
 
+static GB_ERROR _GB_GlyphMake(GB_CONTEXT* gb, uint32_t index, uint32_t sheet_index, uint32_t origin[2], uint32_t size[2], uint8_t* image, GB_GLYPH** glyph_out);
+static GB_ERROR _GB_GlyphReference(GB_CONTEXT* gb, GB_GLYPH* glyph);
+static void _GB_GlyphDestroy(GB_CONTEXT* gb, GB_GLYPH* glyph);
+static GB_ERROR _GB_GlyphRelease(GB_CONTEXT* gb, GB_GLYPH* glyph);
+
 GB_ERROR GB_ContextMake(GB_CONTEXT** gb_out)
 {
     GB_CONTEXT* gb = (GB_CONTEXT*)malloc(sizeof(GB_CONTEXT));
@@ -120,6 +125,13 @@ static void _GB_FontDestroy(GB_CONTEXT* gb, GB_FONT* font)
         hb_font_destroy(font->hb_font);
     }
 
+    // release all glyphs
+    GB_GLYPH *glyph, *tmp;
+    HASH_ITER(hh, font->glyph_hash, glyph, tmp) {
+        HASH_DEL(font->glyph_hash, glyph);
+        _GB_GlyphRelease(gb, glyph);
+    }
+
     // context holds a list of all fonts
     DL_DELETE(gb->font_list, font);
 
@@ -140,77 +152,79 @@ GB_ERROR GB_FontRelease(GB_CONTEXT* gb, GB_FONT* font)
     }
 }
 
-static void _GB_UpdateGlyphCacheFromBuffer(GB_CONTEXT* gb, GB_TEXT* text)
+static GB_ERROR _GB_UpdateGlyphCacheFromBuffer(GB_CONTEXT* gb, GB_TEXT* text)
 {
     // prepare to iterate over all the glyphs in the hb_buffer
     int num_glyphs = hb_buffer_get_length(text->hb_buffer);
     hb_glyph_info_t* glyphs = hb_buffer_get_glyph_infos(text->hb_buffer, NULL);
 
-    // the font keeps a hash of all glyphs in use.
-    GB_GLYPH* glyph_hash = text->font->glyph_hash;
-
     // hold a temp array of glyph ptrs, this is so we can sort glyphs by some heuristic before
-    // adding them to the glyph cache, to improve texture utilization for long strings of glyphs.
+    // adding them to the GlyphCache, to improve texture utilization for long strings of glyphs.
     GB_GLYPH** glyph_ptrs = (GB_GLYPH**)malloc(sizeof(GB_GLYPH*) * num_glyphs);
 
     // iterate over each glyph
     int num_glyph_ptrs;
-    int i;
+    int i, j;
     for (i = 0, num_glyph_ptrs = 0; i < num_glyphs; i++) {
 
         int index = glyphs[i].codepoint;
 
         // check to see if this glyph already exists in the font glyph_hash
         GB_GLYPH* glyph = NULL;
-        HASH_FIND_INT(glyph_hash, &index, glyph);
+        HASH_FIND_INT(text->font->glyph_hash, &index, glyph);
         if (!glyph) {
 
-            // allocate a new glyph
-            glyph = (GB_GLYPH*)malloc(sizeof(GB_GLYPH));
+            FT_Face ft_face = text->font->ft_face;
+            FT_Error ft_error = FT_Load_Glyph(ft_face, index, FT_LOAD_DEFAULT);
+            if (ft_error)
+                return GB_ERROR_FTERR;
 
-            // TODO: use FreeType to rasterize and hint glyph
-            // for now just use 10x10.
-            glyph->rc = 1;
-            glyph->index = index;
-            glyph->sheet_index = -1;
-            glyph->origin[0] = 0;
-            glyph->origin[1] = 0;
-            glyph->size[0] = 10;
-            glyph->size[1] = 10;
-            glyph->image = NULL;
+            // render glyph into ft_face->glyph->bitmap
+            ft_error = FT_Render_Glyph(ft_face->glyph, FT_RENDER_MODE_NORMAL);
+            if (ft_error)
+                return GB_ERROR_FTERR;
 
-            // owner ship of image is passed to glyph
-            uint8_t* image = (uint8_t*)malloc(sizeof(uint8_t) * glyph->size[0] * glyph->size[1]);
-            int x, y;
-            for (y = 0; y < 10; y++) {
-                for (x = 0; x < 10; x++) {
-                    if (y % 2 && x % 2) {
-                        image[y * 10 + x] = 0;
-                    } else {
-                        image[y * 10 + x] = 255;
-                    }
+            FT_Bitmap* ft_bitmap = &ft_face->glyph->bitmap;
+
+            uint8_t* image = NULL;
+            if (ft_bitmap->width > 0 && ft_bitmap->rows > 0) {
+                // allocate an image to hold a copy of the rasterized glyph
+                image = (uint8_t*)malloc(sizeof(uint8_t) * ft_bitmap->width * ft_bitmap->rows);
+
+                // copy image from ft_bitmap.buffer into image, row by row.
+                // The pitch of each row in the ft_bitmap maybe >= width,
+                // so we cant do this as a single memcpy.
+                for (j = 0; j < ft_face->glyph->bitmap.rows; j++) {
+                    memcpy(image + (j * ft_bitmap->width),
+                           ft_bitmap->buffer + (j * ft_bitmap->pitch),
+                           ft_bitmap->width);
                 }
             }
-            glyph->image = image;
+
+            uint32_t origin[2] = {0, 0};
+            uint32_t size[2] = {ft_bitmap->width, ft_bitmap->rows};
+            GB_ERROR gb_error = _GB_GlyphMake(gb, index, -1, origin, size, image, &glyph);
+            if (gb_error)
+                return gb_error;
 
             // add to glyph_ptr array
             glyph_ptrs[num_glyph_ptrs++] = glyph;
 
             // add glyph to font glyph_hash
-            HASH_ADD_INT(glyph_hash, index, glyph);
+            HASH_ADD_INT(text->font->glyph_hash, index, glyph);
 
-            printf("AJT: adding index %u to hash\n", index);
+            printf("AJT: adding index %u to hash (%d x %d) image = %p\n", index, glyph->size[0], glyph->size[1], glyph->image);
         } else {
             printf("AJT: index %u already in hash\n", index);
         }
     }
 
-    /*
-    // add glyphs to glyph cache
-    // ownership of glyph structures passes to cache, so we should not free them.
+    // add glyphs to GlyphCache
     GB_GlyphCache_Insert(gb->glyph_cache, glyph_ptrs, num_glyph_ptrs);
-    */
+
     free(glyph_ptrs);
+
+    return GB_ERROR_NONE;
 }
 
 GB_ERROR GB_TextMake(GB_CONTEXT* gb, const char* utf8_string, GB_FONT* font,
@@ -251,11 +265,10 @@ GB_ERROR GB_TextMake(GB_CONTEXT* gb, const char* utf8_string, GB_FONT* font,
             // shape text
             hb_shape(font->hb_font, text->hb_buffer, NULL, 0);
 
-            _GB_UpdateGlyphCacheFromBuffer(gb, text);
-
-            *text_out = text;
-
-            return GB_ERROR_NONE;
+            GB_ERROR ret = _GB_UpdateGlyphCacheFromBuffer(gb, text);
+            if (ret == GB_ERROR_NONE)
+                *text_out = text;
+            return ret;
         } else {
             return GB_ERROR_NOMEM;
         }
@@ -307,6 +320,63 @@ GB_ERROR GB_GetTextMetrics(GB_CONTEXT* gb, const char* utf8_string,
 {
     if (gb && utf8_string && font && text_metrics_out) {
         return GB_ERROR_NOIMP;
+    } else {
+        return GB_ERROR_INVAL;
+    }
+}
+
+static GB_ERROR _GB_GlyphMake(GB_CONTEXT* gb, uint32_t index, uint32_t sheet_index, uint32_t origin[2], uint32_t size[2], uint8_t* image, GB_GLYPH** glyph_out)
+{
+    if (gb && glyph_out) {
+        // allocate and init a new glyph structure
+        GB_GLYPH* glyph = (GB_GLYPH*)malloc(sizeof(GB_GLYPH));
+        if (glyph) {
+            glyph->rc = 1;
+            glyph->index = index;
+            glyph->sheet_index = sheet_index;
+            glyph->origin[0] = origin[0];
+            glyph->origin[1] = origin[1];
+            glyph->size[0] = size[0];
+            glyph->size[1] = size[1];
+            glyph->image = image;
+            *glyph_out = glyph;
+            return GB_ERROR_NONE;
+        } else {
+            return GB_ERROR_NOMEM;
+        }
+    } else {
+        return GB_ERROR_INVAL;
+    }
+}
+
+static GB_ERROR _GB_GlyphReference(GB_CONTEXT* gb, GB_GLYPH* glyph)
+{
+    if (gb && glyph) {
+        assert(glyph->rc > 0);
+        glyph->rc++;
+        return GB_ERROR_NONE;
+    } else {
+        return GB_ERROR_INVAL;
+    }
+}
+
+static void _GB_GlyphDestroy(GB_CONTEXT* gb, GB_GLYPH* glyph)
+{
+    assert(gb && glyph);
+    if (glyph->image)
+        free(glyph->image);
+    free(glyph);
+}
+
+static GB_ERROR _GB_GlyphRelease(GB_CONTEXT* gb, GB_GLYPH* glyph)
+{
+    if (gb && glyph) {
+        glyph->rc--;
+        assert(glyph->rc >= 0);
+        if (glyph->rc == 0) {
+            _GB_GlyphDestroy(gb, glyph);
+        }
+        return GB_ERROR_NONE;
     } else {
         return GB_ERROR_INVAL;
     }

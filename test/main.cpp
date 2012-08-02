@@ -328,8 +328,6 @@ int main(int argc, char* argv[])
         exit(1);
     }
 
-    // verify that glyphs have been inserted into text mask.
-
     int done = 0;
     while (!done)
     {
