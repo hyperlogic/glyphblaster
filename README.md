@@ -15,3 +15,15 @@ Dependencies
 -----------------
   * FreeType2
   * HarfBuzz-0.9.0
+
+TODO:
+-----------------
+* rasterize glyphs into bitmaps
+* In GB_FontDestroy() we should unref all glyphs in the glyphhash
+* glyph packing
+* Finish SDL test prog.
+* Alignment
+* Word Wrapping
+* currently two fonts with different pt sizes will have two copies of the same FreeType font.
+  resources should be shared.
+* Do i need to store post hinted-advances?
