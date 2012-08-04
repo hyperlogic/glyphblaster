@@ -24,7 +24,7 @@
 
 #endif
 
-#include "../include/glyphblaster.h"
+#include "../src/glyphblaster.h"
 
 #include <ft2build.h>
 #include FT_FREETYPE_H

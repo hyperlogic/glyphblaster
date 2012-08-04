@@ -2,7 +2,7 @@
 #include "glyphcache.h"
 #include <stdlib.h>
 #include <assert.h>
-#include "uthash/src/utlist.h"
+#include "utlist.h"
 
 static GB_ERROR _GB_GlyphMake(GB_CONTEXT* gb, uint32_t index, uint32_t sheet_index, uint32_t origin[2], uint32_t size[2], uint8_t* image, GB_GLYPH** glyph_out);
 static GB_ERROR _GB_GlyphReference(GB_CONTEXT* gb, GB_GLYPH* glyph);

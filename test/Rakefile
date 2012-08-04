@@ -4,7 +4,6 @@ require 'rake/clean'
 
 $C_FLAGS = ['-Wall',
             `sdl-config --cflags`.chomp,
-            '-I../include',
             `freetype-config --cflags`.chomp,
             '-DDARWIN'];
 

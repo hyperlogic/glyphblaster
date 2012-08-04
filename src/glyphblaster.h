@@ -10,7 +10,7 @@ extern "C" {
 #include FT_FREETYPE_H
 #include <harfbuzz/hb.h>
 #include <harfbuzz/hb-ft.h>
-#include "../src/uthash/src/uthash.h"
+#include "uthash.h"
 
 typedef enum GB_Horizontal_Align {
     GB_HORIZONTAL_ALIGN_LEFT = 0,

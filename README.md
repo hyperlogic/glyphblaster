@@ -18,9 +18,8 @@ Dependencies
 
 TODO:
 -----------------
-* rasterize glyphs into bitmaps
-* In GB_FontDestroy() we should unref all glyphs in the glyphhash
-* glyph packing
+* glyphcache & glyph packing
+* quad rendering with post hinted-advances.
 * Finish SDL test prog.
 * Alignment
 * Word Wrapping

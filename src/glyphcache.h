@@ -1,7 +1,7 @@
 #ifndef GLYPH_CACHE_H
 #define GLYPH_CACHE_H
 
-#include "../include/glyphblaster.h"
+#include "glyphblaster.h"
 #include <stdint.h>
 
 // all openGL textures in the cache have this size.
