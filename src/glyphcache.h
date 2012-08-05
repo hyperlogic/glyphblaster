@@ -1,11 +1,15 @@
 #ifndef GLYPH_CACHE_H
 #define GLYPH_CACHE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "glyphblaster.h"
 #include <stdint.h>
 
 // all openGL textures in the cache have this size.
-#define GB_TEXTURE_SIZE 1024
+#define GB_TEXTURE_SIZE 256
 
 #define GB_MAX_GLYPHS_PER_LEVEL 128
 typedef struct GB_GlyphSheetLevel {
@@ -28,14 +32,14 @@ typedef struct GB_GlyphCache {
     uint32_t num_sheets;
 } GB_GLYPH_CACHE;
 
-GB_ERROR GB_GlyphCache_Make(GB_GLYPH_CACHE** cache_out);
-GB_ERROR GB_GlyphCache_Free(GB_GLYPH_CACHE* cache);
-
-// uses index & font_index as keys to look up into the glyph cache
-// returns ptr if present in cache, NULL otherwise
-GB_GLYPH* GB_GlyphCache_Find(GB_GLYPH_CACHE* glyph, uint32_t index, uint32_t font_index);
+GB_ERROR GB_GlyphCacheMake(GB_GLYPH_CACHE** cache_out);
+GB_ERROR GB_GlyphCacheFree(GB_GLYPH_CACHE* cache);
 
 // will add the given glyphs to the glyph_cache.
-GB_ERROR GB_GlyphCache_Insert(GB_GLYPH_CACHE* glyph, GB_GLYPH** glyph_ptrs, int num_glyph_ptrs);
+GB_ERROR GB_GlyphCacheInsert(GB_GLYPH_CACHE* glyph, GB_GLYPH** glyph_ptrs, int num_glyph_ptrs);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

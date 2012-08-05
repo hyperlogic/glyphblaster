@@ -1,9 +1,9 @@
+#ifndef GLYPH_BLASTER_H
+#define GLYPH_BLASTER_H
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#ifndef GLYPH_BLASTER_H
-#define GLYPH_BLASTER_H
 
 #include <stdint.h>
 #include <ft2build.h>
@@ -116,6 +116,12 @@ const char* GB_ErrorToString(GB_ERROR err);
 
 // Renderer interface
 //void RenderGlyphs(uint32_t texture, GB_GLYPH_QUAD* glyphs, uint32_t numGlyphs);
+
+// private functions
+GB_ERROR GB_GlyphMake(uint32_t index, uint32_t sheet_index, uint32_t origin[2],
+                      uint32_t size[2], uint8_t* image, GB_GLYPH** glyph_out);
+GB_ERROR GB_GlyphReference(GB_GLYPH* glyph);
+GB_ERROR GB_GlyphRelease(GB_GLYPH* glyph);
 
 #ifdef __cplusplus
 }

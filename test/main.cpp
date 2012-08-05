@@ -26,219 +26,7 @@
 
 #include "../src/glyphblaster.h"
 
-#include <ft2build.h>
-#include FT_FREETYPE_H
-
-#include <harfbuzz/hb.h>
-#include <harfbuzz/hb-ft.h>
-
-enum LoadFileToMemoryResult { CouldNotOpenFile = -1, CouldNotReadFile = -2 };
-int LoadFileToMemory(const std::string& filename, unsigned char **result)
-{
-	int size = 0;
-	FILE *f = fopen(filename.c_str(), "rb");
-	if (f == NULL)
-	{
-		*result = NULL;
-		return CouldNotOpenFile;
-	}
-	fseek(f, 0, SEEK_END);
-	size = ftell(f);
-	fseek(f, 0, SEEK_SET);
-	*result = new unsigned char[(size + 1)];
-
-	int newSize = (int)fread(*result, sizeof(char), size, f);
-	if (size != newSize)
-	{
-		printf("size = %d, newSize = %d\n", size, newSize);
-		delete [] (*result);
-		return CouldNotReadFile;
-	}
-	fclose(f);
-	(*result)[size] = 0;  // make sure it's null terminated.
-	return size;
-}
-
-void delete_ttf_memory(void* ptr)
-{
-    delete [] (uint8_t*)ptr;
-}
-
-void harfbuzz_test()
-{
-    //const char* text = "Hello World";
-
-    // Hêllð WðrlÐ utf8
-    // const char text[] = {0x48, 0xc3, 0xaa, 0x6c, 0x6c, 0xc3, 0xb0, 0x20, 0x57, 0xc3, 0xb0, 0x72, 0x6c, 0xc3, 0x90, 0x00};
-
-    const char text[] = "fl";
-
-    // e with accent and macron: U+0065 U+0301 U+0304
-    // const char text[] = {0x65, 0xcc, 0x81, 0xcc, 0x84, 0x00};
-
-    int text_len = strlen(text);
-
-    uint8_t* ttf_memory;
-    //int size = LoadFileToMemory("Droid-Sans/DroidSans.ttf", &ttf_memory);
-    int size = LoadFileToMemory("dejavu-fonts-ttf-2.33/ttf/DejaVuSans.ttf", &ttf_memory);
-    //int size = LoadFileToMemory("Zar/XB Zar.ttf", &ttf_memory);
-    if (size <= 0) {
-        fprintf(stderr, "Error reading font");
-        exit(1);
-    }
-
-    // referece-chain font -> face -> blob
-    hb_blob_t* blob = hb_blob_create((char*)ttf_memory, size, HB_MEMORY_MODE_WRITABLE,
-                                     ttf_memory, delete_ttf_memory);
-    hb_face_t* face = hb_face_create(blob, 0);
-    hb_blob_destroy(blob);
-    hb_font_t* font = hb_font_create(face);
-    unsigned int upem = hb_face_get_upem(face);
-    hb_font_set_scale(font, upem, upem);
-    hb_face_destroy(face);
-    hb_ft_font_set_funcs(font);
-
-    const int pt_size = 24;
-
-    double scale = double (pt_size) / hb_face_get_upem(hb_font_get_face(font));
-    printf("scale = %.5f\n", scale);
-
-    // create a buffer to hold glyph_info's
-    hb_buffer_t* buffer = hb_buffer_create();
-    hb_buffer_reset(buffer);
-    hb_buffer_add_utf8(buffer, text, text_len, 0, text_len);
-
-    // set direct, language and script.
-    const char* direction = 0;
-    const char* language = 0;
-    const char* script = 0;
-    hb_buffer_set_direction(buffer, hb_direction_from_string(direction, -1));
-    hb_buffer_set_script(buffer, hb_script_from_string (script, -1));
-    hb_buffer_set_language(buffer, hb_language_from_string (language, -1));
-
-    // shape
-    char **shapers = NULL;
-    hb_bool_t shape_success = hb_shape_full(font, buffer, NULL, 0, shapers);
-
-    if (shape_success) {
-        fprintf(stderr, "it worked!?\n");
-    }
-
-    int num_glyphs = hb_buffer_get_length(buffer);
-    hb_glyph_info_t* hb_glyph = hb_buffer_get_glyph_infos(buffer, NULL);
-    hb_glyph_position_t* hb_position = hb_buffer_get_glyph_positions(buffer, NULL);
-
-    int num_clusters = num_glyphs ? 1 : 0;
-    for (int i = 1; i < num_glyphs; i++) {
-        if (hb_glyph[i].cluster != hb_glyph[i-1].cluster)
-            num_clusters++;
-    }
-
-    printf("num_glyphs = %d\n", num_glyphs);
-    printf("num_clusters = %d\n", num_clusters);
-
-    hb_position_t x = 0;
-    hb_position_t y = 0;
-    int i;
-    for (i = 0; i < num_glyphs; i++)
-    {
-        /*
-        l->glyphs[i].index = hb_glyph[i].codepoint;
-        l->glyphs[i].x = ( hb_position->x_offset + x) * scale;
-        l->glyphs[i].y = (-hb_position->y_offset + y) * scale;
-        x +=  hb_position->x_advance;
-        y += -hb_position->y_advance;
-        */
-        char glyph_name[32];
-        hb_font_get_glyph_name(font, hb_glyph[i].codepoint, glyph_name, sizeof(glyph_name));
-        printf("glyph[%d].glyph_name = %s\n", i, glyph_name);
-        printf("glyph[%d].index = 0x%x\n", i, hb_glyph[i].codepoint);
-        printf("glyph[%d].x = %.3f\n", i, (hb_position->x_offset + x) * scale);
-        printf("glyph[%d].y = %.3f\n", i, (hb_position->y_offset + y) * scale);
-        printf("glyph[%d].cluster = %d\n", i, hb_glyph[i].cluster);
-
-        x +=  hb_position->x_advance;
-        y += -hb_position->y_advance;
-
-        hb_position++;
-    }
-
-    hb_buffer_destroy(buffer);
-
-    hb_font_destroy(font);
-}
-
-// TODO: use this one!
-void harfbuzz_test2()
-{
-    //const char* text = "Hello World";
-
-    // Hêllð WðrlÐ utf8
-    // const char text[] = {0x48, 0xc3, 0xaa, 0x6c, 0x6c, 0xc3, 0xb0, 0x20, 0x57, 0xc3, 0xb0, 0x72, 0x6c, 0xc3, 0x90, 0x00};
-
-    // const char text[] = "florida";
-
-    // e with accent and macron: U+0065 U+0301 U+0304
-    const char text[] = {0x65, 0xcc, 0x81, 0xcc, 0x84, 0x00};
-
-    //const char* text = "finalae";
-    char glyph_name[30];
-    size_t i;
-
-    FT_Library library;
-    FT_Init_FreeType(&library);
-    FT_Face face;
-    FT_New_Face(library, "dejavu-fonts-ttf-2.33/ttf/DejaVuSans.ttf", 0, &face);
-    FT_Set_Char_Size(face, (int)(32*64), 0, 72, 72);
-
-    hb_font_t * font = hb_ft_font_create(face, 0);
-    hb_ft_font_set_funcs(font);
-
-    hb_buffer_t* buffer = hb_buffer_create();
-    hb_buffer_set_direction(buffer, HB_DIRECTION_LTR);
-    hb_buffer_add_utf8(buffer, text, strlen(text), 0, strlen(text));
-    hb_shape(font, buffer, NULL, 0);
-    unsigned int num_glyphs = hb_buffer_get_length(buffer);
-    hb_glyph_info_t* glyphs = hb_buffer_get_glyph_infos(buffer, 0);
-    hb_glyph_position_t* pos = hb_buffer_get_glyph_positions(buffer, 0);
-    hb_glyph_info_t* info = hb_buffer_get_glyph_infos(buffer, NULL);
-
-    for (i = 0; i < num_glyphs; ++i)
-    {
-        if (i)
-            printf( "|" );
-        else
-            printf( "<" );
-
-        if (!FT_Get_Glyph_Name(face, glyphs[i].codepoint, glyph_name, sizeof(glyph_name)))
-            printf("%s", glyph_name);
-        else
-            printf("%u", info->codepoint);
-
-        printf("=%u", info->cluster);
-        if (pos->x_offset || pos->y_offset) {
-            printf("@");
-            if (pos->x_offset)
-                printf("%d", pos->x_offset);
-            if (pos->y_offset)
-                printf(",%d", pos->y_offset);
-        }
-        if (pos->x_advance || pos->y_advance) {
-            printf("+");
-            if (pos->x_advance)
-                printf ("%d", pos->x_advance);
-            if (pos->y_advance)
-                printf (",%d", pos->y_advance);
-        }
-        ++pos;
-        ++info;
-    }
-    printf( ">\n" );
-
-    hb_font_destroy(font);
-    FT_Done_Face( face );
-    FT_Done_FreeType( library );
-}
+#include "abaci.h"
 
 struct Config
 {
@@ -252,6 +40,65 @@ struct Config
     int height;
     std::string title;
 };
+
+void DrawTexturedQuad(uint32_t gl_tex, Vector2f const& origin, Vector2f const& size,
+                      Vector4f const& color)
+{
+    // assume texture is enabled.
+    glBindTexture(GL_TEXTURE_2D, gl_tex);
+    glColor4f(color.x, color.y, color.z, color.w);
+
+    float verts[8];
+    verts[0] = origin.x;
+    verts[1] = origin.y;
+    verts[2] = origin.x + size.x;
+    verts[3] = origin.y;
+    verts[4] = origin.x;
+    verts[5] = origin.y + size.y;
+    verts[6] = origin.x + size.x;
+    verts[7] = origin.y + size.y;
+
+    glVertexPointer(2, GL_FLOAT, 0, verts);
+    glEnableClientState(GL_VERTEX_ARRAY);
+
+    static float uvs[] = {0, 0, 1, 0, 0, 1, 1, 1};
+    glClientActiveTexture(GL_TEXTURE0);
+    glTexCoordPointer(2, GL_FLOAT, 0, uvs);
+
+    glActiveTexture(GL_TEXTURE0);
+    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+    static uint16_t indices[] = {0, 2, 1, 2, 3, 1};
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, indices);
+}
+
+// for debug draw only
+#include "../src/glyphcache.h"
+
+void DebugDrawGlyphCache(GB_CONTEXT* gb, const Config& config)
+{
+    glClearColor(1, 1, 1, 1);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    /// note this flips y-axis so y is down.
+    Matrixf proj = Matrixf::Ortho(0, config.width, config.height, 0, -10, 10);
+    glMatrixMode(GL_PROJECTION);
+    glLoadMatrixf(reinterpret_cast<float*>(&proj));
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_TEXTURE_2D);
+
+    GB_GLYPH_CACHE* cache = (GB_GLYPH_CACHE*)gb->glyph_cache;
+    int y = 0;
+    for (uint32_t i = 0; i < cache->num_sheets; i++) {
+        DrawTexturedQuad(cache->sheet[i].gl_tex, Vector2f(0, y),
+                         Vector2f(GB_TEXTURE_SIZE, GB_TEXTURE_SIZE + y),
+                         Vector4f(0, 0, 0, 1));
+        y += GB_TEXTURE_SIZE;
+    }
+}
 
 int main(int argc, char* argv[])
 {
@@ -298,8 +145,6 @@ int main(int argc, char* argv[])
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     SDL_GL_SwapBuffers();
 
-    harfbuzz_test2();
-
     // create the context
     GB_ERROR err;
     GB_CONTEXT* gb;
@@ -321,8 +166,8 @@ int main(int argc, char* argv[])
     uint32_t origin[2] = {0, 0};
     uint32_t size[2] = {videoInfo->current_w, videoInfo->current_h};
     GB_Text* helloText = NULL;
-    err = GB_TextMake(gb, "Hello World", droidFont, 0xffffffff, origin, size, GB_HORIZONTAL_ALIGN_CENTER,
-                      GB_VERTICAL_ALIGN_CENTER, &helloText);
+    err = GB_TextMake(gb, "Hello World", droidFont, 0xffffffff, origin, size,
+                      GB_HORIZONTAL_ALIGN_CENTER, GB_VERTICAL_ALIGN_CENTER, &helloText);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_MakeText Error %s\n", GB_ErrorToString(err));
         exit(1);
@@ -378,6 +223,7 @@ int main(int argc, char* argv[])
                 exit(1);
             }
             */
+            DebugDrawGlyphCache(gb, config);
             SDL_GL_SwapBuffers();
         }
     }
