@@ -93,7 +93,7 @@ void DebugDrawGlyphCache(GB_CONTEXT* gb, const Config& config)
     GB_GLYPH_CACHE* cache = (GB_GLYPH_CACHE*)gb->glyph_cache;
     int y = 0;
     for (uint32_t i = 0; i < cache->num_sheets; i++) {
-        DrawTexturedQuad(cache->sheet[i].gl_tex, Vector2f(0, y),
+        DrawTexturedQuad(cache->sheet[i].gl_tex_obj, Vector2f(0, y),
                          Vector2f(GB_TEXTURE_SIZE, GB_TEXTURE_SIZE + y),
                          Vector4f(0, 0, 0, 1));
         y += GB_TEXTURE_SIZE;
@@ -166,12 +166,16 @@ int main(int argc, char* argv[])
     uint32_t origin[2] = {0, 0};
     uint32_t size[2] = {videoInfo->current_w, videoInfo->current_h};
     GB_Text* helloText = NULL;
-    err = GB_TextMake(gb, "Hello World", droidFont, 0xffffffff, origin, size,
+    err = GB_TextMake(gb, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", droidFont, 0xffffffff, origin, size,
                       GB_HORIZONTAL_ALIGN_CENTER, GB_VERTICAL_ALIGN_CENTER, &helloText);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_MakeText Error %s\n", GB_ErrorToString(err));
         exit(1);
     }
+    GB_TextRelease(gb, helloText);
+
+    err = GB_TextMake(gb, "abcdefghijklmnopqrstuvwxyz", droidFont, 0xffffffff, origin, size,
+                      GB_HORIZONTAL_ALIGN_CENTER, GB_VERTICAL_ALIGN_CENTER, &helloText);
 
     int done = 0;
     while (!done)

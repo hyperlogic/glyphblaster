@@ -31,7 +31,8 @@ typedef struct GB_Glyph {
     uint32_t origin[2];
     uint32_t size[2];
     uint8_t* image;
-    UT_hash_handle hh;
+    UT_hash_handle font_hh;
+    UT_hash_handle cache_hh;
 } GB_GLYPH;
 
 typedef struct GB_Font {

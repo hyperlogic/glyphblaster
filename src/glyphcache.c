@@ -19,6 +19,7 @@
 #endif
 
 #include "glyphcache.h"
+#include "utlist.h"
 #include <assert.h>
 
 #ifndef NDEBUG
@@ -73,7 +74,8 @@ static GB_ERROR _GB_InitOpenGLTexture(uint32_t* gl_tex_out)
     memset(image, 255, GB_TEXTURE_SIZE * GB_TEXTURE_SIZE * sizeof(uint8_t));
 #endif
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, GB_TEXTURE_SIZE, GB_TEXTURE_SIZE, 0, GL_ALPHA, GL_UNSIGNED_BYTE, image);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, GB_TEXTURE_SIZE, GB_TEXTURE_SIZE, 0,
+                 GL_ALPHA, GL_UNSIGNED_BYTE, image);
 
 #ifndef NDEBUG
     GLErrorCheck("_GB_InitOpenGLTexture");
@@ -84,7 +86,7 @@ static GB_ERROR _GB_InitOpenGLTexture(uint32_t* gl_tex_out)
 
 static GB_ERROR _GB_GlyphSheetInit(GB_GLYPH_SHEET* sheet)
 {
-    _GB_InitOpenGLTexture(&sheet->gl_tex);
+    _GB_InitOpenGLTexture(&sheet->gl_tex_obj);
     sheet->num_levels = 0;
     return GB_ERROR_NONE;
 }
@@ -92,10 +94,11 @@ static GB_ERROR _GB_GlyphSheetInit(GB_GLYPH_SHEET* sheet)
 static int _GB_GlyphSheetAddNewLevel(GB_GLYPH_SHEET* sheet, uint32_t height)
 {
     GB_GLYPH_SHEET_LEVEL* prev_level = (sheet->num_levels == 0) ? NULL : &sheet->level[sheet->num_levels - 1];
-    if (sheet->num_levels < GB_MAX_LEVELS_PER_SHEET) {
+    uint32_t baseline = prev_level ? prev_level->baseline + prev_level->height : 0;
+    if (sheet->num_levels < GB_MAX_LEVELS_PER_SHEET && (baseline + height) <= GB_TEXTURE_SIZE) {
         GB_GLYPH_SHEET_LEVEL* level = &sheet->level[sheet->num_levels++];
         memset(level, 0, sizeof(GB_GLYPH_SHEET_LEVEL));
-        level->baseline = prev_level ? prev_level->baseline + prev_level->height : 0;
+        level->baseline = baseline;
         level->height = height;
         level->num_glyphs = 0;
         return 1;
@@ -107,7 +110,7 @@ static int _GB_GlyphSheetAddNewLevel(GB_GLYPH_SHEET* sheet, uint32_t height)
 static void _GB_GlyphSheetSubloadGlyph(GB_GLYPH_SHEET* sheet, GB_GLYPH* glyph)
 {
     assert(sheet);
-    glBindTexture(GL_TEXTURE_2D, sheet->gl_tex);
+    glBindTexture(GL_TEXTURE_2D, sheet->gl_tex_obj);
     glTexSubImage2D(GL_TEXTURE_2D, 0, glyph->origin[0], glyph->origin[1],
                     glyph->size[0], glyph->size[1], GL_ALPHA, GL_UNSIGNED_BYTE, glyph->image);
 #ifndef NDEBUG
@@ -129,8 +132,6 @@ static int _GB_GlyphSheetLevelInsertGlyph(GB_GLYPH_SHEET_LEVEL* level, GB_GLYPH*
 
                 // add glyph to sheet
                 level->glyph[level->num_glyphs++] = glyph;
-
-                GB_GlyphReference(glyph);
                 return 1;
             }
         } else {
@@ -149,7 +150,7 @@ static int _GB_GlyphSheetLevelInsertGlyph(GB_GLYPH_SHEET_LEVEL* level, GB_GLYPH*
     return 0;
 }
 
-static int _GB_GlyphSheetInsertGlyph(GB_GLYPH_CACHE* cache, GB_GLYPH_SHEET* sheet, GB_GLYPH* glyph)
+static int _GB_GlyphSheetInsertGlyph( GB_GLYPH_CACHE* cache, GB_GLYPH_SHEET* sheet, GB_GLYPH* glyph)
 {
     int i = 0;
     for (i = 0; i < sheet->num_levels; i++) {
@@ -182,20 +183,30 @@ static int _GB_GlyphSheetInsertGlyph(GB_GLYPH_CACHE* cache, GB_GLYPH_SHEET* shee
 
 GB_ERROR GB_GlyphCacheMake(GB_GLYPH_CACHE** cache_out)
 {
-    *cache_out = (GB_GLYPH_CACHE*)malloc(sizeof(GB_GLYPH_CACHE));
-    memset(*cache_out, 0, sizeof(GB_GLYPH_CACHE));
+    GB_GLYPH_CACHE* cache = (GB_GLYPH_CACHE*)malloc(sizeof(GB_GLYPH_CACHE));
+    memset(cache, 0, sizeof(GB_GLYPH_CACHE));
 
-    _GB_GlyphSheetInit(&(*cache_out)->sheet[0]);
-    (*cache_out)->num_sheets = 1;
+    _GB_GlyphSheetInit(&cache->sheet[0]);
+    cache->num_sheets = 1;
 
+    cache->glyph_hash = NULL;
+
+    *cache_out = cache;
     return GB_ERROR_NONE;
 }
 
-GB_ERROR GB_GlyphCacheFree(GB_GLYPH_CACHE* glyph_cache)
+GB_ERROR GB_GlyphCacheFree(GB_GLYPH_CACHE* cache)
 {
-    if (glyph_cache) {
-        // TODO:
-        free(glyph_cache);
+    if (cache) {
+
+        // release all glyphs in all sheets
+        GB_GLYPH *glyph, *tmp;
+        HASH_ITER(cache_hh, cache->glyph_hash, glyph, tmp) {
+            HASH_DELETE(cache_hh, cache->glyph_hash, glyph);
+            GB_GlyphRelease(glyph);
+        }
+
+        free(cache);
     }
     return GB_ERROR_NONE;
 }
@@ -214,18 +225,8 @@ static int _GB_GlyphCacheInsertGlyph(GB_GLYPH_CACHE* cache, GB_GLYPH* glyph)
 
 static int _GB_GlyphCacheAddSheet(GB_GLYPH_CACHE* cache)
 {
+    // TODO:
     return 0;
-}
-
-static void _GB_GlyphCacheCompact(GB_GLYPH_CACHE* cache)
-{
-    // build array of all glyphs
-    // sort them in decreasing height
-    // rebuild!
-
-    // make sure to clear out all glyphs that are no longer used by any text nodes.
-    // using ref count or some such.
-    return;
 }
 
 // sort glyph ptrs in decreasing height
@@ -234,7 +235,65 @@ static int glyph_cmp(const void* a, const void* b)
     return (*(GB_GLYPH**)b)->size[1] - (*(GB_GLYPH**)a)->size[1];
 }
 
-GB_ERROR GB_GlyphCacheInsert(GB_GLYPH_CACHE* cache, GB_GLYPH** glyph_ptrs, int num_glyph_ptrs)
+static GB_ERROR _GB_GlyphCacheCompact(GB_CONTEXT* gb, GB_GLYPH_CACHE* cache)
+{
+    printf("AJT: COMPACT!!!!!\n");
+
+    // build glyph_ptrs to all glyphs in use by GB_TEXT objects.
+    int num_glyph_ptrs = 0;
+    GB_FONT* font;
+    DL_FOREACH(gb->font_list, font) {
+        GB_GLYPH* glyph;
+        for (glyph = font->glyph_hash; glyph != NULL; glyph = glyph->font_hh.next) {
+            num_glyph_ptrs++;
+        }
+    }
+    GB_GLYPH** glyph_ptrs = (GB_GLYPH**)malloc(sizeof(GB_GLYPH*) * num_glyph_ptrs);
+    uint32_t i = 0;
+    DL_FOREACH(gb->font_list, font) {
+        GB_GLYPH* glyph;
+        for (glyph = font->glyph_hash; glyph != NULL; glyph = glyph->font_hh.next) {
+            GB_GlyphReference(glyph);
+            glyph_ptrs[i++] = glyph;
+        }
+    }
+
+    // release all glyphs in all sheets
+    GB_GLYPH* glyph;
+    for (glyph = cache->glyph_hash; glyph != NULL; glyph = glyph->cache_hh.next) {
+        GB_GlyphRelease(glyph);
+    }
+    HASH_CLEAR(cache_hh, cache->glyph_hash);
+
+    // Clear all sheets
+    for (i = 0; i < cache->num_sheets; i++) {
+        GB_GLYPH_SHEET* sheet = &cache->sheet[i];
+        sheet->num_levels = 0;
+    }
+
+    // sort glyphs in decreasing height
+    qsort(glyph_ptrs, num_glyph_ptrs, sizeof(GB_GLYPH*), glyph_cmp);
+
+    // decreasing height find-first heuristic.
+    for (i = 0; i < num_glyph_ptrs; i++) {
+        GB_GLYPH* glyph = glyph_ptrs[i];
+        if (!_GB_GlyphCacheInsertGlyph(cache, glyph)) {
+            return GB_ERROR_NOMEM;
+        }
+        HASH_ADD(cache_hh, cache->glyph_hash, index, sizeof(uint32_t), glyph);
+        GB_GlyphReference(glyph);
+    }
+
+    // Release all glyph_ptrs
+    for (i = 0; i < num_glyph_ptrs; i++) {
+        GB_GlyphRelease(glyph_ptrs[i]);
+    }
+
+    return GB_ERROR_NONE;
+}
+
+GB_ERROR GB_GlyphCacheInsert(GB_CONTEXT* gb, GB_GLYPH_CACHE* cache, GB_GLYPH** glyph_ptrs,
+                             int num_glyph_ptrs)
 {
     int i;
 
@@ -243,11 +302,10 @@ GB_ERROR GB_GlyphCacheInsert(GB_GLYPH_CACHE* cache, GB_GLYPH** glyph_ptrs, int n
 
     // decreasing height find-first heuristic.
     for (i = 0; i < num_glyph_ptrs; i++) {
-        printf("AJT: i = %d\n", i);
         GB_GLYPH* glyph = glyph_ptrs[i];
         if (!_GB_GlyphCacheInsertGlyph(cache, glyph)) {
             // compact and try again.
-            _GB_GlyphCacheCompact(cache);
+            _GB_GlyphCacheCompact(gb, cache);
             if (!_GB_GlyphCacheInsertGlyph(cache, glyph)) {
                 // Add another sheet and try again.
                 if (_GB_GlyphCacheAddSheet(cache)) {
@@ -262,6 +320,13 @@ GB_ERROR GB_GlyphCacheInsert(GB_GLYPH_CACHE* cache, GB_GLYPH** glyph_ptrs, int n
                 }
             }
         }
+        GB_GlyphReference(glyph);
+        HASH_ADD(cache_hh, cache->glyph_hash, index, sizeof(uint32_t), glyph);
     }
+
+
+    // HACK: REMOVE
+    //_GB_GlyphCacheCompact(gb, cache);
+
     return GB_ERROR_NONE;
 }
