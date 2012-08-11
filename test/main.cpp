@@ -24,7 +24,9 @@
 
 #endif
 
-#include "../src/glyphblaster.h"
+#include "../src/gb_context.h"
+#include "../src/gb_font.h"
+#include "../src/gb_text.h"
 
 #include "abaci.h"
 
@@ -73,9 +75,9 @@ void DrawTexturedQuad(uint32_t gl_tex, Vector2f const& origin, Vector2f const& s
 }
 
 // for debug draw only
-#include "../src/glyphcache.h"
+#include "../src/gb_cache.h"
 
-void DebugDrawGlyphCache(GB_CONTEXT* gb, const Config& config)
+void DebugDrawGlyphCache(GB_Context* gb, const Config& config)
 {
     glClearColor(1, 1, 1, 1);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -90,7 +92,7 @@ void DebugDrawGlyphCache(GB_CONTEXT* gb, const Config& config)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_TEXTURE_2D);
 
-    GB_GLYPH_CACHE* cache = (GB_GLYPH_CACHE*)gb->glyph_cache;
+    GB_GlyphCache* cache = gb->glyph_cache;
     int y = 0;
     for (uint32_t i = 0; i < cache->num_sheets; i++) {
         DrawTexturedQuad(cache->sheet[i].gl_tex_obj, Vector2f(0, y),
@@ -147,7 +149,7 @@ int main(int argc, char* argv[])
 
     // create the context
     GB_ERROR err;
-    GB_CONTEXT* gb;
+    GB_Context* gb;
     err = GB_ContextMake(&gb);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_Init Error %d\n", err);

@@ -1,153 +1,12 @@
-#include "glyphblaster.h"
-#include "glyphcache.h"
-#include <stdlib.h>
 #include <assert.h>
-#include "utlist.h"
+#include "uthash.h"
+#include "gb_context.h"
+#include "gb_font.h"
+#include "gb_glyph.h"
+#include "gb_cache.h"
+#include "gb_text.h"
 
-GB_ERROR GB_ContextMake(GB_CONTEXT** gb_out)
-{
-    GB_CONTEXT* gb = (GB_CONTEXT*)malloc(sizeof(GB_CONTEXT));
-    if (gb) {
-        memset(gb, 0, sizeof(GB_CONTEXT));
-        gb->rc = 1;
-        if (FT_Init_FreeType(&gb->ft_library)) {
-            return GB_ERROR_FTERR;
-        }
-        GB_GLYPH_CACHE* glyph_cache = NULL;
-        GB_ERROR err = GB_GlyphCacheMake(&glyph_cache);
-        if (err == GB_ERROR_NONE) {
-            gb->glyph_cache = glyph_cache;
-        }
-        gb->font_list = NULL;
-        *gb_out = gb;
-        return err;
-    } else {
-        return GB_ERROR_NOMEM;
-    }
-}
-
-GB_ERROR GB_ContextReference(GB_CONTEXT* gb)
-{
-    if (gb) {
-        assert(gb->rc > 0);
-        gb->rc++;
-        return GB_ERROR_NONE;
-    } else {
-        return GB_ERROR_INVAL;
-    }
-}
-
-static void _GB_ContextDestroy(GB_CONTEXT* gb)
-{
-    assert(gb);
-    if (gb->ft_library) {
-        FT_Done_FreeType(gb->ft_library);
-    }
-    GB_GlyphCacheFree((GB_GLYPH_CACHE*)gb->glyph_cache);
-    free(gb);
-}
-
-GB_ERROR GB_ContextRelease(GB_CONTEXT* gb)
-{
-    if (gb) {
-        gb->rc--;
-        assert(gb->rc >= 0);
-        if (gb->rc == 0) {
-            _GB_ContextDestroy(gb);
-        }
-        return GB_ERROR_NONE;
-    } else {
-        return GB_ERROR_INVAL;
-    }
-}
-
-GB_ERROR GB_FontMake(GB_CONTEXT* gb, const char* filename, uint32_t point_size,
-                     GB_FONT** font_out)
-{
-    if (gb && filename && font_out) {
-        GB_FONT* font = (GB_FONT*)malloc(sizeof(GB_FONT));
-        if (font) {
-            memset(font, 0, sizeof(GB_FONT));
-
-            font->rc = 1;
-
-            // create freetype face
-            FT_New_Face(gb->ft_library, "dejavu-fonts-ttf-2.33/ttf/DejaVuSans.ttf", 0, &font->ft_face);
-            FT_Set_Char_Size(font->ft_face, (int)(point_size * 64), 0, 72, 72);
-
-            // create harfbuzz font
-            font->hb_font = hb_ft_font_create(font->ft_face, 0);
-            hb_ft_font_set_funcs(font->hb_font);
-
-            font->glyph_hash = NULL;
-
-            // context holds a list of all fonts
-            DL_PREPEND(gb->font_list, font);
-
-            *font_out = font;
-            return GB_ERROR_NONE;
-        } else {
-            return GB_ERROR_NOMEM;
-        }
-    } else {
-        return GB_ERROR_INVAL;
-    }
-}
-
-GB_ERROR GB_FontReference(GB_CONTEXT* gb, GB_FONT* font)
-{
-    if (gb && font) {
-        assert(font->rc > 0);
-        font->rc++;
-        return GB_ERROR_NONE;
-    } else {
-        return GB_ERROR_INVAL;
-    }
-}
-
-static void _GB_FontDestroy(GB_CONTEXT* gb, GB_FONT* font)
-{
-    assert(font);
-    assert(font->rc == 0);
-
-    // destroy freetype face
-    if (font->ft_face) {
-        FT_Done_Face(font->ft_face);
-    }
-
-    // destroy harfbuzz font
-    if (font->hb_font) {
-        hb_font_destroy(font->hb_font);
-    }
-
-    // release all glyphs
-    GB_GLYPH *glyph, *tmp;
-    HASH_ITER(font_hh, font->glyph_hash, glyph, tmp) {
-        HASH_DELETE(font_hh, font->glyph_hash, glyph);
-        GB_GlyphRelease(glyph);
-    }
-
-    // context holds a list of all fonts
-    DL_DELETE(gb->font_list, font);
-
-    free(font);
-}
-
-GB_ERROR GB_FontRelease(GB_CONTEXT* gb, GB_FONT* font)
-{
-    if (gb && font) {
-        font->rc--;
-        assert(font->rc >= 0);
-        if (font->rc == 0) {
-            _GB_FontDestroy(gb, font);
-        }
-        return GB_ERROR_NONE;
-    } else {
-        return GB_ERROR_INVAL;
-    }
-}
-
-static GB_ERROR _GB_UpdateGlyphCacheFromBuffer(GB_CONTEXT* gb, GB_TEXT* text)
+static GB_ERROR _GB_UpdateGlyphCacheFromBuffer(struct GB_Context* gb, struct GB_Text* text)
 {
     // prepare to iterate over all the glyphs in the hb_buffer
     int num_glyphs = hb_buffer_get_length(text->hb_buffer);
@@ -155,9 +14,9 @@ static GB_ERROR _GB_UpdateGlyphCacheFromBuffer(GB_CONTEXT* gb, GB_TEXT* text)
 
     // hold a temp array of glyph ptrs, this is so we can sort glyphs by some heuristic before
     // adding them to the GlyphCache, to improve texture utilization for long strings of glyphs.
-    GB_GLYPH** glyph_ptrs = (GB_GLYPH**)malloc(sizeof(GB_GLYPH*) * num_glyphs);
+    struct GB_Glyph** glyph_ptrs = (struct GB_Glyph**)malloc(sizeof(struct GB_Glyph*) * num_glyphs);
 
-    GB_GLYPH_CACHE* cache = (GB_GLYPH_CACHE*)gb->glyph_cache;
+    struct GB_GlyphCache* cache = gb->glyph_cache;
 
     // iterate over each glyph
     int num_glyph_ptrs;
@@ -167,7 +26,7 @@ static GB_ERROR _GB_UpdateGlyphCacheFromBuffer(GB_CONTEXT* gb, GB_TEXT* text)
         int index = glyphs[i].codepoint;
 
         // check to see if this glyph already exists in the font glyph_hash
-        GB_GLYPH* glyph = NULL;
+        struct GB_Glyph* glyph = NULL;
         HASH_FIND(font_hh, text->font->glyph_hash, &index, sizeof(uint32_t), glyph);
         if (!glyph) {
             // check to see if this glyph already exists in the cache glyph_hash
@@ -235,16 +94,15 @@ static GB_ERROR _GB_UpdateGlyphCacheFromBuffer(GB_CONTEXT* gb, GB_TEXT* text)
     return GB_ERROR_NONE;
 }
 
-GB_ERROR GB_TextMake(GB_CONTEXT* gb, const char* utf8_string, GB_FONT* font,
-                     uint32_t color, uint32_t origin[2], uint32_t size[2],
-                     GB_HORIZONTAL_ALIGN horizontal_align,
-                     GB_VERTICAL_ALIGN vertical_align,
-                     GB_TEXT** text_out)
+GB_ERROR GB_TextMake(struct GB_Context* gb, const char* utf8_string,
+                     struct GB_Font* font, uint32_t color, uint32_t origin[2],
+                     uint32_t size[2], GB_HORIZONTAL_ALIGN horizontal_align,
+                     GB_VERTICAL_ALIGN vertical_align, struct GB_Text** text_out)
 {
     if (gb && utf8_string && font && font->hb_font && text_out) {
-        GB_TEXT* text = (GB_TEXT*)malloc(sizeof(GB_TEXT));
+        struct GB_Text* text = (struct GB_Text*)malloc(sizeof(struct GB_Text));
         if (text) {
-            memset(text, 0, sizeof(GB_TEXT));
+            memset(text, 0, sizeof(struct GB_Text));
             text->rc = 1;
 
             // reference font
@@ -285,7 +143,7 @@ GB_ERROR GB_TextMake(GB_CONTEXT* gb, const char* utf8_string, GB_FONT* font,
     }
 }
 
-GB_ERROR GB_TextReference(GB_CONTEXT* gb, GB_TEXT* text)
+GB_ERROR GB_TextReference(struct GB_Context* gb, struct GB_Text* text)
 {
     if (gb && text) {
         assert(text->rc > 0);
@@ -296,7 +154,7 @@ GB_ERROR GB_TextReference(GB_CONTEXT* gb, GB_TEXT* text)
     }
 }
 
-static void _GB_TextDestroy(GB_CONTEXT* gb, GB_TEXT* text)
+static void _GB_TextDestroy(struct GB_Context* gb, struct GB_Text* text)
 {
     assert(text);
     assert(text->rc == 0);
@@ -310,7 +168,7 @@ static void _GB_TextDestroy(GB_CONTEXT* gb, GB_TEXT* text)
     int i;
     for (i = 0; i < num_glyphs; i++) {
         int index = glyphs[i].codepoint;
-        GB_GLYPH* glyph = NULL;
+        struct GB_Glyph* glyph = NULL;
         HASH_FIND(font_hh, text->font->glyph_hash, &index, sizeof(uint32_t), glyph);
         if (glyph) {
             HASH_DELETE(font_hh, text->font->glyph_hash, glyph);
@@ -323,7 +181,7 @@ static void _GB_TextDestroy(GB_CONTEXT* gb, GB_TEXT* text)
     free(text);
 }
 
-GB_ERROR GB_TextRelease(GB_CONTEXT* gb, GB_TEXT* text)
+GB_ERROR GB_TextRelease(struct GB_Context* gb, struct GB_Text* text)
 {
     if (gb && text) {
         assert(text->rc > 0);
@@ -337,11 +195,11 @@ GB_ERROR GB_TextRelease(GB_CONTEXT* gb, GB_TEXT* text)
     }
 }
 
-GB_ERROR GB_GetTextMetrics(GB_CONTEXT* gb, const char* utf8_string,
-                           GB_FONT* font, uint32_t min[2], uint32_t max[2],
+GB_ERROR GB_GetTextMetrics(struct GB_Context* gb, const char* utf8_string,
+                           struct GB_Font* font, uint32_t min[2], uint32_t max[2],
                            GB_HORIZONTAL_ALIGN horizontal_align,
                            GB_VERTICAL_ALIGN vertical_align,
-                           GB_TEXT_METRICS* text_metrics_out)
+                           struct GB_TextMetrics* text_metrics_out)
 {
     if (gb && utf8_string && font && text_metrics_out) {
         return GB_ERROR_NOIMP;
@@ -350,69 +208,8 @@ GB_ERROR GB_GetTextMetrics(GB_CONTEXT* gb, const char* utf8_string,
     }
 }
 
-GB_ERROR GB_GlyphMake(uint32_t index, uint32_t sheet_index, uint32_t origin[2],
-                      uint32_t size[2], uint8_t* image, GB_GLYPH** glyph_out)
-{
-    if (glyph_out) {
-        // allocate and init a new glyph structure
-        GB_GLYPH* glyph = (GB_GLYPH*)malloc(sizeof(GB_GLYPH));
-        if (glyph) {
-            glyph->rc = 1;
-            glyph->index = index;
-            glyph->sheet_index = sheet_index;
-            glyph->origin[0] = origin[0];
-            glyph->origin[1] = origin[1];
-            glyph->size[0] = size[0];
-            glyph->size[1] = size[1];
-            glyph->image = image;
-            *glyph_out = glyph;
-            return GB_ERROR_NONE;
-        } else {
-            return GB_ERROR_NOMEM;
-        }
-    } else {
-        return GB_ERROR_INVAL;
-    }
-}
-
-GB_ERROR GB_GlyphReference(GB_GLYPH* glyph)
-{
-    if (glyph) {
-        printf("AJT: glyph->ref index = %d rc = %d\n", glyph->index, glyph->rc);
-        assert(glyph->rc > 0);
-        glyph->rc++;
-        return GB_ERROR_NONE;
-    } else {
-        return GB_ERROR_INVAL;
-    }
-}
-
-static void _GB_GlyphDestroy(GB_GLYPH* glyph)
-{
-    printf("AJT: deleting glyph %d\n", glyph->index);
-    assert(glyph);
-    if (glyph->image)
-        free(glyph->image);
-    free(glyph);
-}
-
-GB_ERROR GB_GlyphRelease(GB_GLYPH* glyph)
-{
-    if (glyph) {
-        printf("AJT: glyph->rel index = %d rc = %d\n", glyph->index, glyph->rc);
-        glyph->rc--;
-        assert(glyph->rc >= 0);
-        if (glyph->rc == 0) {
-            _GB_GlyphDestroy(glyph);
-        }
-        return GB_ERROR_NONE;
-    } else {
-        return GB_ERROR_INVAL;
-    }
-}
-
 // Renders given text using renderer func.
-GB_ERROR GB_TextDraw(GB_CONTEXT* gb, GB_TEXT* text)
+GB_ERROR GB_TextDraw(struct GB_Context* gb, struct GB_Text* text)
 {
     // text.glyphs.each do |glyph|
     //   build run of glyph_quads that share same opengl texture
@@ -422,23 +219,5 @@ GB_ERROR GB_TextDraw(GB_CONTEXT* gb, GB_TEXT* text)
         return GB_ERROR_NOIMP;
     } else {
         return GB_ERROR_INVAL;
-    }
-}
-
-const char* s_error_strings[GB_ERROR_NUM_ERRORS] = {
-    "GB_ERROR_NONE",
-    "GB_ERROR_NOENT",
-    "GB_ERROR_NOMEM",
-    "GB_ERROR_INVAL",
-    "GB_ERROR_NOIMP",
-    "GB_ERROR_FTERR"
-};
-
-const char* GB_ErrorToString(GB_ERROR err)
-{
-    if (err >= 0 && err < GB_ERROR_NUM_ERRORS) {
-        return s_error_strings[err];
-    } else {
-        return "???";
     }
 }

@@ -22,8 +22,12 @@ $L_FLAGS = [`sdl-config --libs`.chomp,
 
 $OBJECTS = ['SDLMain.o',
             'main.o',
-            '../src/glyphblaster.o',
-            '../src/glyphcache.o'];
+            '../src/gb_cache.o',
+            '../src/gb_context.o',
+            '../src/gb_error.o',
+            '../src/gb_font.o',
+            '../src/gb_glyph.o',
+            '../src/gb_text.o'];
 
 $DEPS = $OBJECTS.map {|f| f[0..-3] + '.d'}
 $EXE = 'gbtest'

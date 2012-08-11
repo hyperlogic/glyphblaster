@@ -18,12 +18,6 @@ Dependencies
 
 TODO:
 -----------------
-* move all structs into files:
-  * gb_context.h/c
-  * gb_cache.h/c
-  * gb_text.h/c
-  * gb_font.h/c
-  * gb_glyph.h/c
 * rename GB_GLYPH_CACHE to just cache:
 * rename GB_GLYPH_SHEET to just GB_CACHE_SHEET & GB_GLYPH_SHEET_LEVEL to GB_CACHE_SHEET_LEVEL.
 * consolidate all glyph refs into two hash tables:
