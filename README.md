@@ -18,11 +18,24 @@ Dependencies
 
 TODO:
 -----------------
-* glyphcache & glyph packing
+* move all structs into files:
+  * gb_context.h/c
+  * gb_cache.h/c
+  * gb_text.h/c
+  * gb_font.h/c
+  * gb_glyph.h/c
+* rename GB_GLYPH_CACHE to just cache:
+* rename GB_GLYPH_SHEET to just GB_CACHE_SHEET & GB_GLYPH_SHEET_LEVEL to GB_CACHE_SHEET_LEVEL.
+* consolidate all glyph refs into two hash tables:
+  * gb->text_hash - which contains all glyphs in use by GB_TEXT structs
+  * gb->cache->sheet_hash - contains all glyphs in use by texture sheets.
+  * the KEY should be font_index & glyph_index. instead of just glyph_index.
+* add glyph bitmap-padding option, necessary for scaled or non-screen aligned text.
 * quad rendering with post hinted-advances.
 * Finish SDL test prog.
-* Alignment
-* Word Wrapping
+* Text Alignment
+* Text Word Wrapping
 * currently two fonts with different pt sizes will have two copies of the same FreeType font.
   resources should be shared.
-* Do i need to store post hinted-advances?
+
+
