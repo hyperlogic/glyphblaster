@@ -39,7 +39,7 @@ GB_ERROR GB_FontMake(struct GB_Context* gb, const char* filename,
     }
 }
 
-GB_ERROR GB_FontReference(struct GB_Context* gb, struct GB_Font* font)
+GB_ERROR GB_FontRetain(struct GB_Context* gb, struct GB_Font* font)
 {
     if (gb && font) {
         assert(font->rc > 0);

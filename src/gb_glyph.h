@@ -23,7 +23,7 @@ struct GB_Glyph {
 GB_ERROR GB_GlyphMake(uint32_t index, uint32_t sheet_index, uint32_t origin[2],
                       uint32_t size[2], uint8_t* image,
                       struct GB_Glyph** glyph_out);
-GB_ERROR GB_GlyphReference(struct GB_Glyph* glyph);
+GB_ERROR GB_GlyphRetain(struct GB_Glyph* glyph);
 GB_ERROR GB_GlyphRelease(struct GB_Glyph* glyph);
 
 #ifdef __cplusplus

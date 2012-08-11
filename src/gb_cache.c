@@ -255,7 +255,7 @@ static GB_ERROR _GB_CacheCompact(struct GB_Context* gb, struct GB_Cache* cache)
     DL_FOREACH(gb->font_list, font) {
         struct GB_Glyph* glyph;
         for (glyph = font->glyph_hash; glyph != NULL; glyph = glyph->font_hh.next) {
-            GB_GlyphReference(glyph);
+            GB_GlyphRetain(glyph);
             glyph_ptrs[i++] = glyph;
         }
     }
@@ -283,7 +283,7 @@ static GB_ERROR _GB_CacheCompact(struct GB_Context* gb, struct GB_Cache* cache)
             return GB_ERROR_NOMEM;
         }
         HASH_ADD(cache_hh, cache->glyph_hash, index, sizeof(uint32_t), glyph);
-        GB_GlyphReference(glyph);
+        GB_GlyphRetain(glyph);
     }
 
     // Release all glyph_ptrs
@@ -322,7 +322,7 @@ GB_ERROR GB_CacheInsert(struct GB_Context* gb, struct GB_Cache* cache,
                 }
             }
         }
-        GB_GlyphReference(glyph);
+        GB_GlyphRetain(glyph);
         HASH_ADD(cache_hh, cache->glyph_hash, index, sizeof(uint32_t), glyph);
     }
 

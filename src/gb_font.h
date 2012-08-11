@@ -24,7 +24,7 @@ struct GB_Font {
 
 GB_ERROR GB_FontMake(struct GB_Context* gb, const char* filename, uint32_t point_size,
                      struct GB_Font** font_out);
-GB_ERROR GB_FontReference(struct GB_Context* gb, struct GB_Font* font);
+GB_ERROR GB_FontRetain(struct GB_Context* gb, struct GB_Font* font);
 GB_ERROR GB_FontRelease(struct GB_Context* gb, struct GB_Font* font);
 
 #ifdef __cplusplus

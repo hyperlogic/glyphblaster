@@ -28,7 +28,7 @@ GB_ERROR GB_GlyphMake(uint32_t index, uint32_t sheet_index, uint32_t origin[2],
     }
 }
 
-GB_ERROR GB_GlyphReference(struct GB_Glyph* glyph)
+GB_ERROR GB_GlyphRetain(struct GB_Glyph* glyph)
 {
     if (glyph) {
         printf("AJT: glyph->ref index = %d rc = %d\n", glyph->index, glyph->rc);

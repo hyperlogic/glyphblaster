@@ -79,7 +79,7 @@ static GB_ERROR _GB_UpdateGlyphCacheFromBuffer(struct GB_Context* gb, struct GB_
 
                 // add glyph to font glyph_hash
                 HASH_ADD(font_hh, text->font->glyph_hash, index, sizeof(uint32_t), glyph);
-                GB_GlyphReference(glyph);
+                GB_GlyphRetain(glyph);
             }
         } else {
             printf("AJT: index %u already in font glyph_hash\n", index);
@@ -107,7 +107,7 @@ GB_ERROR GB_TextMake(struct GB_Context* gb, const char* utf8_string,
 
             // reference font
             text->font = font;
-            GB_FontReference(gb, font);
+            GB_FontRetain(gb, font);
 
             // allocate and copy utf8 string
             size_t utf8_string_len = strlen(utf8_string);
@@ -143,7 +143,7 @@ GB_ERROR GB_TextMake(struct GB_Context* gb, const char* utf8_string,
     }
 }
 
-GB_ERROR GB_TextReference(struct GB_Context* gb, struct GB_Text* text)
+GB_ERROR GB_TextRetain(struct GB_Context* gb, struct GB_Text* text)
 {
     if (gb && text) {
         assert(text->rc > 0);

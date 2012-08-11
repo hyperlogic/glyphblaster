@@ -50,7 +50,7 @@ GB_ERROR GB_TextMake(struct GB_Context* gb, const char* utf8_string,
                      struct GB_Font* font, uint32_t color, uint32_t origin[2],
                      uint32_t size[2], GB_HORIZONTAL_ALIGN horizontal_align,
                      GB_VERTICAL_ALIGN vertical_align, struct GB_Text** text_out);
-GB_ERROR GB_TextReference(struct GB_Context* gb, struct GB_Text* text);
+GB_ERROR GB_TextRetain(struct GB_Context* gb, struct GB_Text* text);
 GB_ERROR GB_TextRelease(struct GB_Context* gb, struct GB_Text* text);
 
 // not implmented

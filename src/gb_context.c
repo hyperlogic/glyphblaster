@@ -24,7 +24,7 @@ GB_ERROR GB_ContextMake(struct GB_Context** gb_out)
     }
 }
 
-GB_ERROR GB_ContextReference(struct GB_Context* gb)
+GB_ERROR GB_ContextRetain(struct GB_Context* gb)
 {
     if (gb) {
         assert(gb->rc > 0);
