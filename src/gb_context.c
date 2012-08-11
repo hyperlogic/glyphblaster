@@ -11,10 +11,10 @@ GB_ERROR GB_ContextMake(struct GB_Context** gb_out)
         if (FT_Init_FreeType(&gb->ft_library)) {
             return GB_ERROR_FTERR;
         }
-        struct GB_GlyphCache* glyph_cache = NULL;
-        GB_ERROR err = GB_GlyphCacheMake(&glyph_cache);
+        struct GB_Cache* cache = NULL;
+        GB_ERROR err = GB_CacheMake(&cache);
         if (err == GB_ERROR_NONE) {
-            gb->glyph_cache = glyph_cache;
+            gb->cache = cache;
         }
         gb->font_list = NULL;
         *gb_out = gb;
@@ -41,7 +41,7 @@ static void _GB_ContextDestroy(struct GB_Context* gb)
     if (gb->ft_library) {
         FT_Done_FreeType(gb->ft_library);
     }
-    GB_GlyphCacheFree((struct GB_GlyphCache*)gb->glyph_cache);
+    GB_CacheFree(gb->cache);
     free(gb);
 }
 

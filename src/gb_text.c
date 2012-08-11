@@ -16,7 +16,7 @@ static GB_ERROR _GB_UpdateGlyphCacheFromBuffer(struct GB_Context* gb, struct GB_
     // adding them to the GlyphCache, to improve texture utilization for long strings of glyphs.
     struct GB_Glyph** glyph_ptrs = (struct GB_Glyph**)malloc(sizeof(struct GB_Glyph*) * num_glyphs);
 
-    struct GB_GlyphCache* cache = gb->glyph_cache;
+    struct GB_Cache* cache = gb->cache;
 
     // iterate over each glyph
     int num_glyph_ptrs;
@@ -87,7 +87,7 @@ static GB_ERROR _GB_UpdateGlyphCacheFromBuffer(struct GB_Context* gb, struct GB_
     }
 
     // add glyphs to GlyphCache
-    GB_GlyphCacheInsert(gb, gb->glyph_cache, glyph_ptrs, num_glyph_ptrs);
+    GB_CacheInsert(gb, gb->cache, glyph_ptrs, num_glyph_ptrs);
 
     free(glyph_ptrs);
 

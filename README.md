@@ -18,8 +18,6 @@ Dependencies
 
 TODO:
 -----------------
-* rename GB_GLYPH_CACHE to just cache:
-* rename GB_GLYPH_SHEET to just GB_CACHE_SHEET & GB_GLYPH_SHEET_LEVEL to GB_CACHE_SHEET_LEVEL.
 * consolidate all glyph refs into two hash tables:
   * gb->text_hash - which contains all glyphs in use by GB_TEXT structs
   * gb->cache->sheet_hash - contains all glyphs in use by texture sheets.

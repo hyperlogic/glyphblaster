@@ -13,7 +13,7 @@ extern "C" {
 struct GB_Context {
     int32_t rc;
     FT_Library ft_library;
-    struct GB_GlyphCache* glyph_cache;
+    struct GB_Cache* cache;
     struct GB_Font* font_list;
 };
 

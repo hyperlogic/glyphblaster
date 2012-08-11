@@ -92,7 +92,7 @@ void DebugDrawGlyphCache(GB_Context* gb, const Config& config)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_TEXTURE_2D);
 
-    GB_GlyphCache* cache = gb->glyph_cache;
+    GB_Cache* cache = gb->cache;
     int y = 0;
     for (uint32_t i = 0; i < cache->num_sheets; i++) {
         DrawTexturedQuad(cache->sheet[i].gl_tex_obj, Vector2f(0, y),
