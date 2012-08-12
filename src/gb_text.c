@@ -19,18 +19,16 @@ static GB_ERROR _GB_UpdateGlyphCacheFromBuffer(struct GB_Context* gb, struct GB_
     struct GB_Cache* cache = gb->cache;
 
     // iterate over each glyph
-    int num_glyph_ptrs;
-    int i, j;
+    int i, j, num_glyph_ptrs;
     for (i = 0, num_glyph_ptrs = 0; i < num_glyphs; i++) {
 
         int index = glyphs[i].codepoint;
 
-        // check to see if this glyph already exists in the font glyph_hash
-        struct GB_Glyph* glyph = NULL;
-        HASH_FIND(font_hh, text->font->glyph_hash, &index, sizeof(uint32_t), glyph);
+        // check to see if this glyph already exists in the context
+        struct GB_Glyph* glyph = GB_ContextHashFind(gb, index, text->font->index);
         if (!glyph) {
-            // check to see if this glyph already exists in the cache glyph_hash
-            HASH_FIND(cache_hh, cache->glyph_hash, &index, sizeof(uint32_t), glyph);
+            // check to see if this glyph already exists in the cache
+            glyph = GB_CacheHashFind(cache, index, text->font->index);
             if (!glyph) {
 
                 // rasterize glyph
@@ -63,30 +61,26 @@ static GB_ERROR _GB_UpdateGlyphCacheFromBuffer(struct GB_Context* gb, struct GB_
 
                 uint32_t origin[2] = {0, 0};
                 uint32_t size[2] = {ft_bitmap->width, ft_bitmap->rows};
-                GB_ERROR gb_error = GB_GlyphMake(index, -1, origin, size, image, &glyph);
+                GB_ERROR gb_error = GB_GlyphMake(index, text->font->index, -1, origin, size, image, &glyph);
                 if (gb_error)
                     return gb_error;
 
                 // add to glyph_ptr array
                 glyph_ptrs[num_glyph_ptrs++] = glyph;
 
-                // add glyph to font glyph_hash
-                HASH_ADD(font_hh, text->font->glyph_hash, index, sizeof(uint32_t), glyph);
-
-                printf("AJT: adding index %u to hash (%d x %d) image = %p\n", index, glyph->size[0], glyph->size[1], glyph->image);
+                printf("AJT: adding glyph %u to context (%d x %d) image = %p\n", index, glyph->size[0], glyph->size[1], glyph->image);
             } else {
-                printf("AJT: index %u already in cache glyph_hash\n", index);
+                printf("AJT: glyph %u already in cache\n", index);
 
-                // add glyph to font glyph_hash
-                HASH_ADD(font_hh, text->font->glyph_hash, index, sizeof(uint32_t), glyph);
-                GB_GlyphRetain(glyph);
+                // add glyph to context
+                GB_ContextHashAdd(gb, glyph);
             }
         } else {
-            printf("AJT: index %u already in font glyph_hash\n", index);
+            printf("AJT: glyph %u already in context\n", index);
         }
     }
 
-    // add glyphs to GlyphCache
+    // add glyphs to cache and context
     GB_CacheInsert(gb, gb->cache, glyph_ptrs, num_glyph_ptrs);
 
     free(glyph_ptrs);
@@ -158,23 +152,19 @@ static void _GB_TextDestroy(struct GB_Context* gb, struct GB_Text* text)
 {
     assert(text);
     assert(text->rc == 0);
-    GB_FontRelease(gb, text->font);
 
     // prepare to iterate over all the glyphs in the hb_buffer
     int num_glyphs = hb_buffer_get_length(text->hb_buffer);
     hb_glyph_info_t* glyphs = hb_buffer_get_glyph_infos(text->hb_buffer, NULL);
 
-    // iterate over each glyph
+    // remove each glyph from context
     int i;
+    int font_index = text->font->index;
     for (i = 0; i < num_glyphs; i++) {
-        int index = glyphs[i].codepoint;
-        struct GB_Glyph* glyph = NULL;
-        HASH_FIND(font_hh, text->font->glyph_hash, &index, sizeof(uint32_t), glyph);
-        if (glyph) {
-            HASH_DELETE(font_hh, text->font->glyph_hash, glyph);
-            GB_GlyphRelease(glyph);
-        }
+        GB_ContextHashRemove(gb, glyphs[i].codepoint, font_index);
     }
+
+    GB_FontRelease(gb, text->font);
 
     hb_buffer_destroy(text->hb_buffer);
     free(text->utf8_string);

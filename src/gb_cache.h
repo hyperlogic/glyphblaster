@@ -30,13 +30,17 @@ struct GB_Sheet {
 struct GB_Cache {
     struct GB_Sheet sheet[GB_MAX_SHEETS_PER_CACHE];
     uint32_t num_sheets;
-    struct GB_Glyph* glyph_hash;
+    struct GB_Glyph* glyph_hash;  // retains all glyphs in GB_Sheet structs.
 };
 
 GB_ERROR GB_CacheMake(struct GB_Cache** cache_out);
-GB_ERROR GB_CacheFree(struct GB_Cache* cache);
-GB_ERROR GB_CacheInsert(struct GB_Context* gb, struct GB_Cache* glyph,
+GB_ERROR GB_CacheDestroy(struct GB_Cache* cache);
+GB_ERROR GB_CacheInsert(struct GB_Context* gb, struct GB_Cache* cache,
                         struct GB_Glyph** glyph_ptrs, int num_glyph_ptrs);
+GB_ERROR GB_CacheCompact(struct GB_Context* gb, struct GB_Cache* cache);
+
+void GB_CacheHashAdd(struct GB_Cache* cache, struct GB_Glyph* glyph);
+struct GB_Glyph* GB_CacheHashFind(struct GB_Cache* cache, uint32_t glyph_index, uint32_t font_index);
 
 #ifdef __cplusplus
 }

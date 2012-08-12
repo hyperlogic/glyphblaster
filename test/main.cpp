@@ -168,15 +168,15 @@ int main(int argc, char* argv[])
     uint32_t origin[2] = {0, 0};
     uint32_t size[2] = {videoInfo->current_w, videoInfo->current_h};
     GB_Text* helloText = NULL;
-    err = GB_TextMake(gb, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", droidFont, 0xffffffff, origin, size,
+    err = GB_TextMake(gb, "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz", droidFont, 0xffffffff, origin, size,
                       GB_HORIZONTAL_ALIGN_CENTER, GB_VERTICAL_ALIGN_CENTER, &helloText);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_MakeText Error %s\n", GB_ErrorToString(err));
         exit(1);
     }
-    GB_TextRelease(gb, helloText);
 
-    err = GB_TextMake(gb, "abcdefghijklmnopqrstuvwxyz", droidFont, 0xffffffff, origin, size,
+    GB_TextRelease(gb, helloText);
+    err = GB_TextMake(gb, "ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ", droidFont, 0xffffffff, origin, size,
                       GB_HORIZONTAL_ALIGN_CENTER, GB_VERTICAL_ALIGN_CENTER, &helloText);
 
     int done = 0;

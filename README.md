@@ -18,10 +18,6 @@ Dependencies
 
 TODO:
 -----------------
-* consolidate all glyph refs into two hash tables:
-  * gb->text_hash - which contains all glyphs in use by GB_TEXT structs
-  * gb->cache->sheet_hash - contains all glyphs in use by texture sheets.
-  * the KEY should be font_index & glyph_index. instead of just glyph_index.
 * add glyph bitmap-padding option, necessary for scaled or non-screen aligned text.
 * quad rendering with post hinted-advances.
 * Finish SDL test prog.

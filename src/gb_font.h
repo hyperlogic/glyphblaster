@@ -15,11 +15,11 @@ struct GB_Context;
 
 struct GB_Font {
     int32_t rc;
+    uint32_t index;
     FT_Face ft_face;
     hb_font_t* hb_font;
     struct GB_Font* prev;
     struct GB_Font* next;
-    struct GB_Glyph* glyph_hash;
 };
 
 GB_ERROR GB_FontMake(struct GB_Context* gb, const char* filename, uint32_t point_size,

@@ -15,6 +15,7 @@ GB_ERROR GB_FontMake(struct GB_Context* gb, const char* filename,
             memset(font, 0, sizeof(struct GB_Font));
 
             font->rc = 1;
+            font->index = gb->next_font_index++;
 
             // create freetype face
             FT_New_Face(gb->ft_library, "dejavu-fonts-ttf-2.33/ttf/DejaVuSans.ttf", 0, &font->ft_face);
@@ -23,8 +24,6 @@ GB_ERROR GB_FontMake(struct GB_Context* gb, const char* filename,
             // create harfbuzz font
             font->hb_font = hb_ft_font_create(font->ft_face, 0);
             hb_ft_font_set_funcs(font->hb_font);
-
-            font->glyph_hash = NULL;
 
             // context holds a list of all fonts
             DL_PREPEND(gb->font_list, font);
@@ -63,13 +62,6 @@ static void _GB_FontDestroy(struct GB_Context* gb, struct GB_Font* font)
     // destroy harfbuzz font
     if (font->hb_font) {
         hb_font_destroy(font->hb_font);
-    }
-
-    // release all glyphs
-    struct GB_Glyph *glyph, *tmp;
-    HASH_ITER(font_hh, font->glyph_hash, glyph, tmp) {
-        HASH_DELETE(font_hh, font->glyph_hash, glyph);
-        GB_GlyphRelease(glyph);
     }
 
     // context holds a list of all fonts

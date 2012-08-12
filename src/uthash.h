@@ -257,7 +257,7 @@ do {                                                                            
  * This is for uthash developer only; it compiles away if HASH_DEBUG isn't defined.
  */
 #ifdef HASH_DEBUG
-#define HASH_OOPS(...) do { fprintf(stderr,__VA_ARGS__); exit(-1); } while (0)
+#define HASH_OOPS(...) do { fprintf(stderr,__VA_ARGS__); assert(0); } while (0)
 #define HASH_FSCK(hh,head)                                                       \
 do {                                                                             \
     unsigned _bkt_i;                                                             \

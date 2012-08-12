@@ -198,16 +198,15 @@ GB_ERROR GB_CacheMake(struct GB_Cache** cache_out)
     return GB_ERROR_NONE;
 }
 
-GB_ERROR GB_CacheFree(struct GB_Cache* cache)
+GB_ERROR GB_CacheDestroy(struct GB_Cache* cache)
 {
     if (cache) {
-        // release all glyphs in all sheets
+        // release all glyphs
         struct GB_Glyph *glyph, *tmp;
         HASH_ITER(cache_hh, cache->glyph_hash, glyph, tmp) {
             HASH_DELETE(cache_hh, cache->glyph_hash, glyph);
             GB_GlyphRelease(glyph);
         }
-
         free(cache);
     }
     return GB_ERROR_NONE;
@@ -237,30 +236,24 @@ static int glyph_cmp(const void* a, const void* b)
     return (*(struct GB_Glyph**)b)->size[1] - (*(struct GB_Glyph**)a)->size[1];
 }
 
-static GB_ERROR _GB_CacheCompact(struct GB_Context* gb, struct GB_Cache* cache)
+GB_ERROR GB_CacheCompact(struct GB_Context* gb, struct GB_Cache* cache)
 {
     printf("AJT: COMPACT!!!!!\n");
 
-    // build glyph_ptrs to all glyphs in use by GB_TEXT objects.
-    int num_glyph_ptrs = 0;
-    struct GB_Font* font;
-    DL_FOREACH(gb->font_list, font) {
-        struct GB_Glyph* glyph;
-        for (glyph = font->glyph_hash; glyph != NULL; glyph = glyph->font_hh.next) {
-            num_glyph_ptrs++;
-        }
-    }
-    struct GB_Glyph** glyph_ptrs = (struct GB_Glyph**)malloc(sizeof(struct GB_Glyph*) * num_glyph_ptrs);
-    uint32_t i = 0;
-    DL_FOREACH(gb->font_list, font) {
-        struct GB_Glyph* glyph;
-        for (glyph = font->glyph_hash; glyph != NULL; glyph = glyph->font_hh.next) {
-            GB_GlyphRetain(glyph);
-            glyph_ptrs[i++] = glyph;
-        }
+    uint32_t num_glyph_ptrs;
+    struct GB_Glyph** glyph_ptrs = GB_ContextHashValues(gb, &num_glyph_ptrs);
+
+    // The goal of all this retaining & releasing is to make sure we dispose of all
+    // glyphs that are in the cache but aren't in the context.
+    // i.e. clear out all the unused glyphs.
+
+    // retain all glyphs in the context
+    int i;
+    for (i = 0; i < num_glyph_ptrs; i++) {
+        GB_GlyphRetain(glyph_ptrs[i]);
     }
 
-    // release all glyphs in all sheets
+    // release all glyphs in the cache
     struct GB_Glyph* glyph;
     for (glyph = cache->glyph_hash; glyph != NULL; glyph = glyph->cache_hh.next) {
         GB_GlyphRelease(glyph);
@@ -282,14 +275,15 @@ static GB_ERROR _GB_CacheCompact(struct GB_Context* gb, struct GB_Cache* cache)
         if (!_GB_CacheInsertGlyph(cache, glyph)) {
             return GB_ERROR_NOMEM;
         }
-        HASH_ADD(cache_hh, cache->glyph_hash, index, sizeof(uint32_t), glyph);
-        GB_GlyphRetain(glyph);
+        GB_CacheHashAdd(cache, glyph);
     }
 
-    // Release all glyph_ptrs
+    // release all glyphs in the context, restoring their proper retain counts.
     for (i = 0; i < num_glyph_ptrs; i++) {
         GB_GlyphRelease(glyph_ptrs[i]);
     }
+
+    free(glyph_ptrs);
 
     return GB_ERROR_NONE;
 }
@@ -305,26 +299,55 @@ GB_ERROR GB_CacheInsert(struct GB_Context* gb, struct GB_Cache* cache,
     // decreasing height find-first heuristic.
     for (i = 0; i < num_glyph_ptrs; i++) {
         struct GB_Glyph* glyph = glyph_ptrs[i];
-        if (!_GB_CacheInsertGlyph(cache, glyph)) {
-            // compact and try again.
-            _GB_CacheCompact(gb, cache);
+        // make sure duplicates don't end up in the hash
+        if (!GB_CacheHashFind(cache, glyph->index, glyph->font_index)) {
             if (!_GB_CacheInsertGlyph(cache, glyph)) {
-                // Add another sheet and try again.
-                if (_GB_CacheAddSheet(cache)) {
+                // compact and try again.
+                GB_ERROR error = GB_CacheCompact(gb, cache);
+                if (error == GB_ERROR_NONE) {
                     if (!_GB_CacheInsertGlyph(cache, glyph)) {
-                        // glyph must be too big to fit in a single sheet.
-                        assert(0);
-                        return GB_ERROR_NOMEM;
+                        // Add another sheet and try again.
+                        if (_GB_CacheAddSheet(cache)) {
+                            if (!_GB_CacheInsertGlyph(cache, glyph)) {
+                                // glyph must be too big to fit in a single sheet.
+                                assert(0);
+                                return GB_ERROR_NOMEM;
+                            }
+                        } else {
+                            // failed to add sheet, no room
+                            return GB_ERROR_NOMEM;
+                        }
                     }
                 } else {
-                    // failed to add sheet, no room
-                    return GB_ERROR_NOMEM;
+                    return error;
                 }
             }
+            // add new glyph to both hashes
+            GB_CacheHashAdd(cache, glyph);
+            GB_ContextHashAdd(gb, glyph);
         }
-        GB_GlyphRetain(glyph);
-        HASH_ADD(cache_hh, cache->glyph_hash, index, sizeof(uint32_t), glyph);
     }
 
     return GB_ERROR_NONE;
+}
+
+void GB_CacheHashAdd(struct GB_Cache* cache, struct GB_Glyph* glyph)
+{
+#ifndef NDEBUG
+    if (GB_CacheHashFind(cache, glyph->index, glyph->font_index)) {
+        printf("GB_CacheHashAdd() WARNING glyph index = %d, font_index = %d is already in cache!\n", glyph->index, glyph->font_index);
+    }
+#endif
+
+    printf("GB_CacheHashAdd() index = %d, font_index = %d\n", glyph->index, glyph->font_index);
+    HASH_ADD(cache_hh, cache->glyph_hash, key, sizeof(uint64_t), glyph);
+    GB_GlyphRetain(glyph);
+}
+
+struct GB_Glyph* GB_CacheHashFind(struct GB_Cache* cache, uint32_t glyph_index, uint32_t font_index)
+{
+    struct GB_Glyph* glyph = NULL;
+    uint64_t key = ((uint64_t)font_index << 32) | glyph_index;
+    HASH_FIND(cache_hh, cache->glyph_hash, &key, sizeof(uint64_t), glyph);
+    return glyph;
 }

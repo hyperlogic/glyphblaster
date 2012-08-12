@@ -5,9 +5,13 @@ require 'rake/clean'
 $C_FLAGS = ['-Wall',
             `sdl-config --cflags`.chomp,
             `freetype-config --cflags`.chomp,
-            '-DDARWIN'];
+            '-DDARWIN'
+           ]
 
-$DEBUG_C_FLAGS = ['-g', '-DDEBUG'];
+$DEBUG_C_FLAGS = ['-g',
+                  '-DDEBUG',
+                  '-DHASH_DEBUG'  # for uthash
+                 ]
 
 $OPT_C_FLAGS = ['-O3', '-DNDEBUG'];
 
@@ -18,7 +22,8 @@ $L_FLAGS = [`sdl-config --libs`.chomp,
             '-framework Cocoa',
             '-framework OpenGL',
             '-framework CoreServices',
-            '-framework ApplicationServices'];
+            '-framework ApplicationServices'
+           ]
 
 $OBJECTS = ['SDLMain.o',
             'main.o',
@@ -27,7 +32,8 @@ $OBJECTS = ['SDLMain.o',
             '../src/gb_error.o',
             '../src/gb_font.o',
             '../src/gb_glyph.o',
-            '../src/gb_text.o'];
+            '../src/gb_text.o'
+           ]
 
 $DEPS = $OBJECTS.map {|f| f[0..-3] + '.d'}
 $EXE = 'gbtest'
