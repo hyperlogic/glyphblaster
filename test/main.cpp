@@ -158,7 +158,15 @@ int main(int argc, char* argv[])
 
     // create a font
     GB_Font* droidFont = NULL;
-    err = GB_FontMake(gb, "Droid-Sans/DroidSans.ttf", 32, &droidFont);
+    err = GB_FontMake(gb, "Droid-Sans/DroidSans.ttf", 12, &droidFont);
+    if (err != GB_ERROR_NONE) {
+        fprintf(stderr, "GB_MakeFont Error %s\n", GB_ErrorToString(err));
+        exit(1);
+    }
+
+    // create a bigger font
+    GB_Font* bigDroidFont = NULL;
+    err = GB_FontMake(gb, "Droid-Sans/DroidSans.ttf", 48, &bigDroidFont);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_MakeFont Error %s\n", GB_ErrorToString(err));
         exit(1);
@@ -168,7 +176,7 @@ int main(int argc, char* argv[])
     uint32_t origin[2] = {0, 0};
     uint32_t size[2] = {videoInfo->current_w, videoInfo->current_h};
     GB_Text* helloText = NULL;
-    err = GB_TextMake(gb, "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz", droidFont, 0xffffffff, origin, size,
+    err = GB_TextMake(gb, "abcdefg", droidFont, 0xffffffff, origin, size,
                       GB_HORIZONTAL_ALIGN_CENTER, GB_VERTICAL_ALIGN_CENTER, &helloText);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_MakeText Error %s\n", GB_ErrorToString(err));
@@ -176,7 +184,7 @@ int main(int argc, char* argv[])
     }
 
     GB_TextRelease(gb, helloText);
-    err = GB_TextMake(gb, "ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ", droidFont, 0xffffffff, origin, size,
+    err = GB_TextMake(gb, "ABCDEFG", bigDroidFont, 0xffffffff, origin, size,
                       GB_HORIZONTAL_ALIGN_CENTER, GB_VERTICAL_ALIGN_CENTER, &helloText);
 
     int done = 0;
@@ -240,6 +248,11 @@ int main(int argc, char* argv[])
         exit(1);
     }
     err = GB_FontRelease(gb, droidFont);
+    if (err != GB_ERROR_NONE) {
+        fprintf(stderr, "GB_ReleaseFont Error %s\n", GB_ErrorToString(err));
+        exit(1);
+    }
+    err = GB_FontRelease(gb, bigDroidFont);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_ReleaseFont Error %s\n", GB_ErrorToString(err));
         exit(1);
