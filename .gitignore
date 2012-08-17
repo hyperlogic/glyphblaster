@@ -1,3 +1,4 @@
 *.o
 *.d
 gbtest
+.DS_Store
