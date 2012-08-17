@@ -10,28 +10,36 @@ GB_ERROR GB_FontMake(struct GB_Context* gb, const char* filename,
                      uint32_t point_size, struct GB_Font** font_out)
 {
     if (gb && filename && font_out) {
-        struct GB_Font* font = (struct GB_Font*)malloc(sizeof(struct GB_Font));
-        if (font) {
-            memset(font, 0, sizeof(struct GB_Font));
 
-            font->rc = 1;
-            font->index = gb->next_font_index++;
+        // create freetype face
+        FT_Face face = NULL;
+        FT_New_Face(gb->ft_library, filename, 0, &face);
+        if (face) {
+            struct GB_Font* font = (struct GB_Font*)malloc(sizeof(struct GB_Font));
+            if (font) {
+                memset(font, 0, sizeof(struct GB_Font));
 
-            // create freetype face
-            FT_New_Face(gb->ft_library, "dejavu-fonts-ttf-2.33/ttf/DejaVuSans.ttf", 0, &font->ft_face);
-            FT_Set_Char_Size(font->ft_face, (int)(point_size * 64), 0, 72, 72);
+                font->rc = 1;
+                font->index = gb->next_font_index++;
+                font->ft_face = face;
 
-            // create harfbuzz font
-            font->hb_font = hb_ft_font_create(font->ft_face, 0);
-            hb_ft_font_set_funcs(font->hb_font);
+                FT_Set_Char_Size(font->ft_face, (int)(point_size * 64), 0, 72, 72);
 
-            // context holds a list of all fonts
-            DL_PREPEND(gb->font_list, font);
+                // create harfbuzz font
+                font->hb_font = hb_ft_font_create(font->ft_face, 0);
+                hb_ft_font_set_funcs(font->hb_font);
 
-            *font_out = font;
-            return GB_ERROR_NONE;
+                // context holds a list of all fonts
+                DL_PREPEND(gb->font_list, font);
+
+                *font_out = font;
+                return GB_ERROR_NONE;
+            } else {
+                return GB_ERROR_NOMEM;
+            }
         } else {
-            return GB_ERROR_NOMEM;
+            fprintf(stderr, "Error loading font \"%s\"\n", filename);
+            return GB_ERROR_NOENT;
         }
     } else {
         return GB_ERROR_INVAL;

@@ -18,12 +18,12 @@ Dependencies
 
 TODO:
 -----------------
-* add glyph bitmap-padding option, necessary for scaled or non-screen aligned text.
 * quad rendering with post hinted-advances.
 * Finish SDL test prog.
 * Text Alignment
 * Text Word Wrapping
 * currently two fonts with different pt sizes will have two copies of the same FreeType font.
   resources should be shared.
+* add glyph bitmap-padding option, necessary for scaled or non-screen aligned text.
 
 

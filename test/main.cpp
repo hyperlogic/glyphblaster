@@ -158,15 +158,15 @@ int main(int argc, char* argv[])
 
     // create a font
     GB_Font* droidFont = NULL;
-    err = GB_FontMake(gb, "Droid-Sans/DroidSans.ttf", 12, &droidFont);
+    err = GB_FontMake(gb, "Droid-Sans/DroidSans.ttf", 32, &droidFont);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_MakeFont Error %s\n", GB_ErrorToString(err));
         exit(1);
     }
 
-    // create a bigger font
-    GB_Font* bigDroidFont = NULL;
-    err = GB_FontMake(gb, "Droid-Sans/DroidSans.ttf", 48, &bigDroidFont);
+    // create an arabic font
+    GB_Font* arabicFont = NULL;
+    err = GB_FontMake(gb, "Zar/XB Zar.ttf", 48, &arabicFont);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_MakeFont Error %s\n", GB_ErrorToString(err));
         exit(1);
@@ -184,7 +184,10 @@ int main(int argc, char* argv[])
     }
 
     GB_TextRelease(gb, helloText);
-    err = GB_TextMake(gb, "ABCDEFG", bigDroidFont, 0xffffffff, origin, size,
+
+    // أبجد
+    const char abjad[] = {0xd8, 0xa3, 0xd8, 0xa8, 0xd8, 0xac, 0xd8, 0xaf, 0x00};
+    err = GB_TextMake(gb, abjad, arabicFont, 0xffffffff, origin, size,
                       GB_HORIZONTAL_ALIGN_CENTER, GB_VERTICAL_ALIGN_CENTER, &helloText);
 
     int done = 0;
@@ -252,7 +255,7 @@ int main(int argc, char* argv[])
         fprintf(stderr, "GB_ReleaseFont Error %s\n", GB_ErrorToString(err));
         exit(1);
     }
-    err = GB_FontRelease(gb, bigDroidFont);
+    err = GB_FontRelease(gb, arabicFont);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_ReleaseFont Error %s\n", GB_ErrorToString(err));
         exit(1);

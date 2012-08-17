@@ -325,6 +325,7 @@ GB_ERROR GB_CacheInsert(struct GB_Context* gb, struct GB_Cache* cache,
             // add new glyph to both hashes
             GB_CacheHashAdd(cache, glyph);
             GB_ContextHashAdd(gb, glyph);
+            GB_GlyphRelease(glyph);
         }
     }
 

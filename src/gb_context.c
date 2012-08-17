@@ -44,6 +44,14 @@ static void _GB_ContextDestroy(struct GB_Context* gb)
     if (gb->ft_library) {
         FT_Done_FreeType(gb->ft_library);
     }
+
+    // release all glyphs
+    struct GB_Glyph *glyph, *tmp;
+    HASH_ITER(context_hh, gb->glyph_hash, glyph, tmp) {
+        HASH_DELETE(context_hh, gb->glyph_hash, glyph);
+        GB_GlyphRelease(glyph);
+    }
+
     GB_CacheDestroy(gb->cache);
     free(gb);
 }
