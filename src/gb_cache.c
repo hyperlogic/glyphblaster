@@ -159,6 +159,7 @@ static int _GB_SheetInsertGlyph(struct GB_Cache* cache, struct GB_Sheet* sheet, 
     for (i = 0; i < sheet->num_levels; i++) {
         if (glyph->size[1] <= sheet->level[i].height) {
             if (_GB_SheetLevelInsertGlyph(&sheet->level[i], glyph)) {
+                glyph->gl_tex_obj = sheet->gl_tex_obj;
                 _GB_SheetSubloadGlyph(sheet, glyph);
                 printf("AJT: Inserted glyph %d into existing level %d\n", glyph->index, i);
                 return 1;
@@ -169,6 +170,7 @@ static int _GB_SheetInsertGlyph(struct GB_Cache* cache, struct GB_Sheet* sheet, 
     // add a new level.
     if (_GB_SheetAddNewLevel(sheet, glyph->size[1])) {
         if (_GB_SheetLevelInsertGlyph(&sheet->level[i], glyph)) {
+            glyph->gl_tex_obj = sheet->gl_tex_obj;
             _GB_SheetSubloadGlyph(sheet, glyph);
             printf("AJT: Inserted glyph %d into new level %d\n", glyph->index, i);
             return 1;

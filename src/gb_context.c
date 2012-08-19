@@ -2,6 +2,7 @@
 #include "gb_context.h"
 #include "gb_glyph.h"
 #include "gb_cache.h"
+#include "gb_text.h"
 
 GB_ERROR GB_ContextMake(struct GB_Context** gb_out)
 {
@@ -20,6 +21,7 @@ GB_ERROR GB_ContextMake(struct GB_Context** gb_out)
         gb->font_list = NULL;
         gb->glyph_hash = NULL;
         gb->next_font_index = 0;
+        gb->text_render_func = NULL;
         *gb_out = gb;
         return err;
     } else {
@@ -64,6 +66,16 @@ GB_ERROR GB_ContextRelease(struct GB_Context* gb)
         if (gb->rc == 0) {
             _GB_ContextDestroy(gb);
         }
+        return GB_ERROR_NONE;
+    } else {
+        return GB_ERROR_INVAL;
+    }
+}
+
+GB_ERROR GB_ContextSetTextRenderFunc(struct GB_Context* gb, GB_TextRenderFunc func)
+{
+    if (gb) {
+        gb->text_render_func = func;
         return GB_ERROR_NONE;
     } else {
         return GB_ERROR_INVAL;

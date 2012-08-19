@@ -2,9 +2,10 @@
 #include <assert.h>
 #include "gb_glyph.h"
 
-GB_ERROR GB_GlyphMake(uint32_t index, uint32_t font_index, uint32_t sheet_index,
-                      uint32_t origin[2], uint32_t size[2], uint8_t* image,
-                      struct GB_Glyph** glyph_out)
+GB_ERROR GB_GlyphMake(uint32_t index, uint32_t font_index, uint32_t gl_tex_obj,
+                      uint32_t origin[2], uint32_t size[2],
+                      uint32_t advance, uint32_t bearing[2],
+                      uint8_t* image, struct GB_Glyph** glyph_out)
 {
     if (glyph_out) {
         // allocate and init a new glyph structure
@@ -15,11 +16,14 @@ GB_ERROR GB_GlyphMake(uint32_t index, uint32_t font_index, uint32_t sheet_index,
             glyph->rc = 1;
             glyph->index = index;
             glyph->font_index = font_index;
-            glyph->sheet_index = sheet_index;
+            glyph->gl_tex_obj = gl_tex_obj;
             glyph->origin[0] = origin[0];
             glyph->origin[1] = origin[1];
             glyph->size[0] = size[0];
             glyph->size[1] = size[1];
+            glyph->advance = advance;
+            glyph->bearing[0] = bearing[0];
+            glyph->bearing[1] = bearing[1];
             glyph->image = image;
             *glyph_out = glyph;
             return GB_ERROR_NONE;

@@ -43,7 +43,10 @@ struct Config
     std::string title;
 };
 
+Config* s_config = 0;
+
 void DrawTexturedQuad(uint32_t gl_tex, Vector2f const& origin, Vector2f const& size,
+                      Vector2f const& uv_origin, Vector2f const& uv_size,
                       Vector4f const& color)
 {
     // assume texture is enabled.
@@ -63,7 +66,16 @@ void DrawTexturedQuad(uint32_t gl_tex, Vector2f const& origin, Vector2f const& s
     glVertexPointer(2, GL_FLOAT, 0, verts);
     glEnableClientState(GL_VERTEX_ARRAY);
 
-    static float uvs[] = {0, 0, 1, 0, 0, 1, 1, 1};
+    float uvs[8];
+    uvs[0] = uv_origin.x;
+    uvs[1] = uv_origin.y;
+    uvs[2] = uv_origin.x + uv_size.x;
+    uvs[3] = uv_origin.y;
+    uvs[4] = uv_origin.x;
+    uvs[5] = uv_origin.y + uv_size.y;
+    uvs[6] = uv_origin.x + uv_size.x;
+    uvs[7] = uv_origin.y + uv_size.y;
+
     glClientActiveTexture(GL_TEXTURE0);
     glTexCoordPointer(2, GL_FLOAT, 0, uvs);
 
@@ -79,9 +91,6 @@ void DrawTexturedQuad(uint32_t gl_tex, Vector2f const& origin, Vector2f const& s
 
 void DebugDrawGlyphCache(GB_Context* gb, const Config& config)
 {
-    glClearColor(1, 1, 1, 1);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
     /// note this flips y-axis so y is down.
     Matrixf proj = Matrixf::Ortho(0, config.width, config.height, 0, -10, 10);
     glMatrixMode(GL_PROJECTION);
@@ -97,8 +106,41 @@ void DebugDrawGlyphCache(GB_Context* gb, const Config& config)
     for (uint32_t i = 0; i < cache->num_sheets; i++) {
         DrawTexturedQuad(cache->sheet[i].gl_tex_obj, Vector2f(0, y),
                          Vector2f(GB_TEXTURE_SIZE, GB_TEXTURE_SIZE + y),
-                         Vector4f(0, 0, 0, 1));
+                         Vector2f(0, 0), Vector2f(1, 1),
+                         Vector4f(0, 0, 1, 1));
         y += GB_TEXTURE_SIZE;
+    }
+}
+
+void TextRenderFunc(GB_GlyphQuad* quads, uint32_t num_quads)
+{
+
+   /// note this flips y-axis so y is down.
+    Matrixf proj = Matrixf::Ortho(0, s_config->width, s_config->height, 0, -10, 10);
+    glMatrixMode(GL_PROJECTION);
+    glLoadMatrixf(reinterpret_cast<float*>(&proj));
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_TEXTURE_2D);
+
+    for (uint32_t i = 0; i < num_quads; ++i) {
+
+        /*
+        printf("quad[%d]\n", i);
+        printf("    origin = [%d, %d]\n", quads[i].origin[0], quads[i].origin[1]);
+        printf("    size = [%d, %d]\n", quads[i].size[0], quads[i].size[1]);
+        printf("    uv_origin = [%.3f, %.3f]\n", quads[i].uv_origin[0], quads[i].uv_origin[1]);
+        printf("    uv_size = [%.3f, %.3f]\n", quads[i].uv_size[0], quads[i].uv_size[1]);
+        */
+
+        DrawTexturedQuad(quads[i].gl_tex_obj,
+                         Vector2f(quads[i].origin[0], quads[i].origin[1]),
+                         Vector2f(quads[i].size[0], quads[i].size[1]),
+                         Vector2f(quads[i].uv_origin[0], quads[i].uv_origin[1]),
+                         Vector2f(quads[i].uv_size[0], quads[i].uv_size[1]),
+                         Vector4f(0, 0, 0, 1));
     }
 }
 
@@ -113,7 +155,8 @@ int main(int argc, char* argv[])
 	const SDL_VideoInfo* videoInfo = SDL_GetVideoInfo();
 
 	// TODO: get this from config file.
-    Config config(false, false, 768/2, 1024/2);
+    s_config = new Config(false, false, 768/2, 1024/2);
+    Config& config = *s_config;
     config.title = "glyphblaster test";
 
     // msaa
@@ -158,7 +201,9 @@ int main(int argc, char* argv[])
 
     // create a font
     GB_Font* droidFont = NULL;
-    err = GB_FontMake(gb, "Droid-Sans/DroidSans.ttf", 32, &droidFont);
+    //err = GB_FontMake(gb, "Droid-Sans/DroidSans.ttf", 32, &droidFont);
+    //err = GB_FontMake(gb, "Arial.ttf", 32, &droidFont);
+    err = GB_FontMake(gb, "dejavu-fonts-ttf-2.33/ttf/DejaVuSans.ttf", 32, &droidFont);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_MakeFont Error %s\n", GB_ErrorToString(err));
         exit(1);
@@ -173,22 +218,26 @@ int main(int argc, char* argv[])
     }
 
     // create a text
-    uint32_t origin[2] = {0, 0};
+    uint32_t origin[2] = {10, 100};
     uint32_t size[2] = {videoInfo->current_w, videoInfo->current_h};
     GB_Text* helloText = NULL;
-    err = GB_TextMake(gb, "abcdefg", droidFont, 0xffffffff, origin, size,
+    err = GB_TextMake(gb, "GlyphBlaster Test!", droidFont, 0xffffffff, origin, size,
                       GB_HORIZONTAL_ALIGN_CENTER, GB_VERTICAL_ALIGN_CENTER, &helloText);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_MakeText Error %s\n", GB_ErrorToString(err));
         exit(1);
     }
 
+    /*
     GB_TextRelease(gb, helloText);
 
     // أبجد
     const char abjad[] = {0xd8, 0xa3, 0xd8, 0xa8, 0xd8, 0xac, 0xd8, 0xaf, 0x00};
     err = GB_TextMake(gb, abjad, arabicFont, 0xffffffff, origin, size,
                       GB_HORIZONTAL_ALIGN_CENTER, GB_VERTICAL_ALIGN_CENTER, &helloText);
+    */
+
+    GB_ContextSetTextRenderFunc(gb, TextRenderFunc);
 
     int done = 0;
     while (!done)
@@ -233,14 +282,16 @@ int main(int argc, char* argv[])
 
         if (!done)
         {
-            /*
-            err = GB_DrawText(gb, helloText);
+
+            glClearColor(1, 1, 1, 1);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+            err = GB_TextDraw(gb, helloText);
             if (err != GB_ERROR_NONE) {
                 fprintf(stderr, "GB_DrawText Error %s\n", GB_ErrorToString(err));
                 exit(1);
             }
-            */
-            DebugDrawGlyphCache(gb, config);
+            //DebugDrawGlyphCache(gb, config);
             SDL_GL_SwapBuffers();
         }
     }

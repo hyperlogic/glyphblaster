@@ -21,6 +21,17 @@ typedef enum GB_Vertical_Align {
     GB_VERTICAL_ALIGN_CENTER
 } GB_VERTICAL_ALIGN;
 
+// y axis points down
+// origin is upper-left corner of glyph
+struct GB_GlyphQuad {
+    uint32_t origin[2];
+    uint32_t size[2];
+    float uv_origin[2];
+    float uv_size[2];
+    uint32_t color;
+    uint32_t gl_tex_obj;
+};
+
 struct GB_Text {
     int32_t rc;
     struct GB_Font* font;
@@ -31,19 +42,13 @@ struct GB_Text {
     uint32_t size[2];
     GB_HORIZONTAL_ALIGN horizontal_align;
     GB_VERTICAL_ALIGN vertical_align;
+    struct GB_GlyphQuad* glyph_quad;
+    uint32_t num_glyph_quads;
 };
 
 struct GB_TextMetrics {
     uint32_t min[2];
     uint32_t max[2];
-};
-
-struct GB_GlyphQuad {
-    uint32_t min[2];
-    uint32_t max[2];
-    float min_uv[2];
-    float max_uv[2];
-    uint32_t color;
 };
 
 GB_ERROR GB_TextMake(struct GB_Context* gb, const char* utf8_string,
@@ -53,14 +58,17 @@ GB_ERROR GB_TextMake(struct GB_Context* gb, const char* utf8_string,
 GB_ERROR GB_TextRetain(struct GB_Context* gb, struct GB_Text* text);
 GB_ERROR GB_TextRelease(struct GB_Context* gb, struct GB_Text* text);
 
-// not implmented
+// TODO: not implmented
 GB_ERROR GB_GetTextMetrics(struct GB_Context* gb, const char* utf8_string,
                            struct GB_Font* font, uint32_t min[2], uint32_t max[2],
                            GB_HORIZONTAL_ALIGN horizontal_align,
                            GB_VERTICAL_ALIGN vertical_align,
                            struct GB_TextMetrics* text_metrics_out);
 
-// not implemented
+// this should really be in gb_context.h but is not to prevent circular deps.
+typedef void (*GB_TextRenderFunc)(struct GB_GlyphQuad* quads, uint32_t num_quads);
+GB_ERROR GB_ContextSetTextRenderFunc(struct GB_Context* gb, GB_TextRenderFunc func);
+
 // Renders given text using renderer func.
 GB_ERROR GB_TextDraw(struct GB_Context* gb, struct GB_Text* text);
 

@@ -6,10 +6,18 @@
 #include "gb_cache.h"
 #include "gb_text.h"
 
-static GB_ERROR _GB_UpdateGlyphCacheFromBuffer(struct GB_Context* gb, struct GB_Text* text)
+// 26.6 fixed to int (truncates)
+#define FIXED_TO_INT(n) (uint32_t)(n >> 6)
+
+static GB_ERROR _GB_TextUpdateCache(struct GB_Context* gb, struct GB_Text* text)
 {
+    assert(gb);
+    assert(text);
+    assert(text->hb_buffer);
+
     // prepare to iterate over all the glyphs in the hb_buffer
     int num_glyphs = hb_buffer_get_length(text->hb_buffer);
+
     hb_glyph_info_t* glyphs = hb_buffer_get_glyph_infos(text->hb_buffer, NULL);
 
     // hold a temp array of glyph ptrs, this is so we can sort glyphs by some heuristic before
@@ -42,8 +50,12 @@ static GB_ERROR _GB_UpdateGlyphCacheFromBuffer(struct GB_Context* gb, struct GB_
                 if (ft_error)
                     return GB_ERROR_FTERR;
 
-                FT_Bitmap* ft_bitmap = &ft_face->glyph->bitmap;
+                // record post-hinted advance and bearing.
+                uint32_t advance = FIXED_TO_INT(ft_face->glyph->metrics.horiAdvance);
+                uint32_t bearing[2] = {FIXED_TO_INT(ft_face->glyph->metrics.horiBearingX),
+                                       FIXED_TO_INT(ft_face->glyph->metrics.horiBearingY)};
 
+                FT_Bitmap* ft_bitmap = &ft_face->glyph->bitmap;
                 uint8_t* image = NULL;
                 if (ft_bitmap->width > 0 && ft_bitmap->rows > 0) {
                     // allocate an image to hold a copy of the rasterized glyph
@@ -61,7 +73,8 @@ static GB_ERROR _GB_UpdateGlyphCacheFromBuffer(struct GB_Context* gb, struct GB_
 
                 uint32_t origin[2] = {0, 0};
                 uint32_t size[2] = {ft_bitmap->width, ft_bitmap->rows};
-                GB_ERROR gb_error = GB_GlyphMake(index, text->font->index, -1, origin, size, image, &glyph);
+                GB_ERROR gb_error = GB_GlyphMake(index, text->font->index, 0, origin, size,
+                                                 advance, bearing, image, &glyph);
                 if (gb_error)
                     return gb_error;
 
@@ -85,6 +98,55 @@ static GB_ERROR _GB_UpdateGlyphCacheFromBuffer(struct GB_Context* gb, struct GB_
 
     free(glyph_ptrs);
 
+    return GB_ERROR_NONE;
+}
+
+static GB_ERROR _GB_TextUpdateQuads(struct GB_Context* gb, struct GB_Text* text)
+{
+    // allocate glyph_quad array
+    int num_glyphs = hb_buffer_get_length(text->hb_buffer);
+    text->glyph_quad = (struct GB_GlyphQuad*)malloc(sizeof(struct GB_GlyphQuad) * num_glyphs);
+    if (text->glyph_quad == NULL)
+        return GB_ERROR_NOMEM;
+    memset(text->glyph_quad, 0, sizeof(struct GB_GlyphQuad) * num_glyphs);
+    text->num_glyph_quads = num_glyphs;
+
+    int32_t pen[2] = {text->origin[0], text->origin[1]};
+
+    hb_glyph_info_t* glyphs = hb_buffer_get_glyph_infos(text->hb_buffer, NULL);
+
+    int i;
+    for (i = 0; i < num_glyphs; i++) {
+        
+        // apply kerning
+        if (i > 0)
+        {
+            FT_Vector delta;
+            FT_Get_Kerning(text->font->ft_face, glyphs[i-1].codepoint, glyphs[i].codepoint,
+                           FT_KERNING_DEFAULT, &delta);
+            pen[0] += FIXED_TO_INT(delta.x);
+        }
+
+        struct GB_Glyph* glyph = GB_ContextHashFind(gb, glyphs[i].codepoint, text->font->index);
+        if (glyph) {
+
+            // NOTE: y axis points down, quad origin is upper-left corner of glyph
+            // build quad
+            struct GB_GlyphQuad* quad = text->glyph_quad + i;
+            quad->origin[0] = pen[0] + glyph->bearing[0];
+            quad->origin[1] = pen[1] - glyph->bearing[1];
+            quad->size[0] = glyph->size[0];
+            quad->size[1] = glyph->size[1];
+            quad->uv_origin[0] = (float)glyph->origin[0] / GB_TEXTURE_SIZE;
+            quad->uv_origin[1] = (float)glyph->origin[1] / GB_TEXTURE_SIZE;
+            quad->uv_size[0] = (float)glyph->size[0] / GB_TEXTURE_SIZE;
+            quad->uv_size[1] = (float)glyph->size[1] / GB_TEXTURE_SIZE;
+            quad->color = text->color;
+            quad->gl_tex_obj = glyph->gl_tex_obj;
+
+            pen[0] += glyph->advance;
+        }
+    }
     return GB_ERROR_NONE;
 }
 
@@ -116,6 +178,8 @@ GB_ERROR GB_TextMake(struct GB_Context* gb, const char* utf8_string,
             text->size[1] = size[1];
             text->horizontal_align = horizontal_align;
             text->vertical_align = vertical_align;
+            text->glyph_quad = NULL;
+            text->num_glyph_quads = 0;
 
             // create harfbuzz buffer
             text->hb_buffer = hb_buffer_create();
@@ -125,10 +189,18 @@ GB_ERROR GB_TextMake(struct GB_Context* gb, const char* utf8_string,
             // shape text
             hb_shape(font->hb_font, text->hb_buffer, NULL, 0);
 
-            GB_ERROR ret = _GB_UpdateGlyphCacheFromBuffer(gb, text);
-            if (ret == GB_ERROR_NONE)
-                *text_out = text;
-            return ret;
+            // insert new glyphs into cache
+            GB_ERROR ret = _GB_TextUpdateCache(gb, text);
+            if (ret != GB_ERROR_NONE)
+                return ret;
+
+            // allocate glyph_quad array with proper position & uvs.
+            ret = _GB_TextUpdateQuads(gb, text);
+            if (ret != GB_ERROR_NONE)
+                return ret;
+
+            *text_out = text;
+            return GB_ERROR_NONE;
         } else {
             return GB_ERROR_NOMEM;
         }
@@ -168,6 +240,8 @@ static void _GB_TextDestroy(struct GB_Context* gb, struct GB_Text* text)
 
     hb_buffer_destroy(text->hb_buffer);
     free(text->utf8_string);
+    if (text->glyph_quad)
+        free(text->glyph_quad);
     free(text);
 }
 
@@ -206,7 +280,14 @@ GB_ERROR GB_TextDraw(struct GB_Context* gb, struct GB_Text* text)
     // end
     // send each run of glyph_quads to rendering func.
     if (gb && text) {
-        return GB_ERROR_NOIMP;
+        if (gb->text_render_func) {
+            GB_TextRenderFunc func = (GB_TextRenderFunc)gb->text_render_func;
+            func(text->glyph_quad, text->num_glyph_quads);
+            return GB_ERROR_NONE;
+        }
+        else {
+            return GB_ERROR_NOIMP;
+        }
     } else {
         return GB_ERROR_INVAL;
     }
