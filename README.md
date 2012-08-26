@@ -13,6 +13,7 @@ Things:
 
 Dependencies
 -----------------
+  * icu4c
   * FreeType2
   * HarfBuzz-0.9.0
 
@@ -28,6 +29,3 @@ TODO:
   resources should be shared.
 * add glyph bitmap-padding option, necessary for scaled or non-screen aligned text.
 * bidi
-
-
-

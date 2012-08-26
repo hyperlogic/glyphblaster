@@ -203,7 +203,8 @@ int main(int argc, char* argv[])
     GB_Font* droidFont = NULL;
     //err = GB_FontMake(gb, "Droid-Sans/DroidSans.ttf", 32, &droidFont);
     //err = GB_FontMake(gb, "Arial.ttf", 32, &droidFont);
-    err = GB_FontMake(gb, "dejavu-fonts-ttf-2.33/ttf/DejaVuSans.ttf", 32, &droidFont);
+    //err = GB_FontMake(gb, "dejavu-fonts-ttf-2.33/ttf/DejaVuSans.ttf", 32, &droidFont);
+    err = GB_FontMake(gb, "Zar/XB Zar.ttf", 48, &droidFont);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_MakeFont Error %s\n", GB_ErrorToString(err));
         exit(1);
@@ -221,6 +222,8 @@ int main(int argc, char* argv[])
     uint32_t origin[2] = {10, 100};
     uint32_t size[2] = {videoInfo->current_w, videoInfo->current_h};
     GB_Text* helloText = NULL;
+
+    /*
     err = GB_TextMake(gb, "GlyphBlaster Test!", droidFont, 0xffffffff, origin, size,
                       GB_HORIZONTAL_ALIGN_CENTER, GB_VERTICAL_ALIGN_CENTER, &helloText);
     if (err != GB_ERROR_NONE) {
@@ -228,14 +231,15 @@ int main(int argc, char* argv[])
         exit(1);
     }
 
-    /*
     GB_TextRelease(gb, helloText);
-
-    // أبجد
-    const char abjad[] = {0xd8, 0xa3, 0xd8, 0xa8, 0xd8, 0xac, 0xd8, 0xaf, 0x00};
-    err = GB_TextMake(gb, abjad, arabicFont, 0xffffffff, origin, size,
-                      GB_HORIZONTAL_ALIGN_CENTER, GB_VERTICAL_ALIGN_CENTER, &helloText);
     */
+
+    // أبجد hello
+    const char abjad[] = {0xd8, 0xa3, 0xd8, 0xa8, 0xd8, 0xac, 0xd8, 0xaf, 0x00};
+    char XXX[1024];
+    sprintf(XXX, "%s hello", abjad);
+    err = GB_TextMake(gb, XXX, droidFont, 0xffffffff, origin, size,
+                      GB_HORIZONTAL_ALIGN_CENTER, GB_VERTICAL_ALIGN_CENTER, &helloText);
 
     GB_ContextSetTextRenderFunc(gb, TextRenderFunc);
 

@@ -1,4 +1,6 @@
 #include <assert.h>
+#include <unicode/ubidi.h>
+#include <unicode/ustring.h>
 #include "uthash.h"
 #include "gb_context.h"
 #include "gb_font.h"
@@ -117,7 +119,7 @@ static GB_ERROR _GB_TextUpdateQuads(struct GB_Context* gb, struct GB_Text* text)
 
     int i;
     for (i = 0; i < num_glyphs; i++) {
-        
+
         // apply kerning
         if (i > 0)
         {
@@ -148,6 +150,62 @@ static GB_ERROR _GB_TextUpdateQuads(struct GB_Context* gb, struct GB_Text* text)
         }
     }
     return GB_ERROR_NONE;
+}
+
+static void renderRun(const UChar* str, int32_t start, int32_t end, UBiDiDirection direction)
+{
+    fprintf(stdout, "BIDI: run from %d to %d, direction = %d\n", start, end, direction);
+    fflush(stdout);
+}
+
+static void _GB_TextLogicalToVisualOrder(struct GB_Context* gb, struct GB_Text* text)
+{
+    int32_t str_len = 0;
+    UErrorCode errorCode = 0;
+
+    // icu4c wants utf-16 encoded strings for bidi
+    // figure out how large the utf16 string will be.
+    u_strFromUTF8(NULL, 0, &str_len, text->utf8_string, -1, &errorCode);
+
+    // now allocate and convert from utf8 to utf16
+    errorCode = 0;
+    UChar* str = (UChar*)calloc(str_len + 1, sizeof(UChar*));
+    u_strFromUTF8(str, (str_len + 1) * 1000000, &str_len, text->utf8_string, -1, &errorCode);
+    if (!U_SUCCESS(errorCode)) {
+        fprintf(stderr, "BIDI: u_strFromUTF8 convert failed, errorCode = %d\n", errorCode);
+        return;
+    }
+
+    const UBiDiDirection textDirection = UBIDI_LTR;
+
+    UBiDi* para = ubidi_openSized(str_len, 0, &errorCode);
+    if (para == NULL)
+        return;
+
+    ubidi_setPara(para, str, str_len, textDirection ? UBIDI_DEFAULT_RTL : UBIDI_DEFAULT_LTR,
+                  NULL, &errorCode);
+    if (U_SUCCESS(errorCode)) {
+        UBiDiDirection direction = ubidi_getDirection(para);
+        if (direction != UBIDI_MIXED) {
+            // unidirectional
+            renderRun(str, 0, str_len, direction);
+        } else {
+            // mixed-directional
+            int32_t count, i, length, start;
+
+            count = ubidi_countRuns(para, &errorCode);
+            if (U_SUCCESS(errorCode)) {
+                // iterate over directional runs
+                for (i = 0; i < count; ++i) {
+                    direction = ubidi_getVisualRun(para, i, &start, &length);
+                    renderRun(str, start, start + length, direction);
+                }
+            }
+        }
+    }
+
+    free(str);
+    ubidi_close(para);
 }
 
 GB_ERROR GB_TextMake(struct GB_Context* gb, const char* utf8_string,
@@ -188,6 +246,9 @@ GB_ERROR GB_TextMake(struct GB_Context* gb, const char* utf8_string,
 
             // shape text
             hb_shape(font->hb_font, text->hb_buffer, NULL, 0);
+
+            // icu4c logical to visual bidi
+            _GB_TextLogicalToVisualOrder(gb, text);
 
             // insert new glyphs into cache
             GB_ERROR ret = _GB_TextUpdateCache(gb, text);
