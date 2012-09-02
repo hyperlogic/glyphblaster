@@ -19,7 +19,6 @@ Dependencies
 
 TODO:
 -----------------
-* make sure cache deletes opengl texture on destroy.
 * test empty string & whitespace strings.
 * Finish SDL test prog.
 * Adjust style to be more Linuxy. (mostly adjust decls to look like this: int *foo)

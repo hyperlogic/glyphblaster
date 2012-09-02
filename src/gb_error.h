@@ -15,7 +15,7 @@ typedef enum GB_Error_Code {
     GB_ERROR_NUM_ERRORS
 } GB_ERROR;
 
-const char* GB_ErrorToString(GB_ERROR err);
+const char *GB_ErrorToString(GB_ERROR err);
 
 #ifdef __cplusplus
 }

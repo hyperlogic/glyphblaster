@@ -5,10 +5,10 @@
 #include "gb_text.h"
 #include "gb_texture.h"
 
-static GB_ERROR _GB_ContextInitFallbackOpenGLTexture(uint32_t* gl_tex_out)
+static GB_ERROR _GB_ContextInitFallbackOpenGLTexture(uint32_t *gl_tex_out)
 {
     const int texture_size = 16;
-    uint8_t* image = NULL;
+    uint8_t *image = NULL;
     image = (uint8_t*)malloc(texture_size * texture_size * sizeof(uint8_t));
 
     // fallback texture is gray
@@ -24,17 +24,17 @@ static int IsPowerOfTwo(uint32_t x)
     return ((x != 0) && !(x & (x - 1)));
 }
 
-GB_ERROR GB_ContextMake(uint32_t texture_size, uint32_t num_sheets, struct GB_Context** gb_out)
+GB_ERROR GB_ContextMake(uint32_t texture_size, uint32_t num_sheets, struct GB_Context **gb_out)
 {
     if (num_sheets < GB_MAX_SHEETS_PER_CACHE && texture_size > 0 && IsPowerOfTwo(texture_size)) {
-        struct GB_Context* gb = (struct GB_Context*)malloc(sizeof(struct GB_Context));
+        struct GB_Context *gb = (struct GB_Context*)malloc(sizeof(struct GB_Context));
         if (gb) {
             memset(gb, 0, sizeof(struct GB_Context));
             gb->rc = 1;
             if (FT_Init_FreeType(&gb->ft_library)) {
                 return GB_ERROR_FTERR;
             }
-            struct GB_Cache* cache = NULL;
+            struct GB_Cache *cache = NULL;
             GB_ERROR err = GB_CacheMake(texture_size, num_sheets, &cache);
             if (err == GB_ERROR_NONE) {
                 gb->cache = cache;
@@ -54,7 +54,7 @@ GB_ERROR GB_ContextMake(uint32_t texture_size, uint32_t num_sheets, struct GB_Co
     }
 }
 
-GB_ERROR GB_ContextRetain(struct GB_Context* gb)
+GB_ERROR GB_ContextRetain(struct GB_Context *gb)
 {
     if (gb) {
         assert(gb->rc > 0);
@@ -65,7 +65,7 @@ GB_ERROR GB_ContextRetain(struct GB_Context* gb)
     }
 }
 
-static void _GB_ContextDestroy(struct GB_Context* gb)
+static void _GB_ContextDestroy(struct GB_Context *gb)
 {
     assert(gb);
     if (gb->ft_library) {
@@ -85,7 +85,7 @@ static void _GB_ContextDestroy(struct GB_Context* gb)
     free(gb);
 }
 
-GB_ERROR GB_ContextRelease(struct GB_Context* gb)
+GB_ERROR GB_ContextRelease(struct GB_Context *gb)
 {
     if (gb) {
         gb->rc--;
@@ -99,7 +99,7 @@ GB_ERROR GB_ContextRelease(struct GB_Context* gb)
     }
 }
 
-GB_ERROR GB_ContextSetTextRenderFunc(struct GB_Context* gb, GB_TextRenderFunc func)
+GB_ERROR GB_ContextSetTextRenderFunc(struct GB_Context *gb, GB_TextRenderFunc func)
 {
     if (gb) {
         gb->text_render_func = func;
@@ -109,12 +109,12 @@ GB_ERROR GB_ContextSetTextRenderFunc(struct GB_Context* gb, GB_TextRenderFunc fu
     }
 }
 
-GB_ERROR GB_ContextCompact(struct GB_Context* gb)
+GB_ERROR GB_ContextCompact(struct GB_Context *gb)
 {
     return GB_CacheCompact(gb, gb->cache);
 }
 
-void GB_ContextHashAdd(struct GB_Context* gb, struct GB_Glyph* glyph)
+void GB_ContextHashAdd(struct GB_Context *gb, struct GB_Glyph *glyph)
 {
 #ifndef NDEBUG
     if (GB_ContextHashFind(gb, glyph->index, glyph->font_index)) {
@@ -126,18 +126,18 @@ void GB_ContextHashAdd(struct GB_Context* gb, struct GB_Glyph* glyph)
     GB_GlyphRetain(glyph);
 }
 
-struct GB_Glyph* GB_ContextHashFind(struct GB_Context* gb, uint32_t glyph_index, uint32_t font_index)
+struct GB_Glyph *GB_ContextHashFind(struct GB_Context *gb, uint32_t glyph_index, uint32_t font_index)
 {
-    struct GB_Glyph* glyph = NULL;
+    struct GB_Glyph *glyph = NULL;
     uint64_t key = ((uint64_t)font_index << 32) | glyph_index;
     HASH_FIND(context_hh, gb->glyph_hash, &key, sizeof(uint64_t), glyph);
     return glyph;
 }
 
-void GB_ContextHashRemove(struct GB_Context* gb, uint32_t glyph_index, uint32_t font_index)
+void GB_ContextHashRemove(struct GB_Context *gb, uint32_t glyph_index, uint32_t font_index)
 {
     printf("GB_ContextHashRemove() index = %d, font_index = %d\n", glyph_index, font_index);
-    struct GB_Glyph* glyph = NULL;
+    struct GB_Glyph *glyph = NULL;
     uint64_t key = ((uint64_t)font_index << 32) | glyph_index;
     HASH_FIND(context_hh, gb->glyph_hash, &key, sizeof(uint64_t), glyph);
     if (glyph) {
@@ -146,11 +146,11 @@ void GB_ContextHashRemove(struct GB_Context* gb, uint32_t glyph_index, uint32_t 
     }
 }
 
-struct GB_Glyph** GB_ContextHashValues(struct GB_Context* gb, uint32_t* num_ptrs_out)
+struct GB_Glyph **GB_ContextHashValues(struct GB_Context *gb, uint32_t *num_ptrs_out)
 {
     int num_glyph_ptrs = HASH_CNT(context_hh, gb->glyph_hash);
-    struct GB_Glyph** glyph_ptrs = (struct GB_Glyph**)malloc(sizeof(struct GB_Glyph*) * num_glyph_ptrs);
-    struct GB_Glyph* glyph;
+    struct GB_Glyph **glyph_ptrs = (struct GB_Glyph**)malloc(sizeof(struct GB_Glyph*) * num_glyph_ptrs);
+    struct GB_Glyph *glyph;
     int i = 0;
     for (glyph = gb->glyph_hash; glyph != NULL; glyph = glyph->context_hh.next) {
         glyph_ptrs[i++] = glyph;

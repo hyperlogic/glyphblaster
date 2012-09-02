@@ -6,9 +6,9 @@
 #include "gb_cache.h"
 #include "gb_texture.h"
 
-static GB_ERROR _GB_SheetInit(struct GB_Cache* cache, struct GB_Sheet* sheet)
+static GB_ERROR _GB_SheetInit(struct GB_Cache *cache, struct GB_Sheet *sheet)
 {
-    uint8_t* image = NULL;
+    uint8_t *image = NULL;
 
     const uint32_t texture_size = cache->texture_size;
 #ifndef NDEBUG
@@ -28,12 +28,12 @@ static GB_ERROR _GB_SheetInit(struct GB_Cache* cache, struct GB_Sheet* sheet)
     return GB_ERROR_NONE;
 }
 
-static int _GB_SheetAddNewLevel(struct GB_Cache* cache, struct GB_Sheet* sheet, uint32_t height)
+static int _GB_SheetAddNewLevel(struct GB_Cache *cache, struct GB_Sheet *sheet, uint32_t height)
 {
-    struct GB_SheetLevel* prev_level = (sheet->num_levels == 0) ? NULL : &sheet->level[sheet->num_levels - 1];
+    struct GB_SheetLevel *prev_level = (sheet->num_levels == 0) ? NULL : &sheet->level[sheet->num_levels - 1];
     uint32_t baseline = prev_level ? prev_level->baseline + prev_level->height : 0;
     if (sheet->num_levels < GB_MAX_LEVELS_PER_SHEET && (baseline + height) <= cache->texture_size) {
-        struct GB_SheetLevel* level = &sheet->level[sheet->num_levels++];
+        struct GB_SheetLevel *level = &sheet->level[sheet->num_levels++];
         memset(level, 0, sizeof(struct GB_SheetLevel));
         level->baseline = baseline;
         level->height = height;
@@ -44,16 +44,16 @@ static int _GB_SheetAddNewLevel(struct GB_Cache* cache, struct GB_Sheet* sheet, 
     }
 }
 
-static void _GB_SheetSubloadGlyph(struct GB_Sheet* sheet, struct GB_Glyph* glyph)
+static void _GB_SheetSubloadGlyph(struct GB_Sheet *sheet, struct GB_Glyph *glyph)
 {
     assert(sheet);
     GB_TextureSubLoad(sheet->gl_tex_obj, glyph->origin, glyph->size, glyph->image);
 }
 
-static int _GB_SheetLevelInsertGlyph(struct GB_Cache* cache, struct GB_SheetLevel* level,
-                                     struct GB_Glyph* glyph)
+static int _GB_SheetLevelInsertGlyph(struct GB_Cache *cache, struct GB_SheetLevel *level,
+                                     struct GB_Glyph *glyph)
 {
-    struct GB_Glyph* prev_glyph = level->num_glyphs == 0 ? NULL : level->glyph[level->num_glyphs - 1];
+    struct GB_Glyph *prev_glyph = level->num_glyphs == 0 ? NULL : level->glyph[level->num_glyphs - 1];
 
     if (level->num_glyphs < GB_MAX_GLYPHS_PER_LEVEL) {
         if (prev_glyph) {
@@ -83,7 +83,7 @@ static int _GB_SheetLevelInsertGlyph(struct GB_Cache* cache, struct GB_SheetLeve
     return 0;
 }
 
-static int _GB_SheetInsertGlyph(struct GB_Cache* cache, struct GB_Sheet* sheet, struct GB_Glyph* glyph)
+static int _GB_SheetInsertGlyph(struct GB_Cache *cache, struct GB_Sheet *sheet, struct GB_Glyph *glyph)
 {
     int i = 0;
     for (i = 0; i < sheet->num_levels; i++) {
@@ -118,9 +118,9 @@ static int _GB_SheetInsertGlyph(struct GB_Cache* cache, struct GB_Sheet* sheet, 
     }
 }
 
-GB_ERROR GB_CacheMake(uint32_t texture_size, uint32_t num_sheets, struct GB_Cache** cache_out)
+GB_ERROR GB_CacheMake(uint32_t texture_size, uint32_t num_sheets, struct GB_Cache **cache_out)
 {
-    struct GB_Cache* cache = (struct GB_Cache*)malloc(sizeof(struct GB_Cache));
+    struct GB_Cache *cache = (struct GB_Cache*)malloc(sizeof(struct GB_Cache));
     memset(cache, 0, sizeof(struct GB_Cache));
 
     cache->num_sheets = num_sheets;
@@ -135,7 +135,7 @@ GB_ERROR GB_CacheMake(uint32_t texture_size, uint32_t num_sheets, struct GB_Cach
     return GB_ERROR_NONE;
 }
 
-GB_ERROR GB_CacheDestroy(struct GB_Cache* cache)
+GB_ERROR GB_CacheDestroy(struct GB_Cache *cache)
 {
     if (cache) {
         // release all glyphs
@@ -155,11 +155,11 @@ GB_ERROR GB_CacheDestroy(struct GB_Cache* cache)
     return GB_ERROR_NONE;
 }
 
-static int _GB_CacheInsertGlyph(struct GB_Cache* cache, struct GB_Glyph* glyph)
+static int _GB_CacheInsertGlyph(struct GB_Cache *cache, struct GB_Glyph *glyph)
 {
     int i;
     for (i = 0; i < cache->num_sheets; i++) {
-        struct GB_Sheet* sheet = cache->sheet + i;
+        struct GB_Sheet *sheet = cache->sheet + i;
         if (_GB_SheetInsertGlyph(cache, sheet, glyph)) {
             return 1;
         }
@@ -167,24 +167,24 @@ static int _GB_CacheInsertGlyph(struct GB_Cache* cache, struct GB_Glyph* glyph)
     return 0;
 }
 
-static int _GB_CacheAddSheet(struct GB_Cache* cache)
+static int _GB_CacheAddSheet(struct GB_Cache *cache)
 {
     // TODO:
     return 0;
 }
 
 // sort glyph ptrs in decreasing height
-static int glyph_cmp(const void* a, const void* b)
+static int glyph_cmp(const void *a, const void *b)
 {
     return (*(struct GB_Glyph**)b)->size[1] - (*(struct GB_Glyph**)a)->size[1];
 }
 
-GB_ERROR GB_CacheCompact(struct GB_Context* gb, struct GB_Cache* cache)
+GB_ERROR GB_CacheCompact(struct GB_Context *gb, struct GB_Cache *cache)
 {
     printf("AJT: COMPACT!!!!!\n");
 
     uint32_t num_glyph_ptrs;
-    struct GB_Glyph** glyph_ptrs = GB_ContextHashValues(gb, &num_glyph_ptrs);
+    struct GB_Glyph **glyph_ptrs = GB_ContextHashValues(gb, &num_glyph_ptrs);
 
     // The goal of all this retaining & releasing is to make sure we dispose of all
     // glyphs that are in the cache but aren't in the context.
@@ -197,7 +197,7 @@ GB_ERROR GB_CacheCompact(struct GB_Context* gb, struct GB_Cache* cache)
     }
 
     // release all glyphs in the cache
-    struct GB_Glyph* glyph;
+    struct GB_Glyph *glyph;
     for (glyph = cache->glyph_hash; glyph != NULL; glyph = glyph->cache_hh.next) {
         GB_GlyphRelease(glyph);
     }
@@ -205,7 +205,7 @@ GB_ERROR GB_CacheCompact(struct GB_Context* gb, struct GB_Cache* cache)
 
     // Clear all sheets
     for (i = 0; i < cache->num_sheets; i++) {
-        struct GB_Sheet* sheet = &cache->sheet[i];
+        struct GB_Sheet *sheet = &cache->sheet[i];
         sheet->num_levels = 0;
     }
 
@@ -214,7 +214,7 @@ GB_ERROR GB_CacheCompact(struct GB_Context* gb, struct GB_Cache* cache)
 
     // decreasing height find-first heuristic.
     for (i = 0; i < num_glyph_ptrs; i++) {
-        struct GB_Glyph* glyph = glyph_ptrs[i];
+        struct GB_Glyph *glyph = glyph_ptrs[i];
         if (!_GB_CacheInsertGlyph(cache, glyph)) {
             return GB_ERROR_NOMEM;
         }
@@ -231,8 +231,8 @@ GB_ERROR GB_CacheCompact(struct GB_Context* gb, struct GB_Cache* cache)
     return GB_ERROR_NONE;
 }
 
-GB_ERROR GB_CacheInsert(struct GB_Context* gb, struct GB_Cache* cache,
-                        struct GB_Glyph** glyph_ptrs, int num_glyph_ptrs)
+GB_ERROR GB_CacheInsert(struct GB_Context *gb, struct GB_Cache *cache,
+                        struct GB_Glyph **glyph_ptrs, int num_glyph_ptrs)
 {
     int i;
     int cache_full = 0;
@@ -242,7 +242,7 @@ GB_ERROR GB_CacheInsert(struct GB_Context* gb, struct GB_Cache* cache,
 
     // decreasing height find-first heuristic.
     for (i = 0; i < num_glyph_ptrs; i++) {
-        struct GB_Glyph* glyph = glyph_ptrs[i];
+        struct GB_Glyph *glyph = glyph_ptrs[i];
         // make sure duplicates don't end up in the hash
         if (!GB_CacheHashFind(cache, glyph->index, glyph->font_index)) {
             if (!_GB_CacheInsertGlyph(cache, glyph)) {
@@ -279,7 +279,7 @@ GB_ERROR GB_CacheInsert(struct GB_Context* gb, struct GB_Cache* cache,
     return GB_ERROR_NONE;
 }
 
-void GB_CacheHashAdd(struct GB_Cache* cache, struct GB_Glyph* glyph)
+void GB_CacheHashAdd(struct GB_Cache *cache, struct GB_Glyph *glyph)
 {
 #ifndef NDEBUG
     if (GB_CacheHashFind(cache, glyph->index, glyph->font_index)) {
@@ -292,9 +292,9 @@ void GB_CacheHashAdd(struct GB_Cache* cache, struct GB_Glyph* glyph)
     GB_GlyphRetain(glyph);
 }
 
-struct GB_Glyph* GB_CacheHashFind(struct GB_Cache* cache, uint32_t glyph_index, uint32_t font_index)
+struct GB_Glyph *GB_CacheHashFind(struct GB_Cache *cache, uint32_t glyph_index, uint32_t font_index)
 {
-    struct GB_Glyph* glyph = NULL;
+    struct GB_Glyph *glyph = NULL;
     uint64_t key = ((uint64_t)font_index << 32) | glyph_index;
     HASH_FIND(cache_hh, cache->glyph_hash, &key, sizeof(uint64_t), glyph);
     return glyph;

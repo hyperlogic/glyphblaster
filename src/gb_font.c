@@ -7,8 +7,8 @@
 #include "gb_cache.h"
 #include "gb_font.h"
 
-GB_ERROR GB_FontMake(struct GB_Context* gb, const char* filename,
-                     uint32_t point_size, struct GB_Font** font_out)
+GB_ERROR GB_FontMake(struct GB_Context *gb, const char *filename,
+                     uint32_t point_size, struct GB_Font **font_out)
 {
     if (gb && filename && font_out) {
 
@@ -16,7 +16,7 @@ GB_ERROR GB_FontMake(struct GB_Context* gb, const char* filename,
         FT_Face face = NULL;
         FT_New_Face(gb->ft_library, filename, 0, &face);
         if (face) {
-            struct GB_Font* font = (struct GB_Font*)malloc(sizeof(struct GB_Font));
+            struct GB_Font *font = (struct GB_Font*)malloc(sizeof(struct GB_Font));
             if (font) {
                 memset(font, 0, sizeof(struct GB_Font));
 
@@ -47,7 +47,7 @@ GB_ERROR GB_FontMake(struct GB_Context* gb, const char* filename,
     }
 }
 
-GB_ERROR GB_FontRetain(struct GB_Context* gb, struct GB_Font* font)
+GB_ERROR GB_FontRetain(struct GB_Context *gb, struct GB_Font *font)
 {
     if (gb && font) {
         assert(font->rc > 0);
@@ -58,7 +58,7 @@ GB_ERROR GB_FontRetain(struct GB_Context* gb, struct GB_Font* font)
     }
 }
 
-static void _GB_FontDestroy(struct GB_Context* gb, struct GB_Font* font)
+static void _GB_FontDestroy(struct GB_Context *gb, struct GB_Font *font)
 {
     assert(font);
     assert(font->rc == 0);
@@ -79,7 +79,7 @@ static void _GB_FontDestroy(struct GB_Context* gb, struct GB_Font* font)
     free(font);
 }
 
-GB_ERROR GB_FontRelease(struct GB_Context* gb, struct GB_Font* font)
+GB_ERROR GB_FontRelease(struct GB_Context *gb, struct GB_Font *font)
 {
     if (gb && font) {
         font->rc--;

@@ -11,7 +11,7 @@
 // 26.6 fixed to int (truncates)
 #define FIXED_TO_INT(n) (uint32_t)(n >> 6)
 
-static GB_ERROR _GB_TextUpdateCache(struct GB_Context* gb, struct GB_Text* text)
+static GB_ERROR _GB_TextUpdateCache(struct GB_Context *gb, struct GB_Text *text)
 {
     assert(gb);
     assert(text);
@@ -20,13 +20,13 @@ static GB_ERROR _GB_TextUpdateCache(struct GB_Context* gb, struct GB_Text* text)
     // prepare to iterate over all the glyphs in the hb_buffer
     int num_glyphs = hb_buffer_get_length(text->hb_buffer);
 
-    hb_glyph_info_t* glyphs = hb_buffer_get_glyph_infos(text->hb_buffer, NULL);
+    hb_glyph_info_t *glyphs = hb_buffer_get_glyph_infos(text->hb_buffer, NULL);
 
     // hold a temp array of glyph ptrs, this is so we can sort glyphs by some heuristic before
     // adding them to the GlyphCache, to improve texture utilization for long strings of glyphs.
-    struct GB_Glyph** glyph_ptrs = (struct GB_Glyph**)malloc(sizeof(struct GB_Glyph*) * num_glyphs);
+    struct GB_Glyph **glyph_ptrs = (struct GB_Glyph**)malloc(sizeof(struct GB_Glyph*) * num_glyphs);
 
-    struct GB_Cache* cache = gb->cache;
+    struct GB_Cache *cache = gb->cache;
 
     // iterate over each glyph
     int i, num_glyph_ptrs;
@@ -35,7 +35,7 @@ static GB_ERROR _GB_TextUpdateCache(struct GB_Context* gb, struct GB_Text* text)
         int index = glyphs[i].codepoint;
 
         // check to see if this glyph already exists in the context
-        struct GB_Glyph* glyph = GB_ContextHashFind(gb, index, text->font->index);
+        struct GB_Glyph *glyph = GB_ContextHashFind(gb, index, text->font->index);
         if (!glyph) {
             // check to see if this glyph already exists in the cache
             glyph = GB_CacheHashFind(cache, index, text->font->index);
@@ -71,7 +71,7 @@ static GB_ERROR _GB_TextUpdateCache(struct GB_Context* gb, struct GB_Text* text)
     return GB_ERROR_NONE;
 }
 
-static GB_ERROR _GB_TextUpdateQuads(struct GB_Context* gb, struct GB_Text* text)
+static GB_ERROR _GB_TextUpdateQuads(struct GB_Context *gb, struct GB_Text *text)
 {
     // allocate glyph_quad array
     int num_glyphs = hb_buffer_get_length(text->hb_buffer);
@@ -83,7 +83,7 @@ static GB_ERROR _GB_TextUpdateQuads(struct GB_Context* gb, struct GB_Text* text)
 
     int32_t pen[2] = {text->origin[0], text->origin[1]};
 
-    hb_glyph_info_t* glyphs = hb_buffer_get_glyph_infos(text->hb_buffer, NULL);
+    hb_glyph_info_t *glyphs = hb_buffer_get_glyph_infos(text->hb_buffer, NULL);
 
     int i;
     for (i = 0; i < num_glyphs; i++) {
@@ -97,12 +97,12 @@ static GB_ERROR _GB_TextUpdateQuads(struct GB_Context* gb, struct GB_Text* text)
             pen[0] += FIXED_TO_INT(delta.x);
         }
 
-        struct GB_Glyph* glyph = GB_ContextHashFind(gb, glyphs[i].codepoint, text->font->index);
+        struct GB_Glyph *glyph = GB_ContextHashFind(gb, glyphs[i].codepoint, text->font->index);
         if (glyph) {
             const float texture_size = (float)gb->cache->texture_size;
             // NOTE: y axis points down, quad origin is upper-left corner of glyph
             // build quad
-            struct GB_GlyphQuad* quad = text->glyph_quad + i;
+            struct GB_GlyphQuad *quad = text->glyph_quad + i;
             quad->origin[0] = pen[0] + glyph->bearing[0];
             quad->origin[1] = pen[1] - glyph->bearing[1];
             quad->size[0] = glyph->size[0];
@@ -121,13 +121,13 @@ static GB_ERROR _GB_TextUpdateQuads(struct GB_Context* gb, struct GB_Text* text)
     return GB_ERROR_NONE;
 }
 
-static void renderRun(const UChar* str, int32_t start, int32_t end, UBiDiDirection direction)
+static void renderRun(const UChar *str, int32_t start, int32_t end, UBiDiDirection direction)
 {
     fprintf(stdout, "BIDI: run from %d to %d, direction = %d\n", start, end, direction);
     fflush(stdout);
 }
 
-static void _GB_TextLogicalToVisualOrder(struct GB_Context* gb, struct GB_Text* text)
+static void _GB_TextLogicalToVisualOrder(struct GB_Context *gb, struct GB_Text *text)
 {
     int32_t str_len = 0;
     UErrorCode errorCode = 0;
@@ -138,7 +138,7 @@ static void _GB_TextLogicalToVisualOrder(struct GB_Context* gb, struct GB_Text* 
 
     // now allocate and convert from utf8 to utf16
     errorCode = 0;
-    UChar* str = (UChar*)calloc(str_len + 1, sizeof(UChar*));
+    UChar *str = (UChar*)calloc(str_len + 1, sizeof(UChar*));
     u_strFromUTF8(str, (str_len + 1) * 1000000, &str_len, text->utf8_string, -1, &errorCode);
     if (!U_SUCCESS(errorCode)) {
         fprintf(stderr, "BIDI: u_strFromUTF8 convert failed, errorCode = %d\n", errorCode);
@@ -147,7 +147,7 @@ static void _GB_TextLogicalToVisualOrder(struct GB_Context* gb, struct GB_Text* 
 
     const UBiDiDirection textDirection = UBIDI_LTR;
 
-    UBiDi* para = ubidi_openSized(str_len, 0, &errorCode);
+    UBiDi *para = ubidi_openSized(str_len, 0, &errorCode);
     if (para == NULL)
         return;
 
@@ -177,13 +177,13 @@ static void _GB_TextLogicalToVisualOrder(struct GB_Context* gb, struct GB_Text* 
     ubidi_close(para);
 }
 
-GB_ERROR GB_TextMake(struct GB_Context* gb, const char* utf8_string,
-                     struct GB_Font* font, uint32_t color, uint32_t origin[2],
+GB_ERROR GB_TextMake(struct GB_Context *gb, const char *utf8_string,
+                     struct GB_Font *font, uint32_t color, uint32_t origin[2],
                      uint32_t size[2], GB_HORIZONTAL_ALIGN horizontal_align,
-                     GB_VERTICAL_ALIGN vertical_align, struct GB_Text** text_out)
+                     GB_VERTICAL_ALIGN vertical_align, struct GB_Text **text_out)
 {
     if (gb && utf8_string && font && font->hb_font && text_out) {
-        struct GB_Text* text = (struct GB_Text*)malloc(sizeof(struct GB_Text));
+        struct GB_Text *text = (struct GB_Text*)malloc(sizeof(struct GB_Text));
         if (text) {
             memset(text, 0, sizeof(struct GB_Text));
             text->rc = 1;
@@ -239,7 +239,7 @@ GB_ERROR GB_TextMake(struct GB_Context* gb, const char* utf8_string,
     }
 }
 
-GB_ERROR GB_TextRetain(struct GB_Context* gb, struct GB_Text* text)
+GB_ERROR GB_TextRetain(struct GB_Context *gb, struct GB_Text *text)
 {
     if (gb && text) {
         assert(text->rc > 0);
@@ -250,14 +250,14 @@ GB_ERROR GB_TextRetain(struct GB_Context* gb, struct GB_Text* text)
     }
 }
 
-static void _GB_TextDestroy(struct GB_Context* gb, struct GB_Text* text)
+static void _GB_TextDestroy(struct GB_Context *gb, struct GB_Text *text)
 {
     assert(text);
     assert(text->rc == 0);
 
     // prepare to iterate over all the glyphs in the hb_buffer
     int num_glyphs = hb_buffer_get_length(text->hb_buffer);
-    hb_glyph_info_t* glyphs = hb_buffer_get_glyph_infos(text->hb_buffer, NULL);
+    hb_glyph_info_t *glyphs = hb_buffer_get_glyph_infos(text->hb_buffer, NULL);
 
     // remove each glyph from context
     int i;
@@ -275,7 +275,7 @@ static void _GB_TextDestroy(struct GB_Context* gb, struct GB_Text* text)
     free(text);
 }
 
-GB_ERROR GB_TextRelease(struct GB_Context* gb, struct GB_Text* text)
+GB_ERROR GB_TextRelease(struct GB_Context *gb, struct GB_Text *text)
 {
     if (gb && text) {
         assert(text->rc > 0);
@@ -289,11 +289,11 @@ GB_ERROR GB_TextRelease(struct GB_Context* gb, struct GB_Text* text)
     }
 }
 
-GB_ERROR GB_GetTextMetrics(struct GB_Context* gb, const char* utf8_string,
-                           struct GB_Font* font, uint32_t min[2], uint32_t max[2],
+GB_ERROR GB_GetTextMetrics(struct GB_Context *gb, const char *utf8_string,
+                           struct GB_Font *font, uint32_t min[2], uint32_t max[2],
                            GB_HORIZONTAL_ALIGN horizontal_align,
                            GB_VERTICAL_ALIGN vertical_align,
-                           struct GB_TextMetrics* text_metrics_out)
+                           struct GB_TextMetrics *text_metrics_out)
 {
     if (gb && utf8_string && font && text_metrics_out) {
         return GB_ERROR_NOIMP;
@@ -303,7 +303,7 @@ GB_ERROR GB_GetTextMetrics(struct GB_Context* gb, const char* utf8_string,
 }
 
 // Renders given text using renderer func.
-GB_ERROR GB_TextDraw(struct GB_Context* gb, struct GB_Text* text)
+GB_ERROR GB_TextDraw(struct GB_Context *gb, struct GB_Text *text)
 {
     // text.glyphs.each do |glyph|
     //   build run of glyph_quads that share same opengl texture

@@ -20,15 +20,15 @@ struct GB_Glyph {
     uint32_t size[2];
     uint32_t advance;
     uint32_t bearing[2];
-    uint8_t* image;
+    uint8_t *image;
     UT_hash_handle context_hh;
     UT_hash_handle cache_hh;
 };
 
 GB_ERROR GB_GlyphMake(uint32_t index, uint32_t font_index, FT_Face ft_face,
-                      struct GB_Glyph** glyph_out);
-GB_ERROR GB_GlyphRetain(struct GB_Glyph* glyph);
-GB_ERROR GB_GlyphRelease(struct GB_Glyph* glyph);
+                      struct GB_Glyph **glyph_out);
+GB_ERROR GB_GlyphRetain(struct GB_Glyph *glyph);
+GB_ERROR GB_GlyphRelease(struct GB_Glyph *glyph);
 
 #ifdef __cplusplus
 }

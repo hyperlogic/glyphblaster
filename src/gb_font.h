@@ -17,15 +17,15 @@ struct GB_Font {
     int32_t rc;
     uint32_t index;
     FT_Face ft_face;
-    hb_font_t* hb_font;
-    struct GB_Font* prev;
-    struct GB_Font* next;
+    hb_font_t *hb_font;
+    struct GB_Font *prev;
+    struct GB_Font *next;
 };
 
-GB_ERROR GB_FontMake(struct GB_Context* gb, const char* filename, uint32_t point_size,
-                     struct GB_Font** font_out);
-GB_ERROR GB_FontRetain(struct GB_Context* gb, struct GB_Font* font);
-GB_ERROR GB_FontRelease(struct GB_Context* gb, struct GB_Font* font);
+GB_ERROR GB_FontMake(struct GB_Context *gb, const char *filename, uint32_t point_size,
+                     struct GB_Font **font_out);
+GB_ERROR GB_FontRetain(struct GB_Context *gb, struct GB_Font *font);
+GB_ERROR GB_FontRelease(struct GB_Context *gb, struct GB_Font *font);
 
 #ifdef __cplusplus
 }

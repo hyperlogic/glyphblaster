@@ -24,7 +24,7 @@
 #ifndef NDEBUG
 // If there is a glError this outputs it along with a message to stderr.
 // otherwise there is no output.
-void GLErrorCheck(const char* message)
+void GLErrorCheck(const char *message)
 {
     GLenum val = glGetError();
     switch (val)
@@ -55,7 +55,7 @@ void GLErrorCheck(const char* message)
 }
 #endif
 
-GB_ERROR GB_TextureInit(uint32_t texture_size, uint8_t* image, uint32_t* tex_out)
+GB_ERROR GB_TextureInit(uint32_t texture_size, uint8_t *image, uint32_t *tex_out)
 {
     glGenTextures(1, tex_out);
     glBindTexture(GL_TEXTURE_2D, *tex_out);
@@ -81,7 +81,7 @@ GB_ERROR GB_TextureDestroy(uint32_t tex)
 }
 
 
-GB_ERROR GB_TextureSubLoad(uint32_t tex, uint32_t origin[2], uint32_t size[2], uint8_t* image)
+GB_ERROR GB_TextureSubLoad(uint32_t tex, uint32_t origin[2], uint32_t size[2], uint8_t *image)
 {
     glBindTexture(GL_TEXTURE_2D, tex);
     glTexSubImage2D(GL_TEXTURE_2D, 0, origin[0], origin[1], size[0], size[1], GL_ALPHA,

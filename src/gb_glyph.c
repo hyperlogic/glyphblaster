@@ -6,7 +6,7 @@
 #define FIXED_TO_INT(n) (uint32_t)(n >> 6)
 
 GB_ERROR GB_GlyphMake(uint32_t index, uint32_t font_index, FT_Face ft_face,
-                      struct GB_Glyph** glyph_out)
+                      struct GB_Glyph **glyph_out)
 {
     if (glyph_out && ft_face) {
 
@@ -24,8 +24,8 @@ GB_ERROR GB_GlyphMake(uint32_t index, uint32_t font_index, FT_Face ft_face,
         uint32_t bearing[2] = {FIXED_TO_INT(ft_face->glyph->metrics.horiBearingX),
                                FIXED_TO_INT(ft_face->glyph->metrics.horiBearingY)};
 
-        FT_Bitmap* ft_bitmap = &ft_face->glyph->bitmap;
-        uint8_t* image = NULL;
+        FT_Bitmap *ft_bitmap = &ft_face->glyph->bitmap;
+        uint8_t *image = NULL;
         if (ft_bitmap->width > 0 && ft_bitmap->rows > 0) {
             // allocate an image to hold a copy of the rasterized glyph
             image = (uint8_t*)malloc(sizeof(uint8_t) * ft_bitmap->width * ft_bitmap->rows);
@@ -44,7 +44,7 @@ GB_ERROR GB_GlyphMake(uint32_t index, uint32_t font_index, FT_Face ft_face,
         uint32_t origin[2] = {0, 0};
         uint32_t size[2] = {ft_bitmap->width, ft_bitmap->rows};
 
-        struct GB_Glyph* glyph = (struct GB_Glyph*)malloc(sizeof(struct GB_Glyph));
+        struct GB_Glyph *glyph = (struct GB_Glyph*)malloc(sizeof(struct GB_Glyph));
         if (glyph) {
             uint64_t key = ((uint64_t)font_index << 32) | index;
             glyph->key = key;
@@ -70,7 +70,7 @@ GB_ERROR GB_GlyphMake(uint32_t index, uint32_t font_index, FT_Face ft_face,
     }
 }
 
-GB_ERROR GB_GlyphRetain(struct GB_Glyph* glyph)
+GB_ERROR GB_GlyphRetain(struct GB_Glyph *glyph)
 {
     if (glyph) {
         printf("AJT: glyph->ref index = %d rc = %d++\n", glyph->index, glyph->rc);
@@ -82,7 +82,7 @@ GB_ERROR GB_GlyphRetain(struct GB_Glyph* glyph)
     }
 }
 
-static void _GB_GlyphDestroy(struct GB_Glyph* glyph)
+static void _GB_GlyphDestroy(struct GB_Glyph *glyph)
 {
     printf("AJT: deleting glyph %d\n", glyph->index);
     assert(glyph);
@@ -91,7 +91,7 @@ static void _GB_GlyphDestroy(struct GB_Glyph* glyph)
     free(glyph);
 }
 
-GB_ERROR GB_GlyphRelease(struct GB_Glyph* glyph)
+GB_ERROR GB_GlyphRelease(struct GB_Glyph *glyph)
 {
     if (glyph) {
         printf("AJT: glyph->rel index = %d rc = %d--\n", glyph->index, glyph->rc);
