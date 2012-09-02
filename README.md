@@ -34,6 +34,7 @@ TODO:
 
 NOTES:
 ----------------
+* When cache is full, glyphs will use a fallback texture, which is 1/2 alpha.
 * Bidi makes word-wrapping a pain.  maybe drop it?
 * I still don't know how slow a full repack is.
 * I'm not sure if the interface is very good.

@@ -33,7 +33,8 @@ $OBJECTS = ['SDLMain.o',
             '../src/gb_error.o',
             '../src/gb_font.o',
             '../src/gb_glyph.o',
-            '../src/gb_text.o'
+            '../src/gb_text.o',
+            '../src/gb_texture.o',
            ]
 
 $DEPS = $OBJECTS.map {|f| f[0..-3] + '.d'}

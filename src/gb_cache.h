@@ -23,7 +23,7 @@ struct GB_Sheet {
     uint32_t num_levels;
 };
 
-#define GB_MAX_SHEETS_PER_CACHE 1
+#define GB_MAX_SHEETS_PER_CACHE 10
 struct GB_Cache {
     struct GB_Sheet sheet[GB_MAX_SHEETS_PER_CACHE];
     uint32_t num_sheets;

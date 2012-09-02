@@ -3,29 +3,54 @@
 #include "gb_glyph.h"
 #include "gb_cache.h"
 #include "gb_text.h"
+#include "gb_texture.h"
+
+static GB_ERROR _GB_ContextInitFallbackOpenGLTexture(uint32_t* gl_tex_out)
+{
+    const int texture_size = 16;
+    uint8_t* image = NULL;
+    image = (uint8_t*)malloc(texture_size * texture_size * sizeof(uint8_t));
+
+    // fallback texture is gray
+    memset(image, 128, texture_size * texture_size * sizeof(uint8_t));
+
+    GB_ERROR error = GB_TextureInit(texture_size, image, gl_tex_out);
+    free(image);
+    return error;
+}
+
+static int IsPowerOfTwo(uint32_t x)
+{
+    return ((x != 0) && !(x & (x - 1)));
+}
 
 GB_ERROR GB_ContextMake(uint32_t texture_size, uint32_t num_sheets, struct GB_Context** gb_out)
 {
-    struct GB_Context* gb = (struct GB_Context*)malloc(sizeof(struct GB_Context));
-    if (gb) {
-        memset(gb, 0, sizeof(struct GB_Context));
-        gb->rc = 1;
-        if (FT_Init_FreeType(&gb->ft_library)) {
-            return GB_ERROR_FTERR;
+    if (num_sheets < GB_MAX_SHEETS_PER_CACHE && texture_size > 0 && IsPowerOfTwo(texture_size)) {
+        struct GB_Context* gb = (struct GB_Context*)malloc(sizeof(struct GB_Context));
+        if (gb) {
+            memset(gb, 0, sizeof(struct GB_Context));
+            gb->rc = 1;
+            if (FT_Init_FreeType(&gb->ft_library)) {
+                return GB_ERROR_FTERR;
+            }
+            struct GB_Cache* cache = NULL;
+            GB_ERROR err = GB_CacheMake(texture_size, num_sheets, &cache);
+            if (err == GB_ERROR_NONE) {
+                gb->cache = cache;
+            }
+            gb->font_list = NULL;
+            gb->glyph_hash = NULL;
+            gb->next_font_index = 0;
+            gb->text_render_func = NULL;
+            _GB_ContextInitFallbackOpenGLTexture(&gb->fallback_gl_tex_obj);
+            *gb_out = gb;
+            return err;
+        } else {
+            return GB_ERROR_NOMEM;
         }
-        struct GB_Cache* cache = NULL;
-        GB_ERROR err = GB_CacheMake(texture_size, num_sheets, &cache);
-        if (err == GB_ERROR_NONE) {
-            gb->cache = cache;
-        }
-        gb->font_list = NULL;
-        gb->glyph_hash = NULL;
-        gb->next_font_index = 0;
-        gb->text_render_func = NULL;
-        *gb_out = gb;
-        return err;
     } else {
-        return GB_ERROR_NOMEM;
+        return GB_ERROR_INVAL;
     }
 }
 
@@ -53,6 +78,8 @@ static void _GB_ContextDestroy(struct GB_Context* gb)
         HASH_DELETE(context_hh, gb->glyph_hash, glyph);
         GB_GlyphRelease(glyph);
     }
+
+    GB_TextureDestroy(gb->fallback_gl_tex_obj);
 
     GB_CacheDestroy(gb->cache);
     free(gb);

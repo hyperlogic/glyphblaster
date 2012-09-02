@@ -101,15 +101,16 @@ void DebugDrawGlyphCache(GB_Context* gb, const Config& config)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_TEXTURE_2D);
 
+    const int sheet_gap = 2;
     const int texture_size = gb->cache->texture_size;
     GB_Cache* cache = gb->cache;
     int y = 0;
     for (uint32_t i = 0; i < cache->num_sheets; i++) {
         DrawTexturedQuad(cache->sheet[i].gl_tex_obj, Vector2f(0, y),
-                         Vector2f(texture_size, texture_size + y),
+                         Vector2f(texture_size, texture_size),
                          Vector2f(0, 0), Vector2f(1, 1),
                          Vector4f(0.7, 0.7, 0.7, 1));
-        y += texture_size;
+        y += texture_size + sheet_gap;
     }
 }
 
@@ -194,7 +195,7 @@ int main(int argc, char* argv[])
     // create the context
     GB_ERROR err;
     GB_Context* gb;
-    err = GB_ContextMake(128, 1, &gb);
+    err = GB_ContextMake(64, 3, &gb);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_Init Error %d\n", err);
         exit(1);
@@ -203,28 +204,30 @@ int main(int argc, char* argv[])
     // create a font
     GB_Font* droidFont = NULL;
     //err = GB_FontMake(gb, "Droid-Sans/DroidSans.ttf", 32, &droidFont);
-    //err = GB_FontMake(gb, "Arial.ttf", 32, &droidFont);
+    err = GB_FontMake(gb, "Arial.ttf", 32, &droidFont);
     //err = GB_FontMake(gb, "dejavu-fonts-ttf-2.33/ttf/DejaVuSans.ttf", 32, &droidFont);
-    err = GB_FontMake(gb, "Zar/XB Zar.ttf", 48, &droidFont);
+    //err = GB_FontMake(gb, "Zar/XB Zar.ttf", 48, &droidFont);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_MakeFont Error %s\n", GB_ErrorToString(err));
         exit(1);
     }
 
-    // create an arabic font
     GB_Font* arabicFont = NULL;
+    /*
+    // create an arabic font
     err = GB_FontMake(gb, "Zar/XB Zar.ttf", 48, &arabicFont);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_MakeFont Error %s\n", GB_ErrorToString(err));
         exit(1);
     }
+    */
 
     // create a text
     uint32_t origin[2] = {10, 100};
     uint32_t size[2] = {videoInfo->current_w, videoInfo->current_h};
     GB_Text* helloText = NULL;
 
-    err = GB_TextMake(gb, "GlyphBlaster Test!", droidFont, 0xffffffff, origin, size,
+    err = GB_TextMake(gb, "abcdefghijk|{}[]ABCDEFGHIJ", droidFont, 0xffffffff, origin, size,
                       GB_HORIZONTAL_ALIGN_CENTER, GB_VERTICAL_ALIGN_CENTER, &helloText);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_MakeText Error %s\n", GB_ErrorToString(err));
@@ -312,10 +315,12 @@ int main(int argc, char* argv[])
         fprintf(stderr, "GB_ReleaseFont Error %s\n", GB_ErrorToString(err));
         exit(1);
     }
-    err = GB_FontRelease(gb, arabicFont);
-    if (err != GB_ERROR_NONE) {
-        fprintf(stderr, "GB_ReleaseFont Error %s\n", GB_ErrorToString(err));
-        exit(1);
+    if (arabicFont) {
+        err = GB_FontRelease(gb, arabicFont);
+        if (err != GB_ERROR_NONE) {
+            fprintf(stderr, "GB_ReleaseFont Error %s\n", GB_ErrorToString(err));
+            exit(1);
+        }
     }
     err = GB_ContextRelease(gb);
     if (err != GB_ERROR_NONE) {

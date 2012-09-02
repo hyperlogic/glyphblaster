@@ -18,6 +18,7 @@ struct GB_Context {
     struct GB_Glyph* glyph_hash;  // retains all glyphs in use by GB_Text structs
     uint32_t next_font_index;
     void* text_render_func;
+    uint32_t fallback_gl_tex_obj;
 };
 
 // texture_size - width of texture sheets used by glyph cache in pixels (must be power of two)

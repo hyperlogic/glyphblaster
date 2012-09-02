@@ -4,6 +4,7 @@
 #include "uthash.h"
 #include "gb_context.h"
 #include "gb_glyph.h"
+#include "gb_cache.h"
 #include "gb_font.h"
 
 GB_ERROR GB_FontMake(struct GB_Context* gb, const char* filename,
