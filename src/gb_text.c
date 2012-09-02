@@ -132,6 +132,7 @@ static GB_ERROR _GB_TextUpdateQuads(struct GB_Context* gb, struct GB_Text* text)
         struct GB_Glyph* glyph = GB_ContextHashFind(gb, glyphs[i].codepoint, text->font->index);
         if (glyph) {
 
+            const float texture_size = (float)gb->cache->texture_size;
             // NOTE: y axis points down, quad origin is upper-left corner of glyph
             // build quad
             struct GB_GlyphQuad* quad = text->glyph_quad + i;
@@ -139,16 +140,17 @@ static GB_ERROR _GB_TextUpdateQuads(struct GB_Context* gb, struct GB_Text* text)
             quad->origin[1] = pen[1] - glyph->bearing[1];
             quad->size[0] = glyph->size[0];
             quad->size[1] = glyph->size[1];
-            quad->uv_origin[0] = (float)glyph->origin[0] / GB_TEXTURE_SIZE;
-            quad->uv_origin[1] = (float)glyph->origin[1] / GB_TEXTURE_SIZE;
-            quad->uv_size[0] = (float)glyph->size[0] / GB_TEXTURE_SIZE;
-            quad->uv_size[1] = (float)glyph->size[1] / GB_TEXTURE_SIZE;
+            quad->uv_origin[0] = glyph->origin[0] / texture_size;
+            quad->uv_origin[1] = glyph->origin[1] / texture_size;
+            quad->uv_size[0] = glyph->size[0] / texture_size;
+            quad->uv_size[1] = glyph->size[1] / texture_size;
             quad->color = text->color;
             quad->gl_tex_obj = glyph->gl_tex_obj;
 
             pen[0] += glyph->advance;
         }
     }
+
     return GB_ERROR_NONE;
 }
 
@@ -248,7 +250,7 @@ GB_ERROR GB_TextMake(struct GB_Context* gb, const char* utf8_string,
             hb_shape(font->hb_font, text->hb_buffer, NULL, 0);
 
             // icu4c logical to visual bidi
-            _GB_TextLogicalToVisualOrder(gb, text);
+            //_GB_TextLogicalToVisualOrder(gb, text);
 
             // insert new glyphs into cache
             GB_ERROR ret = _GB_TextUpdateCache(gb, text);

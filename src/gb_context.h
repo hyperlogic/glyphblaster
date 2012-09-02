@@ -20,7 +20,9 @@ struct GB_Context {
     void* text_render_func;
 };
 
-GB_ERROR GB_ContextMake(struct GB_Context** gb_out);
+// texture_size - width of texture sheets used by glyph cache in pixels (must be power of two)
+// num_sheets - number of texture sheets used by glyph cache.
+GB_ERROR GB_ContextMake(uint32_t texture_size, uint32_t num_sheets, struct GB_Context** gb_out);
 GB_ERROR GB_ContextRetain(struct GB_Context* gb);
 GB_ERROR GB_ContextRelease(struct GB_Context* gb);
 

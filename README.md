@@ -29,3 +29,15 @@ TODO:
   resources should be shared.
 * add glyph bitmap-padding option, necessary for scaled or non-screen aligned text.
 * bidi
+* make texture sheet size configurable.
+* make max num sheets configurable.
+
+NOTES:
+----------------
+* Bidi makes word-wrapping a pain.  maybe drop it?
+* I still don't know how slow a full repack is.
+* I'm not sure if the interface is very good.
+  Text's are not mutable, they must be destoryed and re-created.
+* Should I add a direction parameter? to Text or laungage? script?
+* I'm not sure if multi-sheet caching works.
+* Should I replace ut headers? with hand coded stuff?

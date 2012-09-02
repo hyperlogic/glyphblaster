@@ -8,9 +8,6 @@ extern "C" {
 #include <stdint.h>
 #include "gb_error.h"
 
-// all openGL textures in the cache have this size.
-#define GB_TEXTURE_SIZE 128
-
 #define GB_MAX_GLYPHS_PER_LEVEL 128
 struct GB_SheetLevel {
     struct GB_Glyph* glyph[GB_MAX_GLYPHS_PER_LEVEL];
@@ -30,10 +27,11 @@ struct GB_Sheet {
 struct GB_Cache {
     struct GB_Sheet sheet[GB_MAX_SHEETS_PER_CACHE];
     uint32_t num_sheets;
+    uint32_t texture_size;
     struct GB_Glyph* glyph_hash;  // retains all glyphs in GB_Sheet structs.
 };
 
-GB_ERROR GB_CacheMake(struct GB_Cache** cache_out);
+GB_ERROR GB_CacheMake(uint32_t texture_size, uint32_t num_sheets, struct GB_Cache** cache_out);
 GB_ERROR GB_CacheDestroy(struct GB_Cache* cache);
 GB_ERROR GB_CacheInsert(struct GB_Context* gb, struct GB_Cache* cache,
                         struct GB_Glyph** glyph_ptrs, int num_glyph_ptrs);

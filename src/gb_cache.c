@@ -59,7 +59,7 @@ void GLErrorCheck(const char* message)
 }
 #endif
 
-static GB_ERROR _GB_InitOpenGLTexture(uint32_t* gl_tex_out)
+static GB_ERROR _GB_InitOpenGLTexture(uint32_t texture_size, uint32_t* gl_tex_out)
 {
     glGenTextures(1, gl_tex_out);
     glBindTexture(GL_TEXTURE_2D, *gl_tex_out);
@@ -73,11 +73,11 @@ static GB_ERROR _GB_InitOpenGLTexture(uint32_t* gl_tex_out)
 
 #ifndef NDEBUG
     // in debug fill texture with 255.
-    image = (uint8_t*)malloc(GB_TEXTURE_SIZE * GB_TEXTURE_SIZE * sizeof(uint8_t));
-    memset(image, 255, GB_TEXTURE_SIZE * GB_TEXTURE_SIZE * sizeof(uint8_t));
+    image = (uint8_t*)malloc(texture_size * texture_size * sizeof(uint8_t));
+    memset(image, 255, texture_size * texture_size * sizeof(uint8_t));
 #endif
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, GB_TEXTURE_SIZE, GB_TEXTURE_SIZE, 0,
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, texture_size, texture_size, 0,
                  GL_ALPHA, GL_UNSIGNED_BYTE, image);
 
 #ifndef NDEBUG
@@ -87,18 +87,18 @@ static GB_ERROR _GB_InitOpenGLTexture(uint32_t* gl_tex_out)
     return GB_ERROR_NONE;
 }
 
-static GB_ERROR _GB_SheetInit(struct GB_Sheet* sheet)
+static GB_ERROR _GB_SheetInit(struct GB_Cache* cache, struct GB_Sheet* sheet)
 {
-    _GB_InitOpenGLTexture(&sheet->gl_tex_obj);
+    _GB_InitOpenGLTexture(cache->texture_size, &sheet->gl_tex_obj);
     sheet->num_levels = 0;
     return GB_ERROR_NONE;
 }
 
-static int _GB_SheetAddNewLevel(struct GB_Sheet* sheet, uint32_t height)
+static int _GB_SheetAddNewLevel(struct GB_Cache* cache, struct GB_Sheet* sheet, uint32_t height)
 {
     struct GB_SheetLevel* prev_level = (sheet->num_levels == 0) ? NULL : &sheet->level[sheet->num_levels - 1];
     uint32_t baseline = prev_level ? prev_level->baseline + prev_level->height : 0;
-    if (sheet->num_levels < GB_MAX_LEVELS_PER_SHEET && (baseline + height) <= GB_TEXTURE_SIZE) {
+    if (sheet->num_levels < GB_MAX_LEVELS_PER_SHEET && (baseline + height) <= cache->texture_size) {
         struct GB_SheetLevel* level = &sheet->level[sheet->num_levels++];
         memset(level, 0, sizeof(struct GB_SheetLevel));
         level->baseline = baseline;
@@ -121,13 +121,14 @@ static void _GB_SheetSubloadGlyph(struct GB_Sheet* sheet, struct GB_Glyph* glyph
 #endif
 }
 
-static int _GB_SheetLevelInsertGlyph(struct GB_SheetLevel* level, struct GB_Glyph* glyph)
+static int _GB_SheetLevelInsertGlyph(struct GB_Cache* cache, struct GB_SheetLevel* level,
+                                     struct GB_Glyph* glyph)
 {
     struct GB_Glyph* prev_glyph = level->num_glyphs == 0 ? NULL : level->glyph[level->num_glyphs - 1];
 
     if (level->num_glyphs < GB_MAX_GLYPHS_PER_LEVEL) {
         if (prev_glyph) {
-            if (prev_glyph->origin[0] + prev_glyph->size[0] + glyph->size[0] <= GB_TEXTURE_SIZE) {
+            if (prev_glyph->origin[0] + prev_glyph->size[0] + glyph->size[0] <= cache->texture_size) {
 
                 // update glyph origin
                 glyph->origin[0] = prev_glyph->origin[0] + prev_glyph->size[0];
@@ -138,7 +139,7 @@ static int _GB_SheetLevelInsertGlyph(struct GB_SheetLevel* level, struct GB_Glyp
                 return 1;
             }
         } else {
-            if (glyph->size[0] <= GB_TEXTURE_SIZE) {
+            if (glyph->size[0] <= cache->texture_size) {
                 glyph->origin[0] = 0;
                 glyph->origin[1] = level->baseline;
 
@@ -158,7 +159,7 @@ static int _GB_SheetInsertGlyph(struct GB_Cache* cache, struct GB_Sheet* sheet, 
     int i = 0;
     for (i = 0; i < sheet->num_levels; i++) {
         if (glyph->size[1] <= sheet->level[i].height) {
-            if (_GB_SheetLevelInsertGlyph(&sheet->level[i], glyph)) {
+            if (_GB_SheetLevelInsertGlyph(cache, &sheet->level[i], glyph)) {
                 glyph->gl_tex_obj = sheet->gl_tex_obj;
                 _GB_SheetSubloadGlyph(sheet, glyph);
                 printf("AJT: Inserted glyph %d into existing level %d\n", glyph->index, i);
@@ -168,8 +169,8 @@ static int _GB_SheetInsertGlyph(struct GB_Cache* cache, struct GB_Sheet* sheet, 
     }
 
     // add a new level.
-    if (_GB_SheetAddNewLevel(sheet, glyph->size[1])) {
-        if (_GB_SheetLevelInsertGlyph(&sheet->level[i], glyph)) {
+    if (_GB_SheetAddNewLevel(cache, sheet, glyph->size[1])) {
+        if (_GB_SheetLevelInsertGlyph(cache, &sheet->level[i], glyph)) {
             glyph->gl_tex_obj = sheet->gl_tex_obj;
             _GB_SheetSubloadGlyph(sheet, glyph);
             printf("AJT: Inserted glyph %d into new level %d\n", glyph->index, i);
@@ -186,15 +187,18 @@ static int _GB_SheetInsertGlyph(struct GB_Cache* cache, struct GB_Sheet* sheet, 
     }
 }
 
-GB_ERROR GB_CacheMake(struct GB_Cache** cache_out)
+GB_ERROR GB_CacheMake(uint32_t texture_size, uint32_t num_sheets, struct GB_Cache** cache_out)
 {
     struct GB_Cache* cache = (struct GB_Cache*)malloc(sizeof(struct GB_Cache));
     memset(cache, 0, sizeof(struct GB_Cache));
 
-    _GB_SheetInit(&cache->sheet[0]);
-    cache->num_sheets = 1;
-
+    cache->num_sheets = num_sheets;
+    cache->texture_size = texture_size;
     cache->glyph_hash = NULL;
+
+    uint32_t i;
+    for (i = 0; i < num_sheets; i++)
+        _GB_SheetInit(cache, &cache->sheet[i]);
 
     *cache_out = cache;
     return GB_ERROR_NONE;

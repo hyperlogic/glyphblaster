@@ -91,7 +91,7 @@ void DrawTexturedQuad(uint32_t gl_tex, Vector2f const& origin, Vector2f const& s
 
 void DebugDrawGlyphCache(GB_Context* gb, const Config& config)
 {
-    /// note this flips y-axis so y is down.
+    // note this flips y-axis so y is down.
     Matrixf proj = Matrixf::Ortho(0, config.width, config.height, 0, -10, 10);
     glMatrixMode(GL_PROJECTION);
     glLoadMatrixf(reinterpret_cast<float*>(&proj));
@@ -101,14 +101,15 @@ void DebugDrawGlyphCache(GB_Context* gb, const Config& config)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_TEXTURE_2D);
 
+    const int texture_size = gb->cache->texture_size;
     GB_Cache* cache = gb->cache;
     int y = 0;
     for (uint32_t i = 0; i < cache->num_sheets; i++) {
         DrawTexturedQuad(cache->sheet[i].gl_tex_obj, Vector2f(0, y),
-                         Vector2f(GB_TEXTURE_SIZE, GB_TEXTURE_SIZE + y),
+                         Vector2f(texture_size, texture_size + y),
                          Vector2f(0, 0), Vector2f(1, 1),
-                         Vector4f(0, 0, 1, 1));
-        y += GB_TEXTURE_SIZE;
+                         Vector4f(0.7, 0.7, 0.7, 1));
+        y += texture_size;
     }
 }
 
@@ -193,7 +194,7 @@ int main(int argc, char* argv[])
     // create the context
     GB_ERROR err;
     GB_Context* gb;
-    err = GB_ContextMake(&gb);
+    err = GB_ContextMake(128, 1, &gb);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_Init Error %d\n", err);
         exit(1);
@@ -223,7 +224,6 @@ int main(int argc, char* argv[])
     uint32_t size[2] = {videoInfo->current_w, videoInfo->current_h};
     GB_Text* helloText = NULL;
 
-    /*
     err = GB_TextMake(gb, "GlyphBlaster Test!", droidFont, 0xffffffff, origin, size,
                       GB_HORIZONTAL_ALIGN_CENTER, GB_VERTICAL_ALIGN_CENTER, &helloText);
     if (err != GB_ERROR_NONE) {
@@ -231,15 +231,16 @@ int main(int argc, char* argv[])
         exit(1);
     }
 
-    GB_TextRelease(gb, helloText);
-    */
+    //GB_TextRelease(gb, helloText);
 
+    /*
     // أبجد hello
     const char abjad[] = {0xd8, 0xa3, 0xd8, 0xa8, 0xd8, 0xac, 0xd8, 0xaf, 0x00};
     char XXX[1024];
     sprintf(XXX, "%s hello", abjad);
     err = GB_TextMake(gb, XXX, droidFont, 0xffffffff, origin, size,
                       GB_HORIZONTAL_ALIGN_CENTER, GB_VERTICAL_ALIGN_CENTER, &helloText);
+    */
 
     GB_ContextSetTextRenderFunc(gb, TextRenderFunc);
 
@@ -290,12 +291,13 @@ int main(int argc, char* argv[])
             glClearColor(1, 1, 1, 1);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+            DebugDrawGlyphCache(gb, config);
+
             err = GB_TextDraw(gb, helloText);
             if (err != GB_ERROR_NONE) {
                 fprintf(stderr, "GB_DrawText Error %s\n", GB_ErrorToString(err));
                 exit(1);
             }
-            //DebugDrawGlyphCache(gb, config);
             SDL_GL_SwapBuffers();
         }
     }

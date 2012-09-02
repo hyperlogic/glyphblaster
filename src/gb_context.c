@@ -4,7 +4,7 @@
 #include "gb_cache.h"
 #include "gb_text.h"
 
-GB_ERROR GB_ContextMake(struct GB_Context** gb_out)
+GB_ERROR GB_ContextMake(uint32_t texture_size, uint32_t num_sheets, struct GB_Context** gb_out)
 {
     struct GB_Context* gb = (struct GB_Context*)malloc(sizeof(struct GB_Context));
     if (gb) {
@@ -14,7 +14,7 @@ GB_ERROR GB_ContextMake(struct GB_Context** gb_out)
             return GB_ERROR_FTERR;
         }
         struct GB_Cache* cache = NULL;
-        GB_ERROR err = GB_CacheMake(&cache);
+        GB_ERROR err = GB_CacheMake(texture_size, num_sheets, &cache);
         if (err == GB_ERROR_NONE) {
             gb->cache = cache;
         }
