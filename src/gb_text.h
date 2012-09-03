@@ -36,7 +36,9 @@ struct GB_Text {
     int32_t rc;
     struct GB_Font *font;
     hb_buffer_t *hb_buffer;
-    char *utf8_string;
+    uint8_t *utf8_string;
+    uint8_t **runs;
+    uint32_t num_runs;
     uint32_t color;  // ABGR
     uint32_t origin[2];
     uint32_t size[2];
@@ -51,7 +53,7 @@ struct GB_TextMetrics {
     uint32_t max[2];
 };
 
-GB_ERROR GB_TextMake(struct GB_Context *gb, const char *utf8_string,
+GB_ERROR GB_TextMake(struct GB_Context *gb, const uint8_t *utf8_string,
                      struct GB_Font *font, uint32_t color, uint32_t origin[2],
                      uint32_t size[2], GB_HORIZONTAL_ALIGN horizontal_align,
                      GB_VERTICAL_ALIGN vertical_align, struct GB_Text **text_out);
@@ -59,7 +61,7 @@ GB_ERROR GB_TextRetain(struct GB_Context *gb, struct GB_Text *text);
 GB_ERROR GB_TextRelease(struct GB_Context *gb, struct GB_Text *text);
 
 // TODO: not implmented
-GB_ERROR GB_GetTextMetrics(struct GB_Context *gb, const char *utf8_string,
+GB_ERROR GB_GetTextMetrics(struct GB_Context *gb, const uint8_t *utf8_string,
                            struct GB_Font *font, uint32_t min[2], uint32_t max[2],
                            GB_HORIZONTAL_ALIGN horizontal_align,
                            GB_VERTICAL_ALIGN vertical_align,

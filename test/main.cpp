@@ -215,7 +215,7 @@ int main(int argc, char* argv[])
         fprintf(stderr, "fstat failed\n errno = %d\n", errno);
         exit(1);
     }
-    char* lorem = (char*)mmap(0, s.st_size + 1, PROT_READ, MAP_PRIVATE, fd, 0);
+    const uint8_t* lorem = (uint8_t*)mmap(0, s.st_size + 1, PROT_READ, MAP_PRIVATE, fd, 0);
     if (lorem < 0) {
         fprintf(stderr, "mmap failed\n errno = %d\n", errno);
         exit(1);
@@ -244,7 +244,7 @@ int main(int argc, char* argv[])
     */
 
     // create a text
-    uint32_t origin[2] = {10, 100};
+    uint32_t origin[2] = {0, 10};
     uint32_t size[2] = {videoInfo->current_w, videoInfo->current_h};
     GB_Text* helloText = NULL;
 

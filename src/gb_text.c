@@ -139,12 +139,12 @@ static void _GB_TextLogicalToVisualOrder(struct GB_Context *gb, struct GB_Text *
 
     // icu4c wants utf-16 encoded strings for bidi
     // figure out how large the utf16 string will be.
-    u_strFromUTF8(NULL, 0, &str_len, text->utf8_string, -1, &errorCode);
+    u_strFromUTF8(NULL, 0, &str_len, (const char*)text->utf8_string, -1, &errorCode);
 
     // now allocate and convert from utf8 to utf16
     errorCode = 0;
     UChar *str = (UChar*)calloc(str_len + 1, sizeof(UChar*));
-    u_strFromUTF8(str, (str_len + 1) * 1000000, &str_len, text->utf8_string, -1, &errorCode);
+    u_strFromUTF8(str, (str_len + 1) * 1000000, &str_len, (const char*)text->utf8_string, -1, &errorCode);
     if (!U_SUCCESS(errorCode)) {
         fprintf(stderr, "BIDI: u_strFromUTF8 convert failed, errorCode = %d\n", errorCode);
         return;
@@ -182,7 +182,131 @@ static void _GB_TextLogicalToVisualOrder(struct GB_Context *gb, struct GB_Text *
     ubidi_close(para);
 }
 
-GB_ERROR GB_TextMake(struct GB_Context *gb, const char *utf8_string,
+// returns the number of bytes to advance
+// fills cp_out with the code point at p.
+static uint32_t utf8_next_cp(const uint8_t *p, uint32_t *cp_out)
+{
+    if ((*p & 0x80) == 0) {
+        *cp_out = *p;
+        return 1;
+    } else if ((*p & 0xe0) == 0xc0) { // 110xxxxx 10xxxxxx
+        *cp_out = ((*p & ~0xe0) << 6) | (*(p+1) & ~0xc0);
+        return 2;
+    } else if ((*p & 0xf0) == 0xe0) { // 1110xxxx 10xxxxxx 10xxxxxx
+        *cp_out = ((*p & ~0xf0) << 12) | ((*(p+1) & ~0xc0) << 6) | (*(p+2) & ~0xc0);
+        return 3;
+    } else if ((*p & 0xf8) == 0xf0) { // 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+        *cp_out = ((*p & ~0xf8) << 18) | ((*(p+1) & ~0xc0) << 12) | ((*(p+1) & ~0xc0) << 6) | (*(p+2) & ~0xc0);
+        return 4;
+    } else {
+        assert(0);
+        *cp_out = 0;
+        return 1;
+    }
+}
+
+static void _GB_MakeRuns(uint8_t ***runs_out, uint32_t *num_runs_out, const uint8_t *utf8_string)
+{
+    // iterate over utf8 string looking for new-lines.
+    uint32_t line_count = 1;
+    uint32_t cp = 0, next_cp = 0, offset = 0, next_offset = 0;
+    const uint8_t *p = (const uint8_t*)utf8_string;
+    while (*p != 0) {
+        offset = utf8_next_cp(p, &cp);
+        next_offset = utf8_next_cp(p+offset, &next_cp);
+
+        // CR+LF
+        if (cp == 0x0d && cp == 0x0a) {
+            line_count++;
+            p += offset + next_offset;
+        } else {
+            switch (cp) {
+            case 0x0a: // new line
+            case 0x0b: // vertical tab
+            case 0x0c: // form feed
+            case 0x0d: // carriage return
+            case 0x85: // NEL next line
+            case 0x2028: // line separator
+            case 0x2029: // paragraph separator
+                line_count++;
+                p += offset;
+                break;
+            default:
+                p += offset;
+                break;
+            }
+        }
+    }
+
+    // allocate ptrs
+    uint8_t **runs = (uint8_t**)calloc(line_count, sizeof(uint8_t*));
+
+    // iterate over utf8 string again, looking for new lines.
+    // and copy each line string into runs.
+    uint32_t i = 0;
+    cp = 0;
+    next_cp = 0;
+    offset = 0;
+    next_offset = 0;
+    p = (const uint8_t*)utf8_string;
+    const uint8_t *prev_p = (const uint8_t*)utf8_string;
+    while (*p != 0) {
+        offset = utf8_next_cp(p, &cp);
+        next_offset = utf8_next_cp(p+offset, &next_cp);
+
+        // CR+LF
+        if (cp == 0x0d && cp == 0x0a) {
+            // alloc and copy line into runs
+            runs[i] = (uint8_t*)malloc((p - prev_p) + 1);
+            memcpy((void*)runs[i], prev_p, (p - prev_p));
+            runs[i][(p - prev_p)] = 0; // null term.
+            i++;
+            p += offset + next_offset;
+            prev_p = p;
+        } else {
+            switch (cp) {
+            case 0x0a: // new line
+            case 0x0b: // vertical tab
+            case 0x0c: // form feed
+            case 0x0d: // carriage return
+            case 0x85: // NEL next line
+            case 0x2028: // line separator
+            case 0x2029: // paragraph separator
+                // alloc and copy line into runs
+                runs[i] = (uint8_t*)malloc((p - prev_p) + 1);
+                memcpy((void*)runs[i], prev_p, (p - prev_p));
+                runs[i][(p - prev_p)] = 0; // null term.
+                i++;
+                p += offset;
+                prev_p = p;
+                break;
+            default:
+                p += offset;
+                break;
+            }
+        }
+    }
+    // alloc and copy line into runs
+    runs[i] = (uint8_t*)malloc((p - prev_p) + 1);
+    memcpy((void*)runs[i], prev_p, (p - prev_p));
+    runs[i][(p - prev_p)] = 0; // null term.
+    i++;
+    assert(i == line_count);
+
+    *runs_out = runs;
+    *num_runs_out = line_count;
+}
+
+void _GB_DestroyRuns(uint8_t **runs, uint32_t num_runs)
+{
+    uint32_t i;
+    for (i = 0; i < num_runs; i++) {
+        free(runs[i]);
+    }
+    free(runs);
+}
+
+GB_ERROR GB_TextMake(struct GB_Context *gb, const uint8_t *utf8_string,
                      struct GB_Font *font, uint32_t color, uint32_t origin[2],
                      uint32_t size[2], GB_HORIZONTAL_ALIGN horizontal_align,
                      GB_VERTICAL_ALIGN vertical_align, struct GB_Text **text_out)
@@ -198,9 +322,18 @@ GB_ERROR GB_TextMake(struct GB_Context *gb, const char *utf8_string,
             GB_FontRetain(gb, font);
 
             // allocate and copy utf8 string
-            size_t utf8_string_len = strlen(utf8_string);
-            text->utf8_string = (char*)malloc(sizeof(char) * utf8_string_len + 1);
-            strcpy(text->utf8_string, utf8_string);
+            size_t utf8_string_len = strlen((const char*)utf8_string);
+            text->utf8_string = (uint8_t*)malloc(sizeof(char) * utf8_string_len + 1);
+            strcpy((char*)text->utf8_string, (const char*)utf8_string);
+
+            // break utf8_strings into seperate runs, one per line.
+            _GB_MakeRuns(&(text->runs), &(text->num_runs), utf8_string);
+
+            fprintf(stdout, "num_runs = %d\n", text->num_runs);
+            uint32_t i;
+            for (i = 0; i < text->num_runs; i++) {
+                fprintf(stdout, "run[%d] = \"%s\"\n", i, text->runs[i]);
+            }
 
             // copy other arguments
             text->color = color;
@@ -216,7 +349,7 @@ GB_ERROR GB_TextMake(struct GB_Context *gb, const char *utf8_string,
             // create harfbuzz buffer
             text->hb_buffer = hb_buffer_create();
             hb_buffer_set_direction(text->hb_buffer, HB_DIRECTION_LTR);
-            hb_buffer_add_utf8(text->hb_buffer, utf8_string, utf8_string_len, 0, utf8_string_len);
+            hb_buffer_add_utf8(text->hb_buffer, (const char*)utf8_string, utf8_string_len, 0, utf8_string_len);
 
             // shape text
             hb_shape(font->hb_font, text->hb_buffer, NULL, 0);
@@ -275,6 +408,7 @@ static void _GB_TextDestroy(struct GB_Context *gb, struct GB_Text *text)
 
     hb_buffer_destroy(text->hb_buffer);
     free(text->utf8_string);
+    _GB_DestroyRuns(text->runs, text->num_runs);
     if (text->glyph_quad)
         free(text->glyph_quad);
     free(text);
@@ -294,7 +428,7 @@ GB_ERROR GB_TextRelease(struct GB_Context *gb, struct GB_Text *text)
     }
 }
 
-GB_ERROR GB_GetTextMetrics(struct GB_Context *gb, const char *utf8_string,
+GB_ERROR GB_GetTextMetrics(struct GB_Context *gb, const uint8_t *utf8_string,
                            struct GB_Font *font, uint32_t min[2], uint32_t max[2],
                            GB_HORIZONTAL_ALIGN horizontal_align,
                            GB_VERTICAL_ALIGN vertical_align,
