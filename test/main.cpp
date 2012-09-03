@@ -30,6 +30,10 @@
 
 #include "abaci.h"
 
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+
 struct Config
 {
     Config(bool fullscreenIn, bool msaaIn, int widthIn, int heightIn) :
@@ -200,12 +204,30 @@ int main(int argc, char* argv[])
         exit(1);
     }
 
+    // load lorem.txt
+    int fd = open("lorem.txt", O_RDONLY);
+    if (fd < 0) {
+        fprintf(stderr, "open failed\n");
+        exit(1);
+    }
+    struct stat s;
+    if (fstat(fd, &s) < 0) {
+        fprintf(stderr, "fstat failed\n errno = %d\n", errno);
+        exit(1);
+    }
+    char* lorem = (char*)mmap(0, s.st_size + 1, PROT_READ, MAP_PRIVATE, fd, 0);
+    if (lorem < 0) {
+        fprintf(stderr, "mmap failed\n errno = %d\n", errno);
+        exit(1);
+    }
+    // we are lazy, don't unmap the file.
+
     // create a font
-    GB_Font* droidFont = NULL;
-    //err = GB_FontMake(gb, "Droid-Sans/DroidSans.ttf", 32, &droidFont);
-    err = GB_FontMake(gb, "Arial.ttf", 32, &droidFont);
-    //err = GB_FontMake(gb, "dejavu-fonts-ttf-2.33/ttf/DejaVuSans.ttf", 32, &droidFont);
-    //err = GB_FontMake(gb, "Zar/XB Zar.ttf", 48, &droidFont);
+    GB_Font* mainFont = NULL;
+    //err = GB_FontMake(gb, "Droid-Sans/DroidSans.ttf", 16, &mainFont);
+    //err = GB_FontMake(gb, "Arial.ttf", 10, &mainFont);
+    err = GB_FontMake(gb, "dejavu-fonts-ttf-2.33/ttf/DejaVuSans.ttf", 9, &mainFont);
+    //err = GB_FontMake(gb, "Zar/XB Zar.ttf", 16, &mainFont);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_MakeFont Error %s\n", GB_ErrorToString(err));
         exit(1);
@@ -226,7 +248,7 @@ int main(int argc, char* argv[])
     uint32_t size[2] = {videoInfo->current_w, videoInfo->current_h};
     GB_Text* helloText = NULL;
 
-    err = GB_TextMake(gb, "(^_^)\n", droidFont, 0xffffffff, origin, size,
+    err = GB_TextMake(gb, lorem, mainFont, 0xffffffff, origin, size,
                       GB_HORIZONTAL_ALIGN_CENTER, GB_VERTICAL_ALIGN_CENTER, &helloText);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_MakeText Error %s\n", GB_ErrorToString(err));
@@ -240,7 +262,7 @@ int main(int argc, char* argv[])
     const char abjad[] = {0xd8, 0xa3, 0xd8, 0xa8, 0xd8, 0xac, 0xd8, 0xaf, 0x00};
     char XXX[1024];
     sprintf(XXX, "%s hello", abjad);
-    err = GB_TextMake(gb, XXX, droidFont, 0xffffffff, origin, size,
+    err = GB_TextMake(gb, XXX, mainFont, 0xffffffff, origin, size,
                       GB_HORIZONTAL_ALIGN_CENTER, GB_VERTICAL_ALIGN_CENTER, &helloText);
     */
 
@@ -309,7 +331,7 @@ int main(int argc, char* argv[])
         fprintf(stderr, "GB_ReleaseText Error %s\n", GB_ErrorToString(err));
         exit(1);
     }
-    err = GB_FontRelease(gb, droidFont);
+    err = GB_FontRelease(gb, mainFont);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_ReleaseFont Error %s\n", GB_ErrorToString(err));
         exit(1);
