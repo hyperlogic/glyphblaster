@@ -116,8 +116,7 @@ void DebugDrawGlyphCache(GB_Context* gb, const Config& config)
 
 void TextRenderFunc(GB_GlyphQuad* quads, uint32_t num_quads)
 {
-
-   /// note this flips y-axis so y is down.
+    // note this flips y-axis so y is down.
     Matrixf proj = Matrixf::Ortho(0, s_config->width, s_config->height, 0, -10, 10);
     glMatrixMode(GL_PROJECTION);
     glLoadMatrixf(reinterpret_cast<float*>(&proj));
@@ -227,7 +226,7 @@ int main(int argc, char* argv[])
     uint32_t size[2] = {videoInfo->current_w, videoInfo->current_h};
     GB_Text* helloText = NULL;
 
-    err = GB_TextMake(gb, "abcdefghijk|{}[]ABCDEFGHIJ", droidFont, 0xffffffff, origin, size,
+    err = GB_TextMake(gb, "(^_^)\n", droidFont, 0xffffffff, origin, size,
                       GB_HORIZONTAL_ALIGN_CENTER, GB_VERTICAL_ALIGN_CENTER, &helloText);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_MakeText Error %s\n", GB_ErrorToString(err));

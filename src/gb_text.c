@@ -79,7 +79,7 @@ static GB_ERROR _GB_TextUpdateQuads(struct GB_Context *gb, struct GB_Text *text)
     if (text->glyph_quad == NULL)
         return GB_ERROR_NOMEM;
     memset(text->glyph_quad, 0, sizeof(struct GB_GlyphQuad) * num_glyphs);
-    text->num_glyph_quads = num_glyphs;
+    text->num_glyph_quads = 0;
 
     int32_t pen[2] = {text->origin[0], text->origin[1]};
 
@@ -100,19 +100,24 @@ static GB_ERROR _GB_TextUpdateQuads(struct GB_Context *gb, struct GB_Text *text)
         struct GB_Glyph *glyph = GB_ContextHashFind(gb, glyphs[i].codepoint, text->font->index);
         if (glyph) {
             const float texture_size = (float)gb->cache->texture_size;
-            // NOTE: y axis points down, quad origin is upper-left corner of glyph
-            // build quad
-            struct GB_GlyphQuad *quad = text->glyph_quad + i;
-            quad->origin[0] = pen[0] + glyph->bearing[0];
-            quad->origin[1] = pen[1] - glyph->bearing[1];
-            quad->size[0] = glyph->size[0];
-            quad->size[1] = glyph->size[1];
-            quad->uv_origin[0] = glyph->origin[0] / texture_size;
-            quad->uv_origin[1] = glyph->origin[1] / texture_size;
-            quad->uv_size[0] = glyph->size[0] / texture_size;
-            quad->uv_size[1] = glyph->size[1] / texture_size;
-            quad->color = text->color;
-            quad->gl_tex_obj = glyph->gl_tex_obj ? glyph->gl_tex_obj : gb->fallback_gl_tex_obj;
+
+            // skip whitespace glyphs.
+            if (glyph->size[0] > 0 && glyph->size[1] > 0) {
+                // NOTE: y axis points down, quad origin is upper-left corner of glyph
+                // build quad
+                struct GB_GlyphQuad *quad = text->glyph_quad + text->num_glyph_quads;
+                quad->origin[0] = pen[0] + glyph->bearing[0];
+                quad->origin[1] = pen[1] - glyph->bearing[1];
+                quad->size[0] = glyph->size[0];
+                quad->size[1] = glyph->size[1];
+                quad->uv_origin[0] = glyph->origin[0] / texture_size;
+                quad->uv_origin[1] = glyph->origin[1] / texture_size;
+                quad->uv_size[0] = glyph->size[0] / texture_size;
+                quad->uv_size[1] = glyph->size[1] / texture_size;
+                quad->color = text->color;
+                quad->gl_tex_obj = glyph->gl_tex_obj ? glyph->gl_tex_obj : gb->fallback_gl_tex_obj;
+                text->num_glyph_quads++;
+            }
 
             pen[0] += glyph->advance;
         }
