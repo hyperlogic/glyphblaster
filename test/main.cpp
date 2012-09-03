@@ -244,11 +244,11 @@ int main(int argc, char* argv[])
     */
 
     // create a text
-    uint32_t origin[2] = {0, 10};
+    uint32_t origin[2] = {0, 0};
     uint32_t size[2] = {videoInfo->current_w, videoInfo->current_h};
     GB_Text* helloText = NULL;
 
-    err = GB_TextMake(gb, lorem, mainFont, 0xffffffff, origin, size,
+    err = GB_TextMake(gb, (uint8_t*)lorem, mainFont, 0xffffffff, origin, size,
                       GB_HORIZONTAL_ALIGN_CENTER, GB_VERTICAL_ALIGN_CENTER, &helloText);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_MakeText Error %s\n", GB_ErrorToString(err));

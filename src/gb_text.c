@@ -15,52 +15,64 @@ static GB_ERROR _GB_TextUpdateCache(struct GB_Context *gb, struct GB_Text *text)
 {
     assert(gb);
     assert(text);
-    assert(text->hb_buffer);
 
-    // prepare to iterate over all the glyphs in the hb_buffer
-    int num_glyphs = hb_buffer_get_length(text->hb_buffer);
+    // count up the total number of glyphs in all the runs.
+    int i, num_glyphs_total = 0;
+    for (i = 0; i < text->num_runs; i++) {
+        struct GB_TextRun *run = &text->runs[i];
+        assert(run->hb_buffer);
+        num_glyphs_total += hb_buffer_get_length(run->hb_buffer);
+    }
 
-    hb_glyph_info_t *glyphs = hb_buffer_get_glyph_infos(text->hb_buffer, NULL);
-
-    // hold a temp array of glyph ptrs, this is so we can sort glyphs by some heuristic before
-    // adding them to the GlyphCache, to improve texture utilization for long strings of glyphs.
-    struct GB_Glyph **glyph_ptrs = (struct GB_Glyph**)malloc(sizeof(struct GB_Glyph*) * num_glyphs);
+    // hold a temp array of glyph ptrs, this is so we can sort glyphs by height before
+    // adding them to the GlyphCache, which improves texture utilization for long strings of glyphs.
+    struct GB_Glyph **glyph_ptrs = (struct GB_Glyph**)malloc(sizeof(struct GB_Glyph*) * num_glyphs_total);
+    int num_glyph_ptrs = 0;
 
     struct GB_Cache *cache = gb->cache;
 
-    // iterate over each glyph
-    int i, num_glyph_ptrs;
-    for (i = 0, num_glyph_ptrs = 0; i < num_glyphs; i++) {
+    // for each run
+    for (i = 0; i < text->num_runs; i++) {
+        struct GB_TextRun *run = &text->runs[i];
+        assert(run->hb_buffer);
 
-        int index = glyphs[i].codepoint;
+        // prepare to iterate over all the glyphs in the hb_buffer
+        int num_glyphs = hb_buffer_get_length(run->hb_buffer);
+        hb_glyph_info_t *glyphs = hb_buffer_get_glyph_infos(run->hb_buffer, NULL);
 
-        // check to see if this glyph already exists in the context
-        struct GB_Glyph *glyph = GB_ContextHashFind(gb, index, text->font->index);
-        if (!glyph) {
-            // check to see if this glyph already exists in the cache
-            glyph = GB_CacheHashFind(cache, index, text->font->index);
+        // iterate over each glyph in this run
+        int j;
+        for (j = 0; j < num_glyphs; j++) {
+            int index = glyphs[j].codepoint;
+
+            // check to see if this glyph already exists in the context
+            struct GB_Glyph *glyph = GB_ContextHashFind(gb, index, text->font->index);
             if (!glyph) {
+                // check to see if this glyph already exists in the cache
+                glyph = GB_CacheHashFind(cache, index, text->font->index);
+                if (!glyph) {
 
-                // get FreeType face
-                FT_Face ft_face = text->font->ft_face;
+                    // get FreeType face
+                    FT_Face ft_face = text->font->ft_face;
 
-                // will rasterize and initialize glyph
-                GB_ERROR gb_error = GB_GlyphMake(index, text->font->index, ft_face, &glyph);
-                if (gb_error)
-                    return gb_error;
+                    // will rasterize and initialize glyph
+                    GB_ERROR gb_error = GB_GlyphMake(index, text->font->index, ft_face, &glyph);
+                    if (gb_error)
+                        return gb_error;
 
-                // add to glyph_ptr array
-                glyph_ptrs[num_glyph_ptrs++] = glyph;
+                    // add to glyph_ptr array
+                    glyph_ptrs[num_glyph_ptrs++] = glyph;
 
-                printf("AJT: adding glyph %u to context (%d x %d) image = %p\n", index, glyph->size[0], glyph->size[1], glyph->image);
+                    printf("AJT: adding glyph %u to context (%d x %d) image = %p\n", index, glyph->size[0], glyph->size[1], glyph->image);
+                } else {
+                    printf("AJT: glyph %u already in cache\n", index);
+
+                    // add glyph to context
+                    GB_ContextHashAdd(gb, glyph);
+                }
             } else {
-                printf("AJT: glyph %u already in cache\n", index);
-
-                // add glyph to context
-                GB_ContextHashAdd(gb, glyph);
+                printf("AJT: glyph %u already in context\n", index);
             }
-        } else {
-            printf("AJT: glyph %u already in context\n", index);
         }
     }
 
@@ -73,56 +85,72 @@ static GB_ERROR _GB_TextUpdateCache(struct GB_Context *gb, struct GB_Text *text)
 
 static GB_ERROR _GB_TextUpdateQuads(struct GB_Context *gb, struct GB_Text *text)
 {
-    // allocate glyph_quad array
-    int num_glyphs = hb_buffer_get_length(text->hb_buffer);
-    text->glyph_quad = (struct GB_GlyphQuad*)malloc(sizeof(struct GB_GlyphQuad) * num_glyphs);
-    if (text->glyph_quad == NULL)
+    // count up the total number of glyphs in all the runs.
+    int i, num_glyphs_total = 0;
+    for (i = 0; i < text->num_runs; i++) {
+        struct GB_TextRun *run = &text->runs[i];
+        assert(run->hb_buffer);
+        num_glyphs_total += hb_buffer_get_length(run->hb_buffer);
+    }
+
+    // allocate glyph_quads array
+    text->glyph_quads = (struct GB_GlyphQuad*)malloc(sizeof(struct GB_GlyphQuad) * num_glyphs_total);
+    if (text->glyph_quads == NULL)
         return GB_ERROR_NOMEM;
-    memset(text->glyph_quad, 0, sizeof(struct GB_GlyphQuad) * num_glyphs);
+    memset(text->glyph_quads, 0, sizeof(struct GB_GlyphQuad) * num_glyphs_total);
     text->num_glyph_quads = 0;
 
     int32_t pen[2] = {text->origin[0], text->origin[1]};
 
-    hb_glyph_info_t *glyphs = hb_buffer_get_glyph_infos(text->hb_buffer, NULL);
+    int32_t line_height = FIXED_TO_INT(text->font->ft_face->size->metrics.height);
 
-    int i;
-    for (i = 0; i < num_glyphs; i++) {
+    for (i = 0; i < text->num_runs; i++) {
 
-        // apply kerning
-        if (i > 0)
-        {
-            FT_Vector delta;
-            FT_Get_Kerning(text->font->ft_face, glyphs[i-1].codepoint, glyphs[i].codepoint,
-                           FT_KERNING_DEFAULT, &delta);
-            pen[0] += FIXED_TO_INT(delta.x);
-        }
+        pen[0] = text->origin[0];
+        pen[1] = pen[1] + line_height;
 
-        struct GB_Glyph *glyph = GB_ContextHashFind(gb, glyphs[i].codepoint, text->font->index);
-        if (glyph) {
-            const float texture_size = (float)gb->cache->texture_size;
+        struct GB_TextRun *run = &text->runs[i];
+        int num_glyphs = hb_buffer_get_length(run->hb_buffer);
+        hb_glyph_info_t *glyphs = hb_buffer_get_glyph_infos(run->hb_buffer, NULL);
 
-            // skip whitespace glyphs.
-            if (glyph->size[0] > 0 && glyph->size[1] > 0) {
-                // NOTE: y axis points down, quad origin is upper-left corner of glyph
-                // build quad
-                struct GB_GlyphQuad *quad = text->glyph_quad + text->num_glyph_quads;
-                quad->origin[0] = pen[0] + glyph->bearing[0];
-                quad->origin[1] = pen[1] - glyph->bearing[1];
-                quad->size[0] = glyph->size[0];
-                quad->size[1] = glyph->size[1];
-                quad->uv_origin[0] = glyph->origin[0] / texture_size;
-                quad->uv_origin[1] = glyph->origin[1] / texture_size;
-                quad->uv_size[0] = glyph->size[0] / texture_size;
-                quad->uv_size[1] = glyph->size[1] / texture_size;
-                quad->color = text->color;
-                quad->gl_tex_obj = glyph->gl_tex_obj ? glyph->gl_tex_obj : gb->fallback_gl_tex_obj;
-                text->num_glyph_quads++;
+        int j;
+        for (j = 0; j < num_glyphs; j++) {
+
+            // apply kerning
+            if (j > 0)
+            {
+                FT_Vector delta;
+                FT_Get_Kerning(text->font->ft_face, glyphs[j-1].codepoint, glyphs[j].codepoint,
+                               FT_KERNING_DEFAULT, &delta);
+                pen[0] += FIXED_TO_INT(delta.x);
             }
 
-            pen[0] += glyph->advance;
+            struct GB_Glyph *glyph = GB_ContextHashFind(gb, glyphs[j].codepoint, text->font->index);
+            if (glyph) {
+                const float texture_size = (float)gb->cache->texture_size;
+
+                // skip whitespace glyphs.
+                if (glyph->size[0] > 0 && glyph->size[1] > 0) {
+                    // NOTE: y axis points down, quad origin is upper-left corner of glyph
+                    // build quad
+                    struct GB_GlyphQuad *quad = text->glyph_quads + text->num_glyph_quads;
+                    quad->origin[0] = pen[0] + glyph->bearing[0];
+                    quad->origin[1] = pen[1] - glyph->bearing[1];
+                    quad->size[0] = glyph->size[0];
+                    quad->size[1] = glyph->size[1];
+                    quad->uv_origin[0] = glyph->origin[0] / texture_size;
+                    quad->uv_origin[1] = glyph->origin[1] / texture_size;
+                    quad->uv_size[0] = glyph->size[0] / texture_size;
+                    quad->uv_size[1] = glyph->size[1] / texture_size;
+                    quad->color = text->color;
+                    quad->gl_tex_obj = glyph->gl_tex_obj ? glyph->gl_tex_obj : gb->fallback_gl_tex_obj;
+                    text->num_glyph_quads++;
+                }
+
+                pen[0] += glyph->advance;
+            }
         }
     }
-
     return GB_ERROR_NONE;
 }
 
@@ -205,7 +233,32 @@ static uint32_t utf8_next_cp(const uint8_t *p, uint32_t *cp_out)
     }
 }
 
-static void _GB_MakeRuns(uint8_t ***runs_out, uint32_t *num_runs_out, const uint8_t *utf8_string)
+static void _GB_InitRun(struct GB_Text *text, struct GB_TextRun *run, const uint8_t *start, const uint8_t *end)
+{
+    assert(run);
+    assert(start <= end);
+
+    run->utf8_string_len = end - start;
+
+    // alloc and copy line into runs
+    run->utf8_string = (uint8_t*)malloc(run->utf8_string_len + 1);
+    memcpy((void*)run->utf8_string, start, run->utf8_string_len);
+    run->utf8_string[run->utf8_string_len] = 0; // null term.
+
+    // create harfbuzz buffer
+    run->hb_buffer = hb_buffer_create();
+    hb_buffer_set_direction(run->hb_buffer, HB_DIRECTION_LTR);
+    hb_buffer_add_utf8(run->hb_buffer, (const char*)run->utf8_string, run->utf8_string_len, 0, run->utf8_string_len);
+
+    // shape text
+    hb_shape(text->font->hb_font, run->hb_buffer, NULL, 0);
+
+    // icu4c logical to visual bidi
+    //_GB_TextLogicalToVisualOrder(gb, run);
+}
+
+static void _GB_MakeRuns(struct GB_Text *text, struct GB_TextRun **runs_out, uint32_t *num_runs_out,
+                         const uint8_t *utf8_string)
 {
     // iterate over utf8 string looking for new-lines.
     uint32_t line_count = 1;
@@ -238,8 +291,8 @@ static void _GB_MakeRuns(uint8_t ***runs_out, uint32_t *num_runs_out, const uint
         }
     }
 
-    // allocate ptrs
-    uint8_t **runs = (uint8_t**)calloc(line_count, sizeof(uint8_t*));
+    // allocate runs
+    struct GB_TextRun *runs = (struct GB_TextRun*)calloc(line_count, sizeof(struct GB_TextRun));
 
     // iterate over utf8 string again, looking for new lines.
     // and copy each line string into runs.
@@ -256,10 +309,7 @@ static void _GB_MakeRuns(uint8_t ***runs_out, uint32_t *num_runs_out, const uint
 
         // CR+LF
         if (cp == 0x0d && cp == 0x0a) {
-            // alloc and copy line into runs
-            runs[i] = (uint8_t*)malloc((p - prev_p) + 1);
-            memcpy((void*)runs[i], prev_p, (p - prev_p));
-            runs[i][(p - prev_p)] = 0; // null term.
+            _GB_InitRun(text, &runs[i], prev_p, p);
             i++;
             p += offset + next_offset;
             prev_p = p;
@@ -272,10 +322,7 @@ static void _GB_MakeRuns(uint8_t ***runs_out, uint32_t *num_runs_out, const uint
             case 0x85: // NEL next line
             case 0x2028: // line separator
             case 0x2029: // paragraph separator
-                // alloc and copy line into runs
-                runs[i] = (uint8_t*)malloc((p - prev_p) + 1);
-                memcpy((void*)runs[i], prev_p, (p - prev_p));
-                runs[i][(p - prev_p)] = 0; // null term.
+                _GB_InitRun(text, &runs[i], prev_p, p);
                 i++;
                 p += offset;
                 prev_p = p;
@@ -286,10 +333,8 @@ static void _GB_MakeRuns(uint8_t ***runs_out, uint32_t *num_runs_out, const uint
             }
         }
     }
-    // alloc and copy line into runs
-    runs[i] = (uint8_t*)malloc((p - prev_p) + 1);
-    memcpy((void*)runs[i], prev_p, (p - prev_p));
-    runs[i][(p - prev_p)] = 0; // null term.
+    // last line
+    _GB_InitRun(text, &runs[i], prev_p, p);
     i++;
     assert(i == line_count);
 
@@ -297,13 +342,27 @@ static void _GB_MakeRuns(uint8_t ***runs_out, uint32_t *num_runs_out, const uint
     *num_runs_out = line_count;
 }
 
-void _GB_DestroyRuns(uint8_t **runs, uint32_t num_runs)
+void _GB_DestroyRuns(struct GB_Context* gb, struct GB_Text* text)
 {
     uint32_t i;
-    for (i = 0; i < num_runs; i++) {
-        free(runs[i]);
+    for (i = 0; i < text->num_runs; i++) {
+        struct GB_TextRun *run = &text->runs[i];
+
+        free(run->utf8_string);
+
+        // prepare to iterate over all the glyphs in the hb_buffer
+        int num_glyphs = hb_buffer_get_length(run->hb_buffer);
+        hb_glyph_info_t *glyphs = hb_buffer_get_glyph_infos(run->hb_buffer, NULL);
+
+        // remove each glyph from context
+        int j;
+        int font_index = text->font->index;
+        for (j = 0; j < num_glyphs; j++) {
+            GB_ContextHashRemove(gb, glyphs[j].codepoint, font_index);
+        }
+        hb_buffer_destroy(run->hb_buffer);
     }
-    free(runs);
+    free(text->runs);
 }
 
 GB_ERROR GB_TextMake(struct GB_Context *gb, const uint8_t *utf8_string,
@@ -327,12 +386,12 @@ GB_ERROR GB_TextMake(struct GB_Context *gb, const uint8_t *utf8_string,
             strcpy((char*)text->utf8_string, (const char*)utf8_string);
 
             // break utf8_strings into seperate runs, one per line.
-            _GB_MakeRuns(&(text->runs), &(text->num_runs), utf8_string);
+            _GB_MakeRuns(text, &(text->runs), &(text->num_runs), utf8_string);
 
             fprintf(stdout, "num_runs = %d\n", text->num_runs);
             uint32_t i;
             for (i = 0; i < text->num_runs; i++) {
-                fprintf(stdout, "run[%d] = \"%s\"\n", i, text->runs[i]);
+                fprintf(stdout, "run[%d] = \"%s\"\n", i, text->runs[i].utf8_string);
             }
 
             // copy other arguments
@@ -343,26 +402,15 @@ GB_ERROR GB_TextMake(struct GB_Context *gb, const uint8_t *utf8_string,
             text->size[1] = size[1];
             text->horizontal_align = horizontal_align;
             text->vertical_align = vertical_align;
-            text->glyph_quad = NULL;
+            text->glyph_quads = NULL;
             text->num_glyph_quads = 0;
-
-            // create harfbuzz buffer
-            text->hb_buffer = hb_buffer_create();
-            hb_buffer_set_direction(text->hb_buffer, HB_DIRECTION_LTR);
-            hb_buffer_add_utf8(text->hb_buffer, (const char*)utf8_string, utf8_string_len, 0, utf8_string_len);
-
-            // shape text
-            hb_shape(font->hb_font, text->hb_buffer, NULL, 0);
-
-            // icu4c logical to visual bidi
-            //_GB_TextLogicalToVisualOrder(gb, text);
 
             // insert new glyphs into cache
             GB_ERROR ret = _GB_TextUpdateCache(gb, text);
             if (ret != GB_ERROR_NONE)
                 return ret;
 
-            // allocate glyph_quad array with proper position & uvs.
+            // allocate glyph_quads array with proper position & uvs.
             ret = _GB_TextUpdateQuads(gb, text);
             if (ret != GB_ERROR_NONE)
                 return ret;
@@ -393,24 +441,12 @@ static void _GB_TextDestroy(struct GB_Context *gb, struct GB_Text *text)
     assert(text);
     assert(text->rc == 0);
 
-    // prepare to iterate over all the glyphs in the hb_buffer
-    int num_glyphs = hb_buffer_get_length(text->hb_buffer);
-    hb_glyph_info_t *glyphs = hb_buffer_get_glyph_infos(text->hb_buffer, NULL);
-
-    // remove each glyph from context
-    int i;
-    int font_index = text->font->index;
-    for (i = 0; i < num_glyphs; i++) {
-        GB_ContextHashRemove(gb, glyphs[i].codepoint, font_index);
-    }
-
     GB_FontRelease(gb, text->font);
 
-    hb_buffer_destroy(text->hb_buffer);
     free(text->utf8_string);
-    _GB_DestroyRuns(text->runs, text->num_runs);
-    if (text->glyph_quad)
-        free(text->glyph_quad);
+    _GB_DestroyRuns(gb, text);
+    if (text->glyph_quads)
+        free(text->glyph_quads);
     free(text);
 }
 
@@ -451,7 +487,7 @@ GB_ERROR GB_TextDraw(struct GB_Context *gb, struct GB_Text *text)
     if (gb && text) {
         if (gb->text_render_func) {
             GB_TextRenderFunc func = (GB_TextRenderFunc)gb->text_render_func;
-            func(text->glyph_quad, text->num_glyph_quads);
+            func(text->glyph_quads, text->num_glyph_quads);
             return GB_ERROR_NONE;
         }
         else {
