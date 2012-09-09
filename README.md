@@ -20,6 +20,8 @@ Dependencies
 TODO:
 -----------------
 * test empty string & whitespace strings.
+* assertion and more graceful failure when static buffers overflow.
+* support for sub-pixel rendering using freetype.
 * Finish SDL test prog.
 * Text Word Wrapping
 * Text Alignment

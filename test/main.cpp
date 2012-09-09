@@ -130,15 +130,17 @@ void TextRenderFunc(GB_GlyphQuad* quads, uint32_t num_quads)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_TEXTURE_2D);
 
+    static int count = 1;  // set to 0 to enable dumping
     for (uint32_t i = 0; i < num_quads; ++i) {
 
-        /*
-        printf("quad[%d]\n", i);
-        printf("    origin = [%d, %d]\n", quads[i].origin[0], quads[i].origin[1]);
-        printf("    size = [%d, %d]\n", quads[i].size[0], quads[i].size[1]);
-        printf("    uv_origin = [%.3f, %.3f]\n", quads[i].uv_origin[0], quads[i].uv_origin[1]);
-        printf("    uv_size = [%.3f, %.3f]\n", quads[i].uv_size[0], quads[i].uv_size[1]);
-        */
+        if (count == 0) {
+            printf("quad[%d]\n", i);
+            printf("    origin = [%d, %d]\n", quads[i].origin[0], quads[i].origin[1]);
+            printf("    size = [%d, %d]\n", quads[i].size[0], quads[i].size[1]);
+            printf("    uv_origin = [%.3f, %.3f]\n", quads[i].uv_origin[0], quads[i].uv_origin[1]);
+            printf("    uv_size = [%.3f, %.3f]\n", quads[i].uv_size[0], quads[i].uv_size[1]);
+            printf("    gl_tex_obj = %u\n", quads[i].gl_tex_obj);
+        }
 
         DrawTexturedQuad(quads[i].gl_tex_obj,
                          Vector2f(quads[i].origin[0], quads[i].origin[1]),
@@ -147,6 +149,8 @@ void TextRenderFunc(GB_GlyphQuad* quads, uint32_t num_quads)
                          Vector2f(quads[i].uv_size[0], quads[i].uv_size[1]),
                          Vector4f(0, 0, 0, 1));
     }
+
+    count++;
 }
 
 int main(int argc, char* argv[])
@@ -226,7 +230,7 @@ int main(int argc, char* argv[])
     GB_Font* mainFont = NULL;
     //err = GB_FontMake(gb, "Droid-Sans/DroidSans.ttf", 16, &mainFont);
     //err = GB_FontMake(gb, "Arial.ttf", 10, &mainFont);
-    err = GB_FontMake(gb, "dejavu-fonts-ttf-2.33/ttf/DejaVuSans.ttf", 9, &mainFont);
+    err = GB_FontMake(gb, "dejavu-fonts-ttf-2.33/ttf/DejaVuSans.ttf", 12, &mainFont);
     //err = GB_FontMake(gb, "Zar/XB Zar.ttf", 16, &mainFont);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_MakeFont Error %s\n", GB_ErrorToString(err));
@@ -244,7 +248,7 @@ int main(int argc, char* argv[])
     */
 
     // create a text
-    uint32_t origin[2] = {0, 0};
+    uint32_t origin[2] = {1, 0};
     uint32_t size[2] = {videoInfo->current_w, videoInfo->current_h};
     GB_Text* helloText = NULL;
     err = GB_TextMake(gb, (uint8_t*)lorem, mainFont, 0xffffffff, origin, size,

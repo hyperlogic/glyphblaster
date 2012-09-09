@@ -32,22 +32,12 @@ struct GB_GlyphQuad {
     uint32_t gl_tex_obj;
 };
 
-/*
-struct GB_TextRun {
-    uint8_t *utf8_string;
-    uint32_t utf8_string_len; // in bytes (not including null term)
-    hb_buffer_t *hb_buffer;
-};
-*/
-
-/*
 struct GB_GlyphQuadRun {
     struct GB_GlyphQuad *glyph_quads;
-    uint32_t num_glyphs_quads;
+    uint32_t num_glyph_quads;
     uint32_t origin[2];
     uint32_t size[2];
 };
-*/
 
 struct GB_Text {
     int32_t rc;
@@ -55,22 +45,13 @@ struct GB_Text {
     uint8_t *utf8_string;
     uint32_t utf8_string_len; // in bytes (not including null term)
     hb_buffer_t *hb_buffer;
-    /*
-    struct GB_TextRun *runs;
-    uint32_t num_runs;
-    uint32_t num_glyphs_in_runs;
-    */
     uint32_t color;  // ABGR
     uint32_t origin[2];
     uint32_t size[2];
     GB_HORIZONTAL_ALIGN horizontal_align;
     GB_VERTICAL_ALIGN vertical_align;
-    /*
     struct GB_GlyphQuadRun *glyph_quad_runs;
     uint32_t num_glyph_quad_runs;
-    */
-    struct GB_GlyphQuad *glyph_quads;
-    uint32_t num_glyph_quads;
 };
 
 GB_ERROR GB_TextMake(struct GB_Context *gb, const uint8_t *utf8_string,
