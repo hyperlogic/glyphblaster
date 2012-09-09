@@ -11,27 +11,43 @@
 // 26.6 fixed to int (truncates)
 #define FIXED_TO_INT(n) (uint32_t)(n >> 6)
 
+// returns the number of bytes to advance
+// fills cp_out with the code point at p.
+static uint32_t utf8_next_cp(const uint8_t *p, uint32_t *cp_out)
+{
+    if ((*p & 0x80) == 0) {
+        *cp_out = *p;
+        return 1;
+    } else if ((*p & 0xe0) == 0xc0) { // 110xxxxx 10xxxxxx
+        *cp_out = ((*p & ~0xe0) << 6) | (*(p+1) & ~0xc0);
+        return 2;
+    } else if ((*p & 0xf0) == 0xe0) { // 1110xxxx 10xxxxxx 10xxxxxx
+        *cp_out = ((*p & ~0xf0) << 12) | ((*(p+1) & ~0xc0) << 6) | (*(p+2) & ~0xc0);
+        return 3;
+    } else if ((*p & 0xf8) == 0xf0) { // 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+        *cp_out = ((*p & ~0xf8) << 18) | ((*(p+1) & ~0xc0) << 12) | ((*(p+1) & ~0xc0) << 6) | (*(p+2) & ~0xc0);
+        return 4;
+    } else {
+        assert(0);
+        *cp_out = 0;
+        return 1;
+    }
+}
+
 static GB_ERROR _GB_TextUpdateCache(struct GB_Context *gb, struct GB_Text *text)
 {
     assert(gb);
     assert(text);
 
-    // count up the total number of glyphs in all the runs.
-    int i, num_glyphs_total = 0;
-    for (i = 0; i < text->num_runs; i++) {
-        struct GB_TextRun *run = &text->runs[i];
-        assert(run->hb_buffer);
-        num_glyphs_total += hb_buffer_get_length(run->hb_buffer);
-    }
-
     // hold a temp array of glyph ptrs, this is so we can sort glyphs by height before
     // adding them to the GlyphCache, which improves texture utilization for long strings of glyphs.
-    struct GB_Glyph **glyph_ptrs = (struct GB_Glyph**)malloc(sizeof(struct GB_Glyph*) * num_glyphs_total);
+    struct GB_Glyph **glyph_ptrs = (struct GB_Glyph**)malloc(sizeof(struct GB_Glyph*) * text->num_glyphs_in_runs);
     int num_glyph_ptrs = 0;
 
     struct GB_Cache *cache = gb->cache;
 
     // for each run
+    uint32_t i;
     for (i = 0; i < text->num_runs; i++) {
         struct GB_TextRun *run = &text->runs[i];
         assert(run->hb_buffer);
@@ -83,27 +99,47 @@ static GB_ERROR _GB_TextUpdateCache(struct GB_Context *gb, struct GB_Text *text)
     return GB_ERROR_NONE;
 }
 
+static int is_break(uint32_t cp)
+{
+    switch (cp) {
+    case 0x20: // space
+    case 0x1680: // ogham space mark
+    case 0x180e: // mongolian vowel separator
+    case 0x2000: // en quad
+    case 0x2001: // em quad
+    case 0x2002: // en space
+    case 0x2003: // em space
+    case 0x2004: // three-per-em space
+    case 0x2005: // four-per-em space
+    case 0x2006: // six-per-em space
+    case 0x2008: // punctuation space
+    case 0x2009: // thin space
+    case 0x200a: // hair space
+    case 0x200b: // zero width space
+    case 0x200c: // zero width non joiner
+    case 0x200d: // zero width joiner
+    case 0x205f: // medium mathematical space
+    case 0x3000: // ideografic space
+        return 1;
+    default:
+        return 0;
+    }
+}
+
 static GB_ERROR _GB_TextUpdateQuads(struct GB_Context *gb, struct GB_Text *text)
 {
-    // count up the total number of glyphs in all the runs.
-    int i, num_glyphs_total = 0;
-    for (i = 0; i < text->num_runs; i++) {
-        struct GB_TextRun *run = &text->runs[i];
-        assert(run->hb_buffer);
-        num_glyphs_total += hb_buffer_get_length(run->hb_buffer);
-    }
-
     // allocate glyph_quads array
-    text->glyph_quads = (struct GB_GlyphQuad*)malloc(sizeof(struct GB_GlyphQuad) * num_glyphs_total);
+    text->glyph_quads = (struct GB_GlyphQuad*)malloc(sizeof(struct GB_GlyphQuad) * text->num_glyphs_in_runs);
     if (text->glyph_quads == NULL)
         return GB_ERROR_NOMEM;
-    memset(text->glyph_quads, 0, sizeof(struct GB_GlyphQuad) * num_glyphs_total);
+    memset(text->glyph_quads, 0, sizeof(struct GB_GlyphQuad) * text->num_glyphs_in_runs);
     text->num_glyph_quads = 0;
 
     int32_t pen[2] = {text->origin[0], text->origin[1]};
 
     int32_t line_height = FIXED_TO_INT(text->font->ft_face->size->metrics.height);
 
+    uint32_t i;
     for (i = 0; i < text->num_runs; i++) {
 
         pen[0] = text->origin[0];
@@ -113,8 +149,16 @@ static GB_ERROR _GB_TextUpdateQuads(struct GB_Context *gb, struct GB_Text *text)
         int num_glyphs = hb_buffer_get_length(run->hb_buffer);
         hb_glyph_info_t *glyphs = hb_buffer_get_glyph_infos(run->hb_buffer, NULL);
 
+        int word_start = 0;
+        uint32_t cp;
         int j;
         for (j = 0; j < num_glyphs; j++) {
+
+            utf8_next_cp(text->utf8_string + glyphs[j].cluster, &cp);
+            if (is_break(cp)) {
+                fprintf(stdout, "XXX: word from %d to %d\n", word_start, j);
+                word_start = j + 1;
+            }
 
             // apply kerning
             if (j > 0)
@@ -154,86 +198,9 @@ static GB_ERROR _GB_TextUpdateQuads(struct GB_Context *gb, struct GB_Text *text)
     return GB_ERROR_NONE;
 }
 
-static void renderRun(const UChar *str, int32_t start, int32_t end, UBiDiDirection direction)
-{
-    fprintf(stdout, "BIDI: run from %d to %d, direction = %d\n", start, end, direction);
-    fflush(stdout);
-}
-
-static void _GB_TextLogicalToVisualOrder(struct GB_Context *gb, struct GB_Text *text)
-{
-    int32_t str_len = 0;
-    UErrorCode errorCode = 0;
-
-    // icu4c wants utf-16 encoded strings for bidi
-    // figure out how large the utf16 string will be.
-    u_strFromUTF8(NULL, 0, &str_len, (const char*)text->utf8_string, -1, &errorCode);
-
-    // now allocate and convert from utf8 to utf16
-    errorCode = 0;
-    UChar *str = (UChar*)calloc(str_len + 1, sizeof(UChar*));
-    u_strFromUTF8(str, (str_len + 1) * 1000000, &str_len, (const char*)text->utf8_string, -1, &errorCode);
-    if (!U_SUCCESS(errorCode)) {
-        fprintf(stderr, "BIDI: u_strFromUTF8 convert failed, errorCode = %d\n", errorCode);
-        return;
-    }
-
-    const UBiDiDirection textDirection = UBIDI_LTR;
-
-    UBiDi *para = ubidi_openSized(str_len, 0, &errorCode);
-    if (para == NULL)
-        return;
-
-    ubidi_setPara(para, str, str_len, textDirection ? UBIDI_DEFAULT_RTL : UBIDI_DEFAULT_LTR,
-                  NULL, &errorCode);
-    if (U_SUCCESS(errorCode)) {
-        UBiDiDirection direction = ubidi_getDirection(para);
-        if (direction != UBIDI_MIXED) {
-            // unidirectional
-            renderRun(str, 0, str_len, direction);
-        } else {
-            // mixed-directional
-            int32_t count, i, length, start;
-
-            count = ubidi_countRuns(para, &errorCode);
-            if (U_SUCCESS(errorCode)) {
-                // iterate over directional runs
-                for (i = 0; i < count; ++i) {
-                    direction = ubidi_getVisualRun(para, i, &start, &length);
-                    renderRun(str, start, start + length, direction);
-                }
-            }
-        }
-    }
-
-    free(str);
-    ubidi_close(para);
-}
-
-// returns the number of bytes to advance
-// fills cp_out with the code point at p.
-static uint32_t utf8_next_cp(const uint8_t *p, uint32_t *cp_out)
-{
-    if ((*p & 0x80) == 0) {
-        *cp_out = *p;
-        return 1;
-    } else if ((*p & 0xe0) == 0xc0) { // 110xxxxx 10xxxxxx
-        *cp_out = ((*p & ~0xe0) << 6) | (*(p+1) & ~0xc0);
-        return 2;
-    } else if ((*p & 0xf0) == 0xe0) { // 1110xxxx 10xxxxxx 10xxxxxx
-        *cp_out = ((*p & ~0xf0) << 12) | ((*(p+1) & ~0xc0) << 6) | (*(p+2) & ~0xc0);
-        return 3;
-    } else if ((*p & 0xf8) == 0xf0) { // 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
-        *cp_out = ((*p & ~0xf8) << 18) | ((*(p+1) & ~0xc0) << 12) | ((*(p+1) & ~0xc0) << 6) | (*(p+2) & ~0xc0);
-        return 4;
-    } else {
-        assert(0);
-        *cp_out = 0;
-        return 1;
-    }
-}
-
-static void _GB_InitRun(struct GB_Text *text, struct GB_TextRun *run, const uint8_t *start, const uint8_t *end)
+// returns number of glyphs in run after shaping.
+static uint32_t _GB_InitTextRun(const struct GB_Text *text, struct GB_TextRun *run,
+                                const uint8_t *start, const uint8_t *end)
 {
     assert(run);
     assert(start <= end);
@@ -252,13 +219,11 @@ static void _GB_InitRun(struct GB_Text *text, struct GB_TextRun *run, const uint
 
     // shape text
     hb_shape(text->font->hb_font, run->hb_buffer, NULL, 0);
-
-    // icu4c logical to visual bidi
-    //_GB_TextLogicalToVisualOrder(gb, run);
+    return hb_buffer_get_length(run->hb_buffer);
 }
 
-static void _GB_MakeRuns(struct GB_Text *text, struct GB_TextRun **runs_out, uint32_t *num_runs_out,
-                         const uint8_t *utf8_string)
+static void _GB_MakeTextRuns(const struct GB_Text *text, struct GB_TextRun **runs_out, uint32_t *num_runs_out,
+                             const uint8_t *utf8_string, uint32_t *num_glyphs_in_runs_out)
 {
     // iterate over utf8 string looking for new-lines.
     uint32_t line_count = 1;
@@ -293,6 +258,7 @@ static void _GB_MakeRuns(struct GB_Text *text, struct GB_TextRun **runs_out, uin
 
     // allocate runs
     struct GB_TextRun *runs = (struct GB_TextRun*)calloc(line_count, sizeof(struct GB_TextRun));
+    uint32_t num_glyphs_in_runs = 0;
 
     // iterate over utf8 string again, looking for new lines.
     // and copy each line string into runs.
@@ -309,7 +275,7 @@ static void _GB_MakeRuns(struct GB_Text *text, struct GB_TextRun **runs_out, uin
 
         // CR+LF
         if (cp == 0x0d && cp == 0x0a) {
-            _GB_InitRun(text, &runs[i], prev_p, p);
+            num_glyphs_in_runs += _GB_InitTextRun(text, &runs[i], prev_p, p);
             i++;
             p += offset + next_offset;
             prev_p = p;
@@ -322,7 +288,7 @@ static void _GB_MakeRuns(struct GB_Text *text, struct GB_TextRun **runs_out, uin
             case 0x85: // NEL next line
             case 0x2028: // line separator
             case 0x2029: // paragraph separator
-                _GB_InitRun(text, &runs[i], prev_p, p);
+                num_glyphs_in_runs += _GB_InitTextRun(text, &runs[i], prev_p, p);
                 i++;
                 p += offset;
                 prev_p = p;
@@ -334,12 +300,13 @@ static void _GB_MakeRuns(struct GB_Text *text, struct GB_TextRun **runs_out, uin
         }
     }
     // last line
-    _GB_InitRun(text, &runs[i], prev_p, p);
+    num_glyphs_in_runs += _GB_InitTextRun(text, &runs[i], prev_p, p);
     i++;
     assert(i == line_count);
 
     *runs_out = runs;
     *num_runs_out = line_count;
+    *num_glyphs_in_runs_out = num_glyphs_in_runs;
 }
 
 void _GB_DestroyRuns(struct GB_Context* gb, struct GB_Text* text)
@@ -386,7 +353,7 @@ GB_ERROR GB_TextMake(struct GB_Context *gb, const uint8_t *utf8_string,
             strcpy((char*)text->utf8_string, (const char*)utf8_string);
 
             // break utf8_strings into seperate runs, one per line.
-            _GB_MakeRuns(text, &(text->runs), &(text->num_runs), utf8_string);
+            _GB_MakeTextRuns(text, &(text->runs), &(text->num_runs), utf8_string, &(text->num_glyphs_in_runs));
 
             fprintf(stdout, "num_runs = %d\n", text->num_runs);
             uint32_t i;
@@ -459,19 +426,6 @@ GB_ERROR GB_TextRelease(struct GB_Context *gb, struct GB_Text *text)
             _GB_TextDestroy(gb, text);
         }
         return GB_ERROR_NONE;
-    } else {
-        return GB_ERROR_INVAL;
-    }
-}
-
-GB_ERROR GB_GetTextMetrics(struct GB_Context *gb, const uint8_t *utf8_string,
-                           struct GB_Font *font, uint32_t min[2], uint32_t max[2],
-                           GB_HORIZONTAL_ALIGN horizontal_align,
-                           GB_VERTICAL_ALIGN vertical_align,
-                           struct GB_TextMetrics *text_metrics_out)
-{
-    if (gb && utf8_string && font && text_metrics_out) {
-        return GB_ERROR_NOIMP;
     } else {
         return GB_ERROR_INVAL;
     }
