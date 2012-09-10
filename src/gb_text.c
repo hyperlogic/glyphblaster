@@ -152,21 +152,75 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
     // iterate over each glyph and build runs.
     int num_glyphs = hb_buffer_get_length(text->hb_buffer);
     hb_glyph_info_t *glyphs = hb_buffer_get_glyph_infos(text->hb_buffer, NULL);
+
     int32_t i = 0;
     uint32_t num_runs = 0;
     uint32_t num_glyphs_in_run = 0;
     uint32_t cp;
+    int32_t x = 0;
+    int32_t word_start = 0;
+    int32_t word_end = 0;
+    int32_t within_word = 0;
     for (i = 0; i < num_glyphs; i++) {
-        // TODO: word wrapping
         utf8_next_cp(text->utf8_string + glyphs[i].cluster, &cp);
+
+        // apply kerning
+        int32_t dx = 0;
+        if (i > 0)
+        {
+            FT_Vector delta;
+            FT_Get_Kerning(text->font->ft_face, glyphs[i-1].codepoint, glyphs[i].codepoint,
+                           FT_KERNING_DEFAULT, &delta);
+            dx = FIXED_TO_INT(delta.x);
+        }
+
+        // keep track of if we are within a word or not.
+        if (within_word) {
+            if (is_space(cp) || is_newline(cp)) {
+                // end of word
+                within_word = 0;
+                word_end = i;
+            } else {
+                // continue word
+            }
+        } else {
+            if (is_space(cp) || is_newline(cp)) {
+                // continue non-word
+            } else {
+                within_word = 1;
+                word_start = i;
+            }
+        }
+
         if (is_newline(cp)) {
             s_run_counts[num_runs] = num_glyphs_in_run;
             num_glyphs_in_run = 0;
             num_runs++;
-        } else if (is_space(cp)) {
-            // don't count space glyphs
+            x = 0; // reset x
         } else {
-            num_glyphs_in_run++;
+            // advance pen.
+            struct GB_Glyph *glyph = GB_ContextHashFind(gb, glyphs[i].codepoint, text->font->index);
+            if (glyph) {
+                if (x + glyph->bearing[0] + glyph->size[0] + dx > text->size[0]) {
+
+                    printf("XXX: wordWRap x = %d, i = %d\n", x, i);
+                    // TODO: fix HORIBLE code structure.
+                    // word wrap!
+                    // new-line!
+                    s_run_counts[num_runs] = num_glyphs_in_run;
+                    num_glyphs_in_run = 0;
+                    num_runs++;
+                    x = 0; // reset x
+                    i--;
+                    continue;
+                }
+                x += glyph->advance + dx;
+            }
+
+            // don't count spaces
+            if (!is_space(cp)) {
+                num_glyphs_in_run++;
+            }
         }
     }
     s_run_counts[num_runs] = num_glyphs_in_run;
@@ -189,6 +243,7 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
         run->size[1] = 0; // TODO: keep track of this!
     }
 
+    const float texture_size = (float)gb->cache->texture_size;
     int32_t line_height = FIXED_TO_INT(text->font->ft_face->size->metrics.height);
     int32_t pen[2] = {text->origin[0], text->origin[1]};
 
@@ -198,13 +253,14 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
     struct GB_GlyphQuadRun *run = text->glyph_quad_runs;
     for (i = 0; i < num_glyphs; i++) {
 
+        int32_t dx = 0;
         // apply kerning
         if (i > 0)
         {
             FT_Vector delta;
             FT_Get_Kerning(text->font->ft_face, glyphs[i-1].codepoint, glyphs[i].codepoint,
                            FT_KERNING_DEFAULT, &delta);
-            pen[0] += FIXED_TO_INT(delta.x);
+            dx = FIXED_TO_INT(delta.x);
         }
 
         // TODO: word wrapping
@@ -213,35 +269,43 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
             pen[0] = text->origin[0];
             pen[1] += line_height;
             run++;
-        } else if (is_space(cp)) {
+        } else {
             // dont add space glyphs, but increment pen.
             struct GB_Glyph *glyph = GB_ContextHashFind(gb, glyphs[i].codepoint, text->font->index);
             if (glyph) {
-                pen[0] += glyph->advance;
-            }
-        } else {
-            struct GB_Glyph *glyph = GB_ContextHashFind(gb, glyphs[i].codepoint, text->font->index);
-            if (glyph) {
-                const float texture_size = (float)gb->cache->texture_size;
+                if (pen[0] + glyph->bearing[0] + glyph->size[0] + dx > text->origin[0] + text->size[0]) {
 
-                assert(glyph->size[0] > 0 && glyph->size[1] > 0);
+                    printf("> XXX: wordWRap x = %d, i = %d\n", pen[0], i);
+                    // TODO: fix HORIBLE code structure.
+                    // word wrap!
+                    pen[0] = text->origin[0];
+                    pen[1] += line_height;
+                    run++;
+                    i--;
+                    continue;
+                }
 
-                // NOTE: y axis points down, quad origin is upper-left corner of glyph
-                // build quad
-                struct GB_GlyphQuad *quad = run->glyph_quads + run->num_glyph_quads;
-                quad->origin[0] = pen[0] + glyph->bearing[0];
-                quad->origin[1] = pen[1] - glyph->bearing[1];
-                quad->size[0] = glyph->size[0];
-                quad->size[1] = glyph->size[1];
-                quad->uv_origin[0] = glyph->origin[0] / texture_size;
-                quad->uv_origin[1] = glyph->origin[1] / texture_size;
-                quad->uv_size[0] = glyph->size[0] / texture_size;
-                quad->uv_size[1] = glyph->size[1] / texture_size;
-                quad->color = text->color;
-                quad->gl_tex_obj = glyph->gl_tex_obj ? glyph->gl_tex_obj : gb->fallback_gl_tex_obj;
-                run->num_glyph_quads++;
+                if (!is_space(cp)) {
 
-                pen[0] += glyph->advance;
+                    assert(glyph->size[0] > 0 && glyph->size[1] > 0);
+
+                    // NOTE: y axis points down, quad origin is upper-left corner of glyph
+                    // build quad
+                    struct GB_GlyphQuad *quad = run->glyph_quads + run->num_glyph_quads;
+                    quad->origin[0] = pen[0] + glyph->bearing[0];
+                    quad->origin[1] = pen[1] - glyph->bearing[1];
+                    quad->size[0] = glyph->size[0];
+                    quad->size[1] = glyph->size[1];
+                    quad->uv_origin[0] = glyph->origin[0] / texture_size;
+                    quad->uv_origin[1] = glyph->origin[1] / texture_size;
+                    quad->uv_size[0] = glyph->size[0] / texture_size;
+                    quad->uv_size[1] = glyph->size[1] / texture_size;
+                    quad->color = text->color;
+                    quad->gl_tex_obj = glyph->gl_tex_obj ? glyph->gl_tex_obj : gb->fallback_gl_tex_obj;
+                    run->num_glyph_quads++;
+                }
+
+                pen[0] += glyph->advance + dx;
             }
         }
     }
