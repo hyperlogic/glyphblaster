@@ -226,9 +226,9 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
 
         // lookup kerning
         int32_t dx = 0;
-        if (i > 0) {
+        if (i+1 < num_glyphs) {
             FT_Vector delta;
-            FT_Get_Kerning(text->font->ft_face, glyphs[i-1].codepoint, glyphs[i].codepoint,
+            FT_Get_Kerning(text->font->ft_face, glyphs[i].codepoint, glyphs[i+1].codepoint,
                            FT_KERNING_DEFAULT, &delta);
             dx = FIXED_TO_INT(delta.x);
         }
