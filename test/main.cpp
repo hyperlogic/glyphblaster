@@ -228,9 +228,9 @@ int main(int argc, char* argv[])
 
     // create a font
     GB_Font* mainFont = NULL;
-    //err = GB_FontMake(gb, "Droid-Sans/DroidSans.ttf", 16, &mainFont);
-    //err = GB_FontMake(gb, "Arial.ttf", 10, &mainFont);
-    err = GB_FontMake(gb, "dejavu-fonts-ttf-2.33/ttf/DejaVuSans.ttf", 12, &mainFont);
+    err = GB_FontMake(gb, "Droid-Sans/DroidSans.ttf", 10, &mainFont);
+    //err = GB_FontMake(gb, "Arial.ttf", 13, &mainFont);
+    //err = GB_FontMake(gb, "dejavu-fonts-ttf-2.33/ttf/DejaVuSans.ttf", 12, &mainFont);
     //err = GB_FontMake(gb, "Zar/XB Zar.ttf", 16, &mainFont);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_MakeFont Error %s\n", GB_ErrorToString(err));
@@ -248,8 +248,8 @@ int main(int argc, char* argv[])
     */
 
     // create a text
-    uint32_t origin[2] = {1, 0};
-    uint32_t size[2] = {videoInfo->current_w, videoInfo->current_h};
+    uint32_t origin[2] = {videoInfo->current_w / 4, 0};
+    uint32_t size[2] = {videoInfo->current_w / 2, videoInfo->current_h};
     GB_Text* helloText = NULL;
     err = GB_TextMake(gb, (uint8_t*)lorem, mainFont, 0xffffffff, origin, size,
                       GB_HORIZONTAL_ALIGN_CENTER, GB_VERTICAL_ALIGN_CENTER, &helloText);
