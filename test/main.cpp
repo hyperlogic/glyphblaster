@@ -202,7 +202,7 @@ int main(int argc, char* argv[])
     // create the context
     GB_ERROR err;
     GB_Context* gb;
-    err = GB_ContextMake(64, 3, &gb);
+    err = GB_ContextMake(128, 3, &gb);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_Init Error %d\n", err);
         exit(1);
@@ -228,8 +228,8 @@ int main(int argc, char* argv[])
 
     // create a font
     GB_Font* mainFont = NULL;
-    //err = GB_FontMake(gb, "Droid-Sans/DroidSans.ttf", 10, &mainFont);
-    err = GB_FontMake(gb, "Arial.ttf", 48, &mainFont);
+    err = GB_FontMake(gb, "Droid-Sans/DroidSans.ttf", 12, &mainFont);
+    //err = GB_FontMake(gb, "Arial.ttf", 12, &mainFont);
     //err = GB_FontMake(gb, "dejavu-fonts-ttf-2.33/ttf/DejaVuSans.ttf", 12, &mainFont);
     //err = GB_FontMake(gb, "Zar/XB Zar.ttf", 16, &mainFont);
     if (err != GB_ERROR_NONE) {
@@ -248,11 +248,11 @@ int main(int argc, char* argv[])
     */
 
     // create a text
-    uint32_t origin[2] = {0, 0};
-    uint32_t size[2] = {videoInfo->current_w, videoInfo->current_h};
+    uint32_t origin[2] = {videoInfo->current_w / 4, 0};
+    uint32_t size[2] = {videoInfo->current_w / 2, videoInfo->current_h};
     GB_Text* helloText = NULL;
-    const char* temp = "Voting Tony Target";
-    err = GB_TextMake(gb, (uint8_t*)temp, mainFont, 0xffffffff, origin, size,
+    const char* temp = "ipsum d";
+    err = GB_TextMake(gb, (uint8_t*)lorem, mainFont, 0xffffffff, origin, size,
                       GB_HORIZONTAL_ALIGN_CENTER, GB_VERTICAL_ALIGN_CENTER, &helloText);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_MakeText Error %s\n", GB_ErrorToString(err));
@@ -315,7 +315,6 @@ int main(int argc, char* argv[])
 
         if (!done)
         {
-
             glClearColor(1, 1, 1, 1);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 

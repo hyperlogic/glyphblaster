@@ -22,13 +22,20 @@ TODO:
 * test empty string & whitespace strings.
 * assertion and more graceful failure when static buffers overflow.
 * support for sub-pixel rendering using freetype.
-* Finish SDL test prog.
-* Text Word Wrapping
-* Text Alignment
+* support for un-hinted rendering using freetype.
+* remove all printfs
+* Justify-Horizontal: left, center, right
+* Justify-Vertical: top, center, bottom
+* Justify: Scale to fit
+* Right-to-Left text
+* Replace uthash
+* Bundle harf-buzz, to make building easier
+* Minimize/control use of icu4c, might have to implement some stuff for harf-buzz as well.
 * currently two fonts with different pt sizes will have two copies of the same FreeType font.
   resources should be shared.
 * add glyph bitmap-padding option, necessary for scaled or non-screen aligned text.
 * integrate bidi
+* Finish SDL test prog.
 
 NOTES:
 ----------------

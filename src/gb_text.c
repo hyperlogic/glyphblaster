@@ -11,10 +11,11 @@
 // 26.6 fixed to int (truncates)
 #define FIXED_TO_INT(n) (uint32_t)(n >> 6)
 
+// cp is a utf32 codepoint
 static int is_space(uint32_t cp)
 {
     switch (cp) {
-    case 0x20:   // space
+    case 0x0020: // space
     case 0x1680: // ogham space mark
     case 0x180e: // mongolian vowel separator
     case 0x2000: // en quad
@@ -38,14 +39,15 @@ static int is_space(uint32_t cp)
     }
 }
 
+// cp is a utf32 codepoint
 static int is_newline(uint32_t cp)
 {
     switch (cp) {
-    case 0x0a: // new line
-    case 0x0b: // vertical tab
-    case 0x0c: // form feed
-    case 0x0d: // carriage return
-    case 0x85: // NEL next line
+    case 0x000a: // new line
+    case 0x000b: // vertical tab
+    case 0x000c: // form feed
+    case 0x000d: // carriage return
+    case 0x0085: // NEL next line
     case 0x2028: // line separator
     case 0x2029: // paragraph separator
         return 1;
@@ -246,20 +248,33 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
                 if (x + glyph->advance + dx <= text->size[0]) {
                     if (is_space(cp)) {
                         _GB_QueuePushGlyph(q, SPACE_GLYPH, glyphs + i, glyph, x);
-                        x += glyph->advance + dx;
                         // exiting word
                         word_end = i;
                         inside_word = 0;
                     } else {
                         _GB_QueuePushGlyph(q, OTHER_GLYPH, glyphs + i, glyph, x);
-                        x += glyph->advance + dx;
                     }
+                    x += glyph->advance + dx;
                 } else {
-                    // TODO: prevent infinite loop if word cannot fit on line at all!
-                    // backtrack to word_start
-                    while (i >= word_start) {
-                        _GB_QueuePopBack(q);
+                    if (is_space(cp)) {
+                        // skip spaces
+                        while (is_space(cp)) {
+                            i++;
+                            utf8_next_cp(text->utf8_string + glyphs[i].cluster, &cp);
+                        }
                         i--;
+                    } else {
+                        // if the current word starts at the beginning of the line.
+                        if (q->data[q->count - (i - word_start)].x == 0) {
+                            // we will have to split the word in the middle.
+                            i--;
+                        } else {
+                            // backtrack to word_start
+                            while (i >= word_start) {
+                                _GB_QueuePopBack(q);
+                                i--;
+                            }
+                        }
                     }
                     _GB_QueuePushGlyph(q, NEWLINE_GLYPH, NULL, NULL, x);
                     x = 0;
@@ -269,18 +284,20 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
                 if (x + glyph->advance + dx <= text->size[0]) {
                     if (is_space(cp)) {
                         _GB_QueuePushGlyph(q, SPACE_GLYPH, glyphs + i, glyph, x);
-                        x += glyph->advance + dx;
                     } else {
                         _GB_QueuePushGlyph(q, OTHER_GLYPH, glyphs + i, glyph, x);
-                        x += glyph->advance + dx;
                         // entering word
                         word_start = i;
                         inside_word = 1;
                     }
+                    x += glyph->advance + dx;
                 } else {
-                    // TODO: skip spaces
-                    // TODO: leave cursor at first non-space
-                    i--; // REMOVE backup one char
+                    // skip spaces
+                    while (is_space(cp)) {
+                        i++;
+                        utf8_next_cp(text->utf8_string + glyphs[i].cluster, &cp);
+                    }
+                    i--; // backup one char, so the next iteration thru the loop will be a non-space character
                     _GB_QueuePushGlyph(q, NEWLINE_GLYPH, NULL, NULL, x);
                     x = 0;
                     inside_word = 0;
