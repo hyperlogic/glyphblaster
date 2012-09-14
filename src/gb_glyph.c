@@ -1,21 +1,54 @@
 #include <stdio.h>
 #include <assert.h>
+#include "gb_font.h"
 #include "gb_glyph.h"
 
 // 26.6 fixed to int (truncates)
 #define FIXED_TO_INT(n) (uint32_t)(n >> 6)
 
-GB_ERROR GB_GlyphMake(uint32_t index, uint32_t font_index, FT_Face ft_face,
-                      struct GB_Glyph **glyph_out)
+GB_ERROR GB_GlyphMake(uint32_t index, struct GB_Font *font, struct GB_Glyph **glyph_out)
 {
-    if (glyph_out && ft_face) {
+    if (glyph_out && font && font->ft_face) {
 
-        FT_Error ft_error = FT_Load_Glyph(ft_face, index, FT_LOAD_DEFAULT);
+        FT_Face ft_face = font->ft_face;
+
+        uint32_t load_flags;
+        switch (font->hint_options) {
+        default:
+        case GB_HINT_DEFAULT: load_flags = FT_LOAD_DEFAULT; break;
+        case GB_HINT_FORCE_AUTO: load_flags = FT_LOAD_FORCE_AUTOHINT; break;
+        case GB_HINT_NO_AUTO: load_flags = FT_LOAD_NO_AUTOHINT; break;
+        case GB_HINT_NONE: load_flags = FT_LOAD_NO_HINTING; break;
+        }
+        switch (font->render_options) {
+        default:
+        case GB_RENDER_NORMAL: load_flags |= FT_LOAD_TARGET_NORMAL; break;
+        case GB_RENDER_LIGHT: load_flags |= FT_LOAD_TARGET_LIGHT; break;
+        case GB_RENDER_MONO: load_flags |= FT_LOAD_TARGET_MONO; break;
+        case GB_RENDER_LCD_RGB: 
+        case GB_RENDER_LCD_BGR: load_flags |= FT_LOAD_TARGET_LCD; break;
+        case GB_RENDER_LCD_RGB_V:
+        case GB_RENDER_LCD_BGR_V: load_flags |= FT_LOAD_TARGET_LCD_V; break;
+        }
+
+        FT_Error ft_error = FT_Load_Glyph(ft_face, index, load_flags);
         if (ft_error)
             return GB_ERROR_FTERR;
 
+        FT_Render_Mode render_mode;
+        switch (font->render_options) {
+        default:
+        case GB_RENDER_NORMAL: render_mode = FT_RENDER_MODE_NORMAL; break;
+        case GB_RENDER_LIGHT: render_mode = FT_RENDER_MODE_LIGHT; break;
+        case GB_RENDER_MONO: render_mode = FT_RENDER_MODE_MONO; break;
+        case GB_RENDER_LCD_RGB:
+        case GB_RENDER_LCD_BGR: render_mode = FT_RENDER_MODE_LCD; break;
+        case GB_RENDER_LCD_RGB_V:
+        case GB_RENDER_LCD_BGR_V: render_mode = FT_RENDER_MODE_LCD_V; break;
+        }
+
         // render glyph into ft_face->glyph->bitmap
-        ft_error = FT_Render_Glyph(ft_face->glyph, FT_RENDER_MODE_NORMAL);
+        ft_error = FT_Render_Glyph(ft_face->glyph, render_mode);
         if (ft_error)
             return GB_ERROR_FTERR;
 
@@ -46,11 +79,11 @@ GB_ERROR GB_GlyphMake(uint32_t index, uint32_t font_index, FT_Face ft_face,
 
         struct GB_Glyph *glyph = (struct GB_Glyph*)malloc(sizeof(struct GB_Glyph));
         if (glyph) {
-            uint64_t key = ((uint64_t)font_index << 32) | index;
+            uint64_t key = ((uint64_t)font->index << 32) | index;
             glyph->key = key;
             glyph->rc = 1;
             glyph->index = index;
-            glyph->font_index = font_index;
+            glyph->font_index = font->index;
             glyph->gl_tex_obj = 0;
             glyph->origin[0] = origin[0];
             glyph->origin[1] = origin[1];

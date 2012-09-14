@@ -17,7 +17,7 @@ static GB_ERROR _GB_SheetInit(struct GB_Cache *cache, struct GB_Sheet *sheet)
     memset(image, 255, texture_size * texture_size * sizeof(uint8_t));
 #endif
 
-    GB_TextureInit(cache->texture_size, image, &sheet->gl_tex_obj);
+    GB_TextureInit(GB_TEXTURE_FORMAT_ALPHA, cache->texture_size, image, &sheet->gl_tex_obj);
 
     sheet->num_levels = 0;
 

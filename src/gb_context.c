@@ -14,7 +14,7 @@ static GB_ERROR _GB_ContextInitFallbackOpenGLTexture(uint32_t *gl_tex_out)
     // fallback texture is gray
     memset(image, 128, texture_size * texture_size * sizeof(uint8_t));
 
-    GB_ERROR error = GB_TextureInit(texture_size, image, gl_tex_out);
+    GB_ERROR error = GB_TextureInit(GB_TEXTURE_FORMAT_ALPHA, texture_size, image, gl_tex_out);
     free(image);
     return error;
 }
@@ -24,7 +24,8 @@ static int IsPowerOfTwo(uint32_t x)
     return ((x != 0) && !(x & (x - 1)));
 }
 
-GB_ERROR GB_ContextMake(uint32_t texture_size, uint32_t num_sheets, struct GB_Context **gb_out)
+GB_ERROR GB_ContextMake(uint32_t texture_size, uint32_t num_sheets, enum GB_TextureFormat texture_format,
+                        struct GB_Context **gb_out)
 {
     if (num_sheets < GB_MAX_SHEETS_PER_CACHE && texture_size > 0 && IsPowerOfTwo(texture_size)) {
         struct GB_Context *gb = (struct GB_Context*)malloc(sizeof(struct GB_Context));
@@ -34,6 +35,11 @@ GB_ERROR GB_ContextMake(uint32_t texture_size, uint32_t num_sheets, struct GB_Co
             if (FT_Init_FreeType(&gb->ft_library)) {
                 return GB_ERROR_FTERR;
             }
+
+            FT_Int major, minor, patch;
+            FT_Library_Version(gb->ft_library, &major, &minor, &patch);
+            printf("FT_Version %d.%d.%d\n", major, minor, patch);
+
             struct GB_Cache *cache = NULL;
             GB_ERROR err = GB_CacheMake(texture_size, num_sheets, &cache);
             if (err == GB_ERROR_NONE) {
@@ -44,6 +50,7 @@ GB_ERROR GB_ContextMake(uint32_t texture_size, uint32_t num_sheets, struct GB_Co
             gb->next_font_index = 0;
             gb->text_render_func = NULL;
             _GB_ContextInitFallbackOpenGLTexture(&gb->fallback_gl_tex_obj);
+            gb->texture_format = texture_format;
             *gb_out = gb;
             return err;
         } else {

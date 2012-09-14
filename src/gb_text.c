@@ -110,16 +110,13 @@ static GB_ERROR _GB_TextUpdateCache(struct GB_Context *gb, struct GB_Text *text)
             glyph = GB_CacheHashFind(cache, index, text->font->index);
             if (!glyph) {
 
-                // get FreeType face
-                FT_Face ft_face = text->font->ft_face;
-
                 // skip new-lines
                 uint32_t cp;
                 utf8_next_cp(text->utf8_string + glyphs[i].cluster, &cp);
                 if (!is_newline(cp)) {
 
                     // will rasterize and initialize glyph
-                    GB_ERROR gb_error = GB_GlyphMake(index, text->font->index, ft_face, &glyph);
+                    GB_ERROR gb_error = GB_GlyphMake(index, text->font, &glyph);
                     if (gb_error)
                         return gb_error;
 
@@ -146,7 +143,7 @@ static GB_ERROR _GB_TextUpdateCache(struct GB_Context *gb, struct GB_Text *text)
     return GB_ERROR_NONE;
 }
 
-enum GlyphType { NEWLINE_GLYPH = 0, SPACE_GLYPH, OTHER_GLYPH };
+enum GlyphType { NEWLINE_GLYPH = 0, SPACE_GLYPH, NORMAL_GLYPH };
 
 struct GB_GlyphInfo {
     enum GlyphType type;
@@ -252,7 +249,7 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
                         word_end = i;
                         inside_word = 0;
                     } else {
-                        _GB_QueuePushGlyph(q, OTHER_GLYPH, glyphs + i, glyph, x);
+                        _GB_QueuePushGlyph(q, NORMAL_GLYPH, glyphs + i, glyph, x);
                     }
                     x += glyph->advance + dx;
                 } else {
@@ -281,11 +278,12 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
                     inside_word = 0;
                 }
             } else {
+                // does glyph fit on this line?
                 if (x + glyph->advance + dx <= text->size[0]) {
                     if (is_space(cp)) {
                         _GB_QueuePushGlyph(q, SPACE_GLYPH, glyphs + i, glyph, x);
                     } else {
-                        _GB_QueuePushGlyph(q, OTHER_GLYPH, glyphs + i, glyph, x);
+                        _GB_QueuePushGlyph(q, NORMAL_GLYPH, glyphs + i, glyph, x);
                         // entering word
                         word_start = i;
                         inside_word = 1;
@@ -329,12 +327,10 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
     // iterate over q
     struct GB_GlyphInfo* head = q->data;
     while (head != q->data + q->count) {
-
         if (head->hb_glyph == NULL && head->gb_glyph == NULL) {
             y += line_height;
         } else {
-            // skip whitespace glyphs
-            if (head->gb_glyph->size[0] > 0 && head->gb_glyph->size[1] > 0) {
+            if (head->type == NORMAL_GLYPH) {
                 // NOTE: y axis points down, quad origin is upper-left corner of glyph
                 // build quad
                 struct GB_Glyph *gb_glyph = head->gb_glyph;

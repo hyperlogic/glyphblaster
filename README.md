@@ -21,8 +21,10 @@ TODO:
 -----------------
 * test empty string & whitespace strings.
 * assertion and more graceful failure when static buffers overflow.
-* support for sub-pixel rendering using freetype.
-* support for un-hinted rendering using freetype.
+* Add support for GB-TEXTURE-FORMAT-RGBA
+* Disable GB-RENDER-RGB if context texture-format is not RGBA
+* Add support for GB-RENDER-MONO
+* Add support for GB-RENDER-RGB
 * remove all printfs
 * Justify-Horizontal: left, center, right
 * Justify-Vertical: top, center, bottom

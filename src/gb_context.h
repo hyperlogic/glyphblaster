@@ -10,6 +10,8 @@ extern "C" {
 #include FT_FREETYPE_H
 #include "gb_error.h"
 
+enum GB_TextureFormat { GB_TEXTURE_FORMAT_ALPHA, GB_TEXTURE_FORMAT_RGBA = 1 };
+
 struct GB_Context {
     int32_t rc;
     FT_Library ft_library;
@@ -19,11 +21,13 @@ struct GB_Context {
     uint32_t next_font_index;
     void *text_render_func;
     uint32_t fallback_gl_tex_obj;
+    enum GB_TextureFormat texture_format;
 };
 
 // texture_size - width of texture sheets used by glyph cache in pixels (must be power of two)
 // num_sheets - number of texture sheets used by glyph cache.
-GB_ERROR GB_ContextMake(uint32_t texture_size, uint32_t num_sheets, struct GB_Context **gb_out);
+GB_ERROR GB_ContextMake(uint32_t texture_size, uint32_t num_sheets, enum GB_TextureFormat texture_format,
+                        struct GB_Context **gb_out);
 GB_ERROR GB_ContextRetain(struct GB_Context *gb);
 GB_ERROR GB_ContextRelease(struct GB_Context *gb);
 

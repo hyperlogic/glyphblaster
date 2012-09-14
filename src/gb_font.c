@@ -7,8 +7,9 @@
 #include "gb_cache.h"
 #include "gb_font.h"
 
-GB_ERROR GB_FontMake(struct GB_Context *gb, const char *filename,
-                     uint32_t point_size, struct GB_Font **font_out)
+GB_ERROR GB_FontMake(struct GB_Context *gb, const char *filename, uint32_t point_size, 
+                     enum GB_FontRenderOptions render_options, enum GB_FontHintOptions hint_options,
+                     struct GB_Font **font_out)
 {
     if (gb && filename && font_out) {
 
@@ -32,6 +33,9 @@ GB_ERROR GB_FontMake(struct GB_Context *gb, const char *filename,
 
                 // context holds a list of all fonts
                 DL_PREPEND(gb->font_list, font);
+
+                font->render_options = render_options;
+                font->hint_options = hint_options;
 
                 *font_out = font;
                 return GB_ERROR_NONE;
