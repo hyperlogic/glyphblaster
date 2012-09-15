@@ -49,13 +49,17 @@ struct Config
 
 Config* s_config = 0;
 
+static uint32_t MakeColor(uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha)
+{
+    return alpha << 24 | blue << 16 | green << 8 | red;
+}
+
 void DrawTexturedQuad(uint32_t gl_tex, Vector2f const& origin, Vector2f const& size,
                       Vector2f const& uv_origin, Vector2f const& uv_size,
-                      Vector4f const& color)
+                      uint32_t color)
 {
     // assume texture is enabled.
     glBindTexture(GL_TEXTURE_2D, gl_tex);
-    glColor4f(color.x, color.y, color.z, color.w);
 
     float verts[8];
     verts[0] = origin.x;
@@ -79,6 +83,13 @@ void DrawTexturedQuad(uint32_t gl_tex, Vector2f const& origin, Vector2f const& s
     uvs[5] = uv_origin.y + uv_size.y;
     uvs[6] = uv_origin.x + uv_size.x;
     uvs[7] = uv_origin.y + uv_size.y;
+
+    uint32_t colors[8];
+    for (int i = 0; i < 8; i++)
+        colors[i] = color;
+
+    glEnableClientState(GL_COLOR_ARRAY);
+    glColorPointer(4, GL_UNSIGNED_BYTE, 0, colors);
 
     glClientActiveTexture(GL_TEXTURE0);
     glTexCoordPointer(2, GL_FLOAT, 0, uvs);
@@ -113,7 +124,7 @@ void DebugDrawGlyphCache(GB_Context* gb, const Config& config)
         DrawTexturedQuad(cache->sheet[i].gl_tex_obj, Vector2f(0, y),
                          Vector2f(texture_size, texture_size),
                          Vector2f(0, 0), Vector2f(1, 1),
-                         Vector4f(0.7, 0.7, 0.7, 1));
+                         MakeColor(255, 255, 255, 255));
         y += texture_size + sheet_gap;
     }
 }
@@ -140,6 +151,7 @@ void TextRenderFunc(GB_GlyphQuad* quads, uint32_t num_quads)
             printf("    uv_origin = [%.3f, %.3f]\n", quads[i].uv_origin[0], quads[i].uv_origin[1]);
             printf("    uv_size = [%.3f, %.3f]\n", quads[i].uv_size[0], quads[i].uv_size[1]);
             printf("    gl_tex_obj = %u\n", quads[i].gl_tex_obj);
+            printf("    color = 0x%x\n", quads[i].color);
         }
 
         DrawTexturedQuad(quads[i].gl_tex_obj,
@@ -147,7 +159,7 @@ void TextRenderFunc(GB_GlyphQuad* quads, uint32_t num_quads)
                          Vector2f(quads[i].size[0], quads[i].size[1]),
                          Vector2f(quads[i].uv_origin[0], quads[i].uv_origin[1]),
                          Vector2f(quads[i].uv_size[0], quads[i].uv_size[1]),
-                         Vector4f(0, 0, 0, 1));
+                         quads[i].color);
     }
 
     count++;
@@ -195,14 +207,15 @@ int main(int argc, char* argv[])
         fprintf(stderr, "Couldn't create SDL screen!\n");
 
     // clear to white
-    glClearColor(1, 1, 1, 1);
+    Vector4f clearColor(0, 0, 0, 1);
+    glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     SDL_GL_SwapBuffers();
 
     // create the context
     GB_ERROR err;
     GB_Context* gb;
-    err = GB_ContextMake(128, 3, GB_TEXTURE_FORMAT_ALPHA, &gb);
+    err = GB_ContextMake(128, 3, GB_TEXTURE_FORMAT_RGBA, &gb);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_Init Error %d\n", err);
         exit(1);
@@ -228,8 +241,8 @@ int main(int argc, char* argv[])
 
     // create a font
     GB_Font* mainFont = NULL;
-    err = GB_FontMake(gb, "Droid-Sans/DroidSans.ttf", 12, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);
-    //err = GB_FontMake(gb, "Arial.ttf", 16, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);
+    //err = GB_FontMake(gb, "Droid-Sans/DroidSans.ttf", 20, GB_RENDER_LCD_RGB, GB_HINT_FORCE_AUTO, &mainFont);
+    err = GB_FontMake(gb, "Arial.ttf", 16, GB_RENDER_LCD_RGB, GB_HINT_FORCE_AUTO, &mainFont);
     //err = GB_FontMake(gb, "Ayuthaya.ttf", 16, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);
     //err = GB_FontMake(gb, "dejavu-fonts-ttf-2.33/ttf/DejaVuSans.ttf", 12, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);
     //err = GB_FontMake(gb, "Zar/XB Zar.ttf", 16, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);
@@ -237,6 +250,7 @@ int main(int argc, char* argv[])
         fprintf(stderr, "GB_MakeFont Error %s\n", GB_ErrorToString(err));
         exit(1);
     }
+
 
     GB_Font* arabicFont = NULL;
     /*
@@ -249,11 +263,11 @@ int main(int argc, char* argv[])
     */
 
     // create a text
-    uint32_t origin[2] = {1, 0};
-    uint32_t size[2] = {videoInfo->current_w, videoInfo->current_h};
+    uint32_t origin[2] = {videoInfo->current_w / 4, 100};
+    uint32_t size[2] = {videoInfo->current_w / 2, videoInfo->current_h};
     GB_Text* helloText = NULL;
-    const char* temp = "ipsum d";
-    err = GB_TextMake(gb, (uint8_t*)lorem, mainFont, 0xffffffff, origin, size,
+    uint32_t textColor = MakeColor(255, 255, 255, 255);
+    err = GB_TextMake(gb, (uint8_t*)lorem, mainFont, textColor, origin, size,
                       GB_HORIZONTAL_ALIGN_CENTER, GB_VERTICAL_ALIGN_CENTER, &helloText);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_MakeText Error %s\n", GB_ErrorToString(err));
@@ -316,7 +330,7 @@ int main(int argc, char* argv[])
 
         if (!done)
         {
-            glClearColor(1, 1, 1, 1);
+            glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             DebugDrawGlyphCache(gb, config);

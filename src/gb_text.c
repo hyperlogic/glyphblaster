@@ -116,23 +116,17 @@ static GB_ERROR _GB_TextUpdateCache(struct GB_Context *gb, struct GB_Text *text)
                 if (!is_newline(cp)) {
 
                     // will rasterize and initialize glyph
-                    GB_ERROR gb_error = GB_GlyphMake(index, text->font, &glyph);
+                    GB_ERROR gb_error = GB_GlyphMake(gb, index, text->font, &glyph);
                     if (gb_error)
                         return gb_error;
 
                     // add to glyph_ptr array
                     glyph_ptrs[num_glyph_ptrs++] = glyph;
-
-                    printf("AJT: adding glyph %u to context (%d x %d) image = %p\n", index, glyph->size[0], glyph->size[1], glyph->image);
                 }
             } else {
-                printf("AJT: glyph %u already in cache\n", index);
-
                 // add glyph to context
                 GB_ContextHashAdd(gb, glyph);
             }
-        } else {
-            printf("AJT: glyph %u already in context\n", index);
         }
     }
 
@@ -303,15 +297,6 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
             }
         }
     }
-
-    /*
-    printf("XXX: q->count = %d\n", q->count);
-    struct GB_GlyphInfo* head_xxx = q->data;
-    while (head_xxx != q->data + q->count) {
-        printf("    type = %d, x = %d\n", head_xxx->type, head_xxx->x);
-        head_xxx++;
-    }
-    */
 
     // allocate glyph quads
     // TODO: q->count will be slightly larger then the exact number required.

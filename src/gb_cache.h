@@ -19,6 +19,7 @@ struct GB_SheetLevel {
 #define GB_MAX_LEVELS_PER_SHEET 64
 struct GB_Sheet {
     uint32_t gl_tex_obj;
+    enum GB_TextureFormat texture_format;
     struct GB_SheetLevel level[GB_MAX_LEVELS_PER_SHEET];
     uint32_t num_levels;
 };
@@ -31,7 +32,8 @@ struct GB_Cache {
     struct GB_Glyph *glyph_hash;  // retains all glyphs in GB_Sheet structs.
 };
 
-GB_ERROR GB_CacheMake(uint32_t texture_size, uint32_t num_sheets, struct GB_Cache **cache_out);
+GB_ERROR GB_CacheMake(uint32_t texture_size, uint32_t num_sheets, enum GB_TextureFormat texture_format,
+                      struct GB_Cache **cache_out);
 GB_ERROR GB_CacheDestroy(struct GB_Cache *cache);
 GB_ERROR GB_CacheInsert(struct GB_Context *gb, struct GB_Cache *cache,
                         struct GB_Glyph **glyph_ptrs, int num_glyph_ptrs);

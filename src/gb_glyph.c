@@ -6,7 +6,113 @@
 // 26.6 fixed to int (truncates)
 #define FIXED_TO_INT(n) (uint32_t)(n >> 6)
 
-GB_ERROR GB_GlyphMake(uint32_t index, struct GB_Font *font, struct GB_Glyph **glyph_out)
+static void _InitGlyphImage(FT_Bitmap *ft_bitmap, enum GB_TextureFormat texture_format,
+                            enum GB_FontRenderOptions render_options, uint8_t **image_out, uint32_t size_out[2])
+{
+    uint8_t *image = NULL;
+    int i, j;
+    if (ft_bitmap->width > 0 && ft_bitmap->rows > 0) {
+
+        switch (render_options) {
+        case GB_RENDER_NORMAL:
+        case GB_RENDER_LIGHT:
+            if (texture_format == GB_TEXTURE_FORMAT_ALPHA) {
+                // allocate an image to hold a copy of the rasterized glyph
+                image = (uint8_t*)malloc(ft_bitmap->width * ft_bitmap->rows);
+
+                // copy image from ft_bitmap.buffer into image, row by row.
+                // The pitch of each row in the ft_bitmap maybe >= width,
+                // so we cant do this as a single memcpy.
+                for (i = 0; i < ft_bitmap->rows; i++) {
+                    memcpy(image + (i * ft_bitmap->width), ft_bitmap->buffer + (i * ft_bitmap->pitch), ft_bitmap->width);
+                }
+            } else {
+                // allocate an image to hold a copy of the rasterized glyph
+                image = (uint8_t*)malloc(4 * ft_bitmap->width * ft_bitmap->rows);
+
+                // copy image from ft_bitmap.buffer into image, row by row.
+                // The pitch of each row in the ft_bitmap maybe >= width,
+                // convert from ALPHA to RGBA
+                for (i = 0; i < ft_bitmap->rows; i++) {
+                    for (j = 0; j < ft_bitmap->width; j++) {
+                        // white with alpha, i.e. non-premultiplied alpha.
+                        image[i * ft_bitmap->width * 4 + (j * 4) + 0] = 0xff;
+                        image[i * ft_bitmap->width * 4 + (j * 4) + 1] = 0xff;
+                        image[i * ft_bitmap->width * 4 + (j * 4) + 2] = 0xff;
+                        image[i * ft_bitmap->width * 4 + (j * 4) + 3] = ft_bitmap->buffer[i * ft_bitmap->pitch + j];
+                    }
+                }
+            }
+            size_out[0] = ft_bitmap->width;
+            size_out[1] = ft_bitmap->rows;
+            *image_out = image;
+            return;
+        case GB_RENDER_MONO:
+            // TODO: ft_bitmap is 1 bit per pixel.
+            assert(0);
+            size_out[0] = 0;
+            size_out[1] = 0;
+            *image_out = NULL;
+            return;
+        case GB_RENDER_LCD_RGB:
+        case GB_RENDER_LCD_BGR:
+        case GB_RENDER_LCD_RGB_V:
+        case GB_RENDER_LCD_BGR_V:
+            assert(texture_format == GB_TEXTURE_FORMAT_RGBA);
+            if (texture_format == GB_TEXTURE_FORMAT_RGBA) {
+                // allocate an image to hold a copy of the rasterized glyph
+                image = (uint8_t*)malloc(4 * ft_bitmap->width * ft_bitmap->rows);
+
+                if (render_options == GB_RENDER_LCD_RGB || render_options == GB_RENDER_LCD_RGB_V) {
+                    // copy image from ft_bitmap.buffer into image, row by row.
+                    // The pitch of each row in the ft_bitmap maybe >= width,
+                    // convert from RGB to RGBA
+                    // TODO: Is this pre mulitplied alpha?  What should the alpha be, currently I'm just using g
+                    const uint32_t width = ft_bitmap->width / 3;
+                    for (i = 0; i < ft_bitmap->rows; i++) {
+                        for (j = 0; j < width; j++) {
+                            image[i * width * 4 + (j * 4) + 0] = ft_bitmap->buffer[i * ft_bitmap->pitch + (j * 3) + 0];
+                            image[i * width * 4 + (j * 4) + 1] = ft_bitmap->buffer[i * ft_bitmap->pitch + (j * 3) + 1];
+                            image[i * width * 4 + (j * 4) + 2] = ft_bitmap->buffer[i * ft_bitmap->pitch + (j * 3) + 2];
+                            image[i * width * 4 + (j * 4) + 3] = ft_bitmap->buffer[i * ft_bitmap->pitch + (j * 3) + 1]; // total guess.
+                        }
+                    }
+                } else {
+                    // copy image from ft_bitmap.buffer into image, row by row.
+                    // The pitch of each row in the ft_bitmap maybe >= width,
+                    // convert from RGB to RGBA
+                    // TODO: Is this pre mulitplied alpha?  What should the alpha be, currently I'm just using g
+                    const uint32_t width = ft_bitmap->width / 3;
+                    for (i = 0; i < ft_bitmap->rows; i++) {
+                        for (j = 0; j < width; j++) {
+                            image[i * width * 4 + (j * 4) + 0] = ft_bitmap->buffer[i * ft_bitmap->pitch + (j * 3) + 2];
+                            image[i * width * 4 + (j * 4) + 1] = ft_bitmap->buffer[i * ft_bitmap->pitch + (j * 3) + 1];
+                            image[i * width * 4 + (j * 4) + 2] = ft_bitmap->buffer[i * ft_bitmap->pitch + (j * 3) + 0];
+                            image[i * width * 4 + (j * 4) + 3] = ft_bitmap->buffer[i * ft_bitmap->pitch + (j * 3) + 1]; // total guess.
+                        }
+                    }
+                }
+                size_out[0] = ft_bitmap->width / 3;
+                size_out[1] = ft_bitmap->rows;
+                *image_out = image;
+                return;
+            } else {
+                size_out[0] = 0;
+                size_out[1] = 0;
+                *image_out = NULL;
+                return;
+            }
+        default:
+            return;
+        }
+    } else {
+        size_out[0] = 0;
+        size_out[1] = 0;
+        *image_out = NULL;
+    }
+}
+
+GB_ERROR GB_GlyphMake(struct GB_Context* gb, uint32_t index, struct GB_Font *font, struct GB_Glyph **glyph_out)
 {
     if (glyph_out && font && font->ft_face) {
 
@@ -25,11 +131,22 @@ GB_ERROR GB_GlyphMake(uint32_t index, struct GB_Font *font, struct GB_Glyph **gl
         case GB_RENDER_NORMAL: load_flags |= FT_LOAD_TARGET_NORMAL; break;
         case GB_RENDER_LIGHT: load_flags |= FT_LOAD_TARGET_LIGHT; break;
         case GB_RENDER_MONO: load_flags |= FT_LOAD_TARGET_MONO; break;
-        case GB_RENDER_LCD_RGB: 
-        case GB_RENDER_LCD_BGR: load_flags |= FT_LOAD_TARGET_LCD; break;
+
+        // NOTE: only do sub-pixel anti-aliasing if we are using RGBA textures.
+        case GB_RENDER_LCD_RGB:
+        case GB_RENDER_LCD_BGR:
+            if (gb->texture_format == GB_TEXTURE_FORMAT_RGBA)
+                load_flags |= FT_LOAD_TARGET_LCD;
+            break;
         case GB_RENDER_LCD_RGB_V:
-        case GB_RENDER_LCD_BGR_V: load_flags |= FT_LOAD_TARGET_LCD_V; break;
+        case GB_RENDER_LCD_BGR_V:
+            if (gb->texture_format == GB_TEXTURE_FORMAT_RGBA)
+                load_flags |= FT_LOAD_TARGET_LCD_V;
+            break;
         }
+
+        // AJT: HACK: REMOVE
+        load_flags = FT_LOAD_FORCE_AUTOHINT | FT_LOAD_TARGET_LCD;
 
         FT_Error ft_error = FT_Load_Glyph(ft_face, index, load_flags);
         if (ft_error)
@@ -41,11 +158,22 @@ GB_ERROR GB_GlyphMake(uint32_t index, struct GB_Font *font, struct GB_Glyph **gl
         case GB_RENDER_NORMAL: render_mode = FT_RENDER_MODE_NORMAL; break;
         case GB_RENDER_LIGHT: render_mode = FT_RENDER_MODE_LIGHT; break;
         case GB_RENDER_MONO: render_mode = FT_RENDER_MODE_MONO; break;
+
+        // NOTE: only do sub-pixel anti-aliasing if we are using RGBA textures.
         case GB_RENDER_LCD_RGB:
-        case GB_RENDER_LCD_BGR: render_mode = FT_RENDER_MODE_LCD; break;
+        case GB_RENDER_LCD_BGR:
+            if (gb->texture_format == GB_TEXTURE_FORMAT_RGBA)
+                render_mode = FT_RENDER_MODE_LCD;
+            break;
         case GB_RENDER_LCD_RGB_V:
-        case GB_RENDER_LCD_BGR_V: render_mode = FT_RENDER_MODE_LCD_V; break;
+        case GB_RENDER_LCD_BGR_V:
+            if (gb->texture_format == GB_TEXTURE_FORMAT_RGBA)
+                render_mode = FT_RENDER_MODE_LCD_V;
+            break;
         }
+
+        // AJT: HACK: REMOVE
+        render_mode = FT_RENDER_MODE_LCD;
 
         // render glyph into ft_face->glyph->bitmap
         ft_error = FT_Render_Glyph(ft_face->glyph, render_mode);
@@ -57,25 +185,11 @@ GB_ERROR GB_GlyphMake(uint32_t index, struct GB_Font *font, struct GB_Glyph **gl
         uint32_t bearing[2] = {FIXED_TO_INT(ft_face->glyph->metrics.horiBearingX),
                                FIXED_TO_INT(ft_face->glyph->metrics.horiBearingY)};
 
-        FT_Bitmap *ft_bitmap = &ft_face->glyph->bitmap;
         uint8_t *image = NULL;
-        if (ft_bitmap->width > 0 && ft_bitmap->rows > 0) {
-            // allocate an image to hold a copy of the rasterized glyph
-            image = (uint8_t*)malloc(sizeof(uint8_t) * ft_bitmap->width * ft_bitmap->rows);
-
-            // copy image from ft_bitmap.buffer into image, row by row.
-            // The pitch of each row in the ft_bitmap maybe >= width,
-            // so we cant do this as a single memcpy.
-            int i;
-            for (i = 0; i < ft_face->glyph->bitmap.rows; i++) {
-                memcpy(image + (i * ft_bitmap->width),
-                       ft_bitmap->buffer + (i * ft_bitmap->pitch),
-                       ft_bitmap->width);
-            }
-        }
-
+        FT_Bitmap *ft_bitmap = &ft_face->glyph->bitmap;
+        uint32_t size[2];
+        _InitGlyphImage(ft_bitmap, gb->texture_format, font->render_options, &image, size);
         uint32_t origin[2] = {0, 0};
-        uint32_t size[2] = {ft_bitmap->width, ft_bitmap->rows};
 
         struct GB_Glyph *glyph = (struct GB_Glyph*)malloc(sizeof(struct GB_Glyph));
         if (glyph) {
@@ -106,7 +220,6 @@ GB_ERROR GB_GlyphMake(uint32_t index, struct GB_Font *font, struct GB_Glyph **gl
 GB_ERROR GB_GlyphRetain(struct GB_Glyph *glyph)
 {
     if (glyph) {
-        printf("AJT: glyph->ref index = %d rc = %d++\n", glyph->index, glyph->rc);
         assert(glyph->rc > 0);
         glyph->rc++;
         return GB_ERROR_NONE;
@@ -117,7 +230,6 @@ GB_ERROR GB_GlyphRetain(struct GB_Glyph *glyph)
 
 static void _GB_GlyphDestroy(struct GB_Glyph *glyph)
 {
-    printf("AJT: deleting glyph %d\n", glyph->index);
     assert(glyph);
     if (glyph->image)
         free(glyph->image);
@@ -127,7 +239,6 @@ static void _GB_GlyphDestroy(struct GB_Glyph *glyph)
 GB_ERROR GB_GlyphRelease(struct GB_Glyph *glyph)
 {
     if (glyph) {
-        printf("AJT: glyph->rel index = %d rc = %d--\n", glyph->index, glyph->rc);
         glyph->rc--;
         assert(glyph->rc >= 0);
         if (glyph->rc == 0) {

@@ -36,12 +36,14 @@ GB_ERROR GB_ContextMake(uint32_t texture_size, uint32_t num_sheets, enum GB_Text
                 return GB_ERROR_FTERR;
             }
 
+#ifndef NDEBUG
             FT_Int major, minor, patch;
             FT_Library_Version(gb->ft_library, &major, &minor, &patch);
             printf("FT_Version %d.%d.%d\n", major, minor, patch);
+#endif
 
             struct GB_Cache *cache = NULL;
-            GB_ERROR err = GB_CacheMake(texture_size, num_sheets, &cache);
+            GB_ERROR err = GB_CacheMake(texture_size, num_sheets, texture_format, &cache);
             if (err == GB_ERROR_NONE) {
                 gb->cache = cache;
             }
@@ -128,7 +130,6 @@ void GB_ContextHashAdd(struct GB_Context *gb, struct GB_Glyph *glyph)
         printf("GB_ContextHashAdd() WARNING glyph index = %d, font_index = %d is already in context!\n", glyph->index, glyph->font_index);
     }
 #endif
-    printf("GB_ContextHashAdd() index = %d, font_index = %d\n", glyph->index, glyph->font_index);
     HASH_ADD(context_hh, gb->glyph_hash, key, sizeof(uint64_t), glyph);
     GB_GlyphRetain(glyph);
 }
@@ -143,7 +144,6 @@ struct GB_Glyph *GB_ContextHashFind(struct GB_Context *gb, uint32_t glyph_index,
 
 void GB_ContextHashRemove(struct GB_Context *gb, uint32_t glyph_index, uint32_t font_index)
 {
-    printf("GB_ContextHashRemove() index = %d, font_index = %d\n", glyph_index, font_index);
     struct GB_Glyph *glyph = NULL;
     uint64_t key = ((uint64_t)font_index << 32) | glyph_index;
     HASH_FIND(context_hh, gb->glyph_hash, &key, sizeof(uint64_t), glyph);

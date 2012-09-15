@@ -25,7 +25,7 @@ struct GB_Glyph {
     UT_hash_handle cache_hh;
 };
 
-GB_ERROR GB_GlyphMake(uint32_t index, struct GB_Font *font, struct GB_Glyph **glyph_out);
+GB_ERROR GB_GlyphMake(struct GB_Context* gb, uint32_t index, struct GB_Font *font, struct GB_Glyph **glyph_out);
 GB_ERROR GB_GlyphRetain(struct GB_Glyph *glyph);
 GB_ERROR GB_GlyphRelease(struct GB_Glyph *glyph);
 

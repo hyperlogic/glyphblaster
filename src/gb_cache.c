@@ -6,19 +6,20 @@
 #include "gb_cache.h"
 #include "gb_texture.h"
 
-static GB_ERROR _GB_SheetInit(struct GB_Cache *cache, struct GB_Sheet *sheet)
+static GB_ERROR _GB_SheetInit(struct GB_Cache *cache, enum GB_TextureFormat texture_format, struct GB_Sheet *sheet)
 {
     uint8_t *image = NULL;
 
     const uint32_t texture_size = cache->texture_size;
 #ifndef NDEBUG
-    // in debug fill image with 255.
-    image = (uint8_t*)malloc(texture_size * texture_size * sizeof(uint8_t));
-    memset(image, 255, texture_size * texture_size * sizeof(uint8_t));
+    // in debug fill image with 128.
+    uint32_t pixel_size = texture_format == GB_TEXTURE_FORMAT_ALPHA ? 1 : 4;
+    image = (uint8_t*)malloc(texture_size * texture_size * pixel_size);
+    memset(image, 0x80, texture_size * texture_size * pixel_size);
 #endif
 
-    GB_TextureInit(GB_TEXTURE_FORMAT_ALPHA, cache->texture_size, image, &sheet->gl_tex_obj);
-
+    GB_TextureInit(texture_format, cache->texture_size, image, &sheet->gl_tex_obj);
+    sheet->texture_format = texture_format;
     sheet->num_levels = 0;
 
 #ifndef NDEBUG
@@ -47,7 +48,7 @@ static int _GB_SheetAddNewLevel(struct GB_Cache *cache, struct GB_Sheet *sheet, 
 static void _GB_SheetSubloadGlyph(struct GB_Sheet *sheet, struct GB_Glyph *glyph)
 {
     assert(sheet);
-    GB_TextureSubLoad(sheet->gl_tex_obj, glyph->origin, glyph->size, glyph->image);
+    GB_TextureSubLoad(sheet->gl_tex_obj, sheet->texture_format, glyph->origin, glyph->size, glyph->image);
 }
 
 static int _GB_SheetLevelInsertGlyph(struct GB_Cache *cache, struct GB_SheetLevel *level,
@@ -91,7 +92,6 @@ static int _GB_SheetInsertGlyph(struct GB_Cache *cache, struct GB_Sheet *sheet, 
             if (_GB_SheetLevelInsertGlyph(cache, &sheet->level[i], glyph)) {
                 glyph->gl_tex_obj = sheet->gl_tex_obj;
                 _GB_SheetSubloadGlyph(sheet, glyph);
-                printf("AJT: Inserted glyph %d into existing level %d\n", glyph->index, i);
                 return 1;
             }
         }
@@ -102,23 +102,21 @@ static int _GB_SheetInsertGlyph(struct GB_Cache *cache, struct GB_Sheet *sheet, 
         if (_GB_SheetLevelInsertGlyph(cache, &sheet->level[i], glyph)) {
             glyph->gl_tex_obj = sheet->gl_tex_obj;
             _GB_SheetSubloadGlyph(sheet, glyph);
-            printf("AJT: Inserted glyph %d into new level %d\n", glyph->index, i);
             return 1;
         } else {
-            printf("AJT: glyph %d is too wide\n", glyph->index);
             // glyph is wider then the texture?!?
             glyph->gl_tex_obj = 0;
             return 0;
         }
     } else {
-        printf("AJT: glyph %d out of room\n", glyph->index);
         glyph->gl_tex_obj = 0;
         // out of room
         return 0;
     }
 }
 
-GB_ERROR GB_CacheMake(uint32_t texture_size, uint32_t num_sheets, struct GB_Cache **cache_out)
+GB_ERROR GB_CacheMake(uint32_t texture_size, uint32_t num_sheets, enum GB_TextureFormat texture_format,
+                      struct GB_Cache **cache_out)
 {
     struct GB_Cache *cache = (struct GB_Cache*)malloc(sizeof(struct GB_Cache));
     memset(cache, 0, sizeof(struct GB_Cache));
@@ -129,7 +127,7 @@ GB_ERROR GB_CacheMake(uint32_t texture_size, uint32_t num_sheets, struct GB_Cach
 
     uint32_t i;
     for (i = 0; i < num_sheets; i++)
-        _GB_SheetInit(cache, &cache->sheet[i]);
+        _GB_SheetInit(cache, texture_format, &cache->sheet[i]);
 
     *cache_out = cache;
     return GB_ERROR_NONE;
@@ -181,8 +179,6 @@ static int glyph_cmp(const void *a, const void *b)
 
 GB_ERROR GB_CacheCompact(struct GB_Context *gb, struct GB_Cache *cache)
 {
-    printf("AJT: COMPACT!!!!!\n");
-
     uint32_t num_glyph_ptrs;
     struct GB_Glyph **glyph_ptrs = GB_ContextHashValues(gb, &num_glyph_ptrs);
 
@@ -286,8 +282,6 @@ void GB_CacheHashAdd(struct GB_Cache *cache, struct GB_Glyph *glyph)
         printf("GB_CacheHashAdd() WARNING glyph index = %d, font_index = %d is already in cache!\n", glyph->index, glyph->font_index);
     }
 #endif
-
-    printf("GB_CacheHashAdd() index = %d, font_index = %d\n", glyph->index, glyph->font_index);
     HASH_ADD(cache_hh, cache->glyph_hash, key, sizeof(uint64_t), glyph);
     GB_GlyphRetain(glyph);
 }
