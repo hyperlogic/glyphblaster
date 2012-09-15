@@ -35,7 +35,7 @@ TODO:
   resources should be shared.
 * add glyph bitmap-padding option, necessary for scaled or non-screen aligned text.
 * integrate bidi
-* Finish SDL test prog.
+* Better SDL test prog.
 
 NOTES:
 ----------------
@@ -46,15 +46,3 @@ NOTES:
   Text's are not mutable, they must be destoryed and re-created.
 * Should I add a direction parameter? to Text or laungage? script?
 * Should I replace ut headers? with hand coded stuff?
-
-First steps toward word wrapping..
--------------------------------------
-
-Do i need to do two passes?  i.e. one to generate a new set of runs.
-and another to do the justification. of the runs. by offsetting everything in x or y.
-
-1) keeping track of word_start
-2) keeping running total of line length. (length from text.size[0])
-3) checking when gone past length.
-4) when this occurs reset the pen. as-if there was a new line.
-5) do justification as a post process?!? i guess I have to build a new run array.
