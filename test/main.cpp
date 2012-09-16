@@ -215,7 +215,7 @@ int main(int argc, char* argv[])
     // create the context
     GB_ERROR err;
     GB_Context* gb;
-    err = GB_ContextMake(128, 3, GB_TEXTURE_FORMAT_RGBA, &gb);
+    err = GB_ContextMake(128, 3, GB_TEXTURE_FORMAT_ALPHA, &gb);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_Init Error %d\n", err);
         exit(1);
@@ -242,7 +242,7 @@ int main(int argc, char* argv[])
     // create a font
     GB_Font* mainFont = NULL;
     //err = GB_FontMake(gb, "Droid-Sans/DroidSans.ttf", 20, GB_RENDER_LCD_RGB, GB_HINT_FORCE_AUTO, &mainFont);
-    err = GB_FontMake(gb, "Arial.ttf", 16, GB_RENDER_LCD_RGB, GB_HINT_FORCE_AUTO, &mainFont);
+    err = GB_FontMake(gb, "Arial.ttf", 16, GB_RENDER_MONO, GB_HINT_DEFAULT, &mainFont);
     //err = GB_FontMake(gb, "Ayuthaya.ttf", 16, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);
     //err = GB_FontMake(gb, "dejavu-fonts-ttf-2.33/ttf/DejaVuSans.ttf", 12, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);
     //err = GB_FontMake(gb, "Zar/XB Zar.ttf", 16, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);

@@ -23,7 +23,6 @@ TODO:
 * assertion and more graceful failure when static buffers overflow.
 * Test support for LCD subpixel rendering/ what should the alpha be? what should the blend mode be?
 * Enable sRGB aware blending, during rendering. (if available)
-* Add support for GB-RENDER-MONO, unpack bits
 * Justify-Horizontal: left, center, right
 * Justify-Vertical: top, center, bottom
 * Justify: Scale to fit

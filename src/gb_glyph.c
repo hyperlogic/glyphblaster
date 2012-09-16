@@ -48,11 +48,40 @@ static void _InitGlyphImage(FT_Bitmap *ft_bitmap, enum GB_TextureFormat texture_
             *image_out = image;
             return;
         case GB_RENDER_MONO:
-            // TODO: ft_bitmap is 1 bit per pixel.
-            assert(0);
-            size_out[0] = 0;
-            size_out[1] = 0;
-            *image_out = NULL;
+            // ft_bitmap is 1 bit per pixel.
+            if (texture_format == GB_TEXTURE_FORMAT_ALPHA) {
+                // allocate an image to hold a copy of the rasterized glyph
+                image = (uint8_t*)malloc(ft_bitmap->width * ft_bitmap->rows);
+
+                // copy image from ft_bitmap.buffer into image
+                uint8_t byte, mask;
+                for (i = 0; i < ft_bitmap->rows; i++) {
+                    for (j = 0; j < ft_bitmap->width; j++) {
+                        byte = ft_bitmap->buffer[i * ft_bitmap->pitch + (j/8)];
+                        mask = 0x1 << (7 - (j % 8));
+                        image[i * ft_bitmap->width + j] = (byte & mask) ? 0xff : 0x00;
+                    }
+                }
+            } else {
+                // allocate an image to hold a copy of the rasterized glyph
+                image = (uint8_t*)malloc(4 * ft_bitmap->width * ft_bitmap->rows);
+
+                // copy image from ft_bitmap.buffer into image
+                uint8_t byte, mask;
+                for (i = 0; i < ft_bitmap->rows; i++) {
+                    for (j = 0; j < ft_bitmap->width; j++) {
+                        byte = ft_bitmap->buffer[i * ft_bitmap->pitch + (j/8)];
+                        mask = 0x1 << (7 - (j % 8));
+                        image[i * ft_bitmap->width * 4 + j * 4 + 0] = 0xff;
+                        image[i * ft_bitmap->width * 4 + j * 4 + 1] = 0xff;
+                        image[i * ft_bitmap->width * 4 + j * 4 + 2] = 0xff;
+                        image[i * ft_bitmap->width * 4 + j * 4 + 3] = (byte & mask) ? 0xff : 0x00;
+                    }
+                }
+            }
+            size_out[0] = ft_bitmap->width;
+            size_out[1] = ft_bitmap->rows;
+            *image_out = image;
             return;
         case GB_RENDER_LCD_RGB:
         case GB_RENDER_LCD_BGR:
@@ -145,9 +174,6 @@ GB_ERROR GB_GlyphMake(struct GB_Context* gb, uint32_t index, struct GB_Font *fon
             break;
         }
 
-        // AJT: HACK: REMOVE
-        load_flags = FT_LOAD_FORCE_AUTOHINT | FT_LOAD_TARGET_LCD;
-
         FT_Error ft_error = FT_Load_Glyph(ft_face, index, load_flags);
         if (ft_error)
             return GB_ERROR_FTERR;
@@ -171,9 +197,6 @@ GB_ERROR GB_GlyphMake(struct GB_Context* gb, uint32_t index, struct GB_Font *fon
                 render_mode = FT_RENDER_MODE_LCD_V;
             break;
         }
-
-        // AJT: HACK: REMOVE
-        render_mode = FT_RENDER_MODE_LCD;
 
         // render glyph into ft_face->glyph->bitmap
         ft_error = FT_Render_Glyph(ft_face->glyph, render_mode);
