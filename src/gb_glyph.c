@@ -13,6 +13,15 @@ static void _InitGlyphImage(FT_Bitmap *ft_bitmap, enum GB_TextureFormat texture_
     int i, j;
     if (ft_bitmap->width > 0 && ft_bitmap->rows > 0) {
 
+        // Most of these glyph textures should be rendered using non-premultiplied alpha
+        // i.e. glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        //
+        // The exception is the lcd sub-pixel modes
+        // These require 3 passes, one for each color channel. (Use glColorMask)
+        // Also, a special shader must be used that copies a single color component into alpha.
+        // For example: gl_FragColor.xyz = vec3(1, 1, 1); gl_FragColor.a = texture2D(glyph_texture, uv).r;
+        // This can then be blended into the frame buffer using glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
         switch (render_options) {
         case GB_RENDER_NORMAL:
         case GB_RENDER_LIGHT:
@@ -33,6 +42,8 @@ static void _InitGlyphImage(FT_Bitmap *ft_bitmap, enum GB_TextureFormat texture_
                 // copy image from ft_bitmap.buffer into image, row by row.
                 // The pitch of each row in the ft_bitmap maybe >= width,
                 // convert from ALPHA to RGBA
+                // NOTE: This glyph texture should be rendered using non-premultiplied alpha
+                // i.e. glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
                 for (i = 0; i < ft_bitmap->rows; i++) {
                     for (j = 0; j < ft_bitmap->width; j++) {
                         // white with alpha, i.e. non-premultiplied alpha.
@@ -103,7 +114,7 @@ static void _InitGlyphImage(FT_Bitmap *ft_bitmap, enum GB_TextureFormat texture_
                             image[i * width * 4 + (j * 4) + 0] = ft_bitmap->buffer[i * ft_bitmap->pitch + (j * 3) + 0];
                             image[i * width * 4 + (j * 4) + 1] = ft_bitmap->buffer[i * ft_bitmap->pitch + (j * 3) + 1];
                             image[i * width * 4 + (j * 4) + 2] = ft_bitmap->buffer[i * ft_bitmap->pitch + (j * 3) + 2];
-                            image[i * width * 4 + (j * 4) + 3] = ft_bitmap->buffer[i * ft_bitmap->pitch + (j * 3) + 1]; // total guess.
+                            image[i * width * 4 + (j * 4) + 3] = 0xff;
                         }
                     }
                 } else {
@@ -117,7 +128,7 @@ static void _InitGlyphImage(FT_Bitmap *ft_bitmap, enum GB_TextureFormat texture_
                             image[i * width * 4 + (j * 4) + 0] = ft_bitmap->buffer[i * ft_bitmap->pitch + (j * 3) + 2];
                             image[i * width * 4 + (j * 4) + 1] = ft_bitmap->buffer[i * ft_bitmap->pitch + (j * 3) + 1];
                             image[i * width * 4 + (j * 4) + 2] = ft_bitmap->buffer[i * ft_bitmap->pitch + (j * 3) + 0];
-                            image[i * width * 4 + (j * 4) + 3] = ft_bitmap->buffer[i * ft_bitmap->pitch + (j * 3) + 1]; // total guess.
+                            image[i * width * 4 + (j * 4) + 3] = 0xff;
                         }
                     }
                 }
