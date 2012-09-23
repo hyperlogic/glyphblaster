@@ -212,7 +212,9 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
     int32_t x = 0;
     uint32_t cp;
     int32_t inside_word = 0;
-    int32_t word_start, word_end;
+    uint32_t word_start, word_end;
+    int32_t word_start_x = 0;
+    int32_t word_end_x = 0;
     for (i = 0; i < num_glyphs; i++) {
         // NOTE: cluster is an offset to the first byte in the utf8 encoded string which represents this glyph.
         utf8_next_cp(text->utf8_string + glyphs[i].cluster, &cp);
@@ -241,6 +243,7 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
                         _GB_QueuePushGlyph(q, SPACE_GLYPH, glyphs + i, glyph, x);
                         // exiting word
                         word_end = i;
+                        word_end_x = x;
                         inside_word = 0;
                     } else {
                         _GB_QueuePushGlyph(q, NORMAL_GLYPH, glyphs + i, glyph, x);
@@ -256,12 +259,13 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
                         i--;
                     } else {
                         // if the current word starts at the beginning of the line.
-                        if (q->data[q->count - (i - word_start)].x == 0) {
+                        if (word_start_x == 0) {
                             // we will have to split the word in the middle.
                             i--;
                         } else {
                             // backtrack to word_start
                             while (i >= word_start) {
+                                x = q->data[q->count-1].x;
                                 _GB_QueuePopBack(q);
                                 i--;
                             }
@@ -271,7 +275,7 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
                     x = 0;
                     inside_word = 0;
                 }
-            } else {
+            } else { // !inside_word
                 // does glyph fit on this line?
                 if (x + glyph->advance + dx <= text->size[0]) {
                     if (is_space(cp)) {
@@ -280,6 +284,7 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
                         _GB_QueuePushGlyph(q, NORMAL_GLYPH, glyphs + i, glyph, x);
                         // entering word
                         word_start = i;
+                        word_start_x = x;
                         inside_word = 1;
                     }
                     x += glyph->advance + dx;
@@ -290,13 +295,15 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
                         utf8_next_cp(text->utf8_string + glyphs[i].cluster, &cp);
                     }
                     i--; // backup one char, so the next iteration thru the loop will be a non-space character
-                    _GB_QueuePushGlyph(q, NEWLINE_GLYPH, NULL, NULL, x);
+                    _GB_QueuePushGlyph(q, NEWLINE_GLYPH, NULL, NULL, word_end_x);
                     x = 0;
                     inside_word = 0;
                 }
             }
         }
     }
+    // end with a new line, (makes justification easier)
+    _GB_QueuePushGlyph(q, NEWLINE_GLYPH, NULL, NULL, x);
 
     // allocate glyph quads
     // TODO: q->count will be slightly larger then the exact number required.
@@ -307,33 +314,49 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
     int32_t line_height = FIXED_TO_INT(text->font->ft_face->size->metrics.height);
     int32_t y = text->origin[1] + line_height;
 
-    // TODO: justify
-
-    // iterate over q
-    struct GB_GlyphInfo* head = q->data;
-    while (head != q->data + q->count) {
-        if (head->hb_glyph == NULL && head->gb_glyph == NULL) {
-            y += line_height;
-        } else {
-            if (head->type == NORMAL_GLYPH) {
-                // NOTE: y axis points down, quad origin is upper-left corner of glyph
-                // build quad
-                struct GB_Glyph *gb_glyph = head->gb_glyph;
-                struct GB_GlyphQuad *quad = text->glyph_quads + text->num_glyph_quads;
-                quad->origin[0] = text->origin[0] + head->x + gb_glyph->bearing[0];
-                quad->origin[1] = y - gb_glyph->bearing[1];
-                quad->size[0] = gb_glyph->size[0];
-                quad->size[1] = gb_glyph->size[1];
-                quad->uv_origin[0] = gb_glyph->origin[0] / texture_size;
-                quad->uv_origin[1] = gb_glyph->origin[1] / texture_size;
-                quad->uv_size[0] = gb_glyph->size[0] / texture_size;
-                quad->uv_size[1] = gb_glyph->size[1] / texture_size;
-                quad->color = text->color;
-                quad->gl_tex_obj = gb_glyph->gl_tex_obj ? gb_glyph->gl_tex_obj : gb->fallback_gl_tex_obj;
-                text->num_glyph_quads++;
+    // horizontal justification
+    if (text->horizontal_align != GB_HORIZONTAL_ALIGN_LEFT) {
+        uint32_t i, j;
+        uint32_t line_start = 0;
+        for (i = 0; i < q->count; i++) {
+            if (q->data[i].type == NEWLINE_GLYPH) {
+                int32_t line_length = q->data[i].x;
+                int32_t offset = 0;
+                if (text->horizontal_align == GB_HORIZONTAL_ALIGN_RIGHT) {
+                    offset = text->size[0] - line_length;
+                } else if (text->horizontal_align == GB_HORIZONTAL_ALIGN_CENTER) {
+                    offset = (text->size[0] - line_length) / 2;
+                }
+                // apply offset to each glyphinfo.x
+                for (j = line_start; j < i; j++) {
+                    q->data[j].x += offset;
+                }
+                line_start = i + 1;
             }
         }
-        head++;
+    }
+
+    // initialize quads
+    for (i = 0; i < q->count; i++) {
+        if (q->data[i].type == NEWLINE_GLYPH) {
+            y += line_height;
+        } else if (q->data[i].type == NORMAL_GLYPH) {
+            // NOTE: y axis points down, quad origin is upper-left corner of glyph
+            // build quad
+            struct GB_Glyph *gb_glyph = q->data[i].gb_glyph;
+            struct GB_GlyphQuad *quad = text->glyph_quads + text->num_glyph_quads;
+            quad->origin[0] = text->origin[0] + q->data[i].x + gb_glyph->bearing[0];
+            quad->origin[1] = y - gb_glyph->bearing[1];
+            quad->size[0] = gb_glyph->size[0];
+            quad->size[1] = gb_glyph->size[1];
+            quad->uv_origin[0] = gb_glyph->origin[0] / texture_size;
+            quad->uv_origin[1] = gb_glyph->origin[1] / texture_size;
+            quad->uv_size[0] = gb_glyph->size[0] / texture_size;
+            quad->uv_size[1] = gb_glyph->size[1] / texture_size;
+            quad->color = text->color;
+            quad->gl_tex_obj = gb_glyph->gl_tex_obj ? gb_glyph->gl_tex_obj : gb->fallback_gl_tex_obj;
+            text->num_glyph_quads++;
+        }
     }
 
     _GB_QueueDestroy(q);

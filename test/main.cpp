@@ -263,12 +263,12 @@ int main(int argc, char* argv[])
     */
 
     // create a text
-    uint32_t origin[2] = {videoInfo->current_w / 4, 100};
+    uint32_t origin[2] = {1, 0};
     uint32_t size[2] = {videoInfo->current_w / 2, videoInfo->current_h};
     GB_Text* helloText = NULL;
     uint32_t textColor = MakeColor(255, 255, 255, 255);
     err = GB_TextMake(gb, (uint8_t*)lorem, mainFont, textColor, origin, size,
-                      GB_HORIZONTAL_ALIGN_CENTER, GB_VERTICAL_ALIGN_CENTER, &helloText);
+                      GB_HORIZONTAL_ALIGN_RIGHT, GB_VERTICAL_ALIGN_CENTER, &helloText);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_MakeText Error %s\n", GB_ErrorToString(err));
         exit(1);

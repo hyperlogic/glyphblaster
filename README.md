@@ -20,6 +20,8 @@ Dependencies
 TODO:
 -----------------
 * test empty string & whitespace strings.
+* CJK word-wrapping
+* Knuth word-wrapping
 * assertion and more graceful failure when static buffers overflow.
 * Test support for LCD subpixel rendering/ what should the alpha be? what should the blend mode be?
 * Enable sRGB aware blending, during rendering. (if available)
