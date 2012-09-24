@@ -387,9 +387,8 @@ GB_ERROR GB_TextMake(struct GB_Context *gb, const uint8_t *utf8_string,
 
             // create harfbuzz buffer
             text->hb_buffer = hb_buffer_create();
-            hb_buffer_set_direction(text->hb_buffer, HB_DIRECTION_LTR);
-            hb_buffer_add_utf8(text->hb_buffer, (const char*)text->utf8_string, text->utf8_string_len,
-                               0, text->utf8_string_len);
+            hb_buffer_add_utf8(text->hb_buffer, (const char*)text->utf8_string,
+                               text->utf8_string_len, 0, text->utf8_string_len);
 
             text->color = color;
             text->origin[0] = origin[0];
@@ -403,6 +402,19 @@ GB_ERROR GB_TextMake(struct GB_Context *gb, const uint8_t *utf8_string,
 
             // Use harf-buzz to perform glyph shaping
             hb_shape(text->font->hb_font, text->hb_buffer, NULL, 0);
+
+            // debug print detected direction & script
+            hb_direction_t dir = hb_buffer_get_direction(text->hb_buffer);
+            hb_script_t script = hb_buffer_get_script(text->hb_buffer);
+            hb_tag_t tag = hb_script_to_iso15924_tag(script);
+            printf("AJT: direction = %s\n", hb_direction_to_string(dir));
+            char tag_str[5];
+            tag_str[0] = tag >> 24;
+            tag_str[1] = tag >> 16;
+            tag_str[2] = tag >> 8;
+            tag_str[3] = tag;
+            tag_str[4] = 0;
+            printf("AJT: script = %s\n", tag_str);
 
             // Insert new glyphs into cache
             // This is where glyph rasterization occurs.
