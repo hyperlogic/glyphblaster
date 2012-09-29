@@ -198,15 +198,62 @@ static void _GB_QueuePopBack(struct GB_GlyphInfoQueue *q)
         q->count--;
 }
 
+static void _GB_QueueDump(struct GB_GlyphInfoQueue *q, struct GB_Text* text)
+{
+    static const char *s_typeToStringMap[] = {"Newline", "Space", "Normal"};
+    uint32_t i;
+    uint32_t cp;
+    for (i = 0; i < q->count; i++) {
+        struct GB_Glyph *gb_glyph = q->data[i].gb_glyph;
+        hb_glyph_info_t *hb_glyph = q->data[i].hb_glyph;
+        if (gb_glyph && hb_glyph) {
+            utf8_next_cp(text->utf8_string + hb_glyph->cluster, &cp);
+            printf("    cp = %u\n", cp);
+            printf("        type = %s\n", s_typeToStringMap[q->data[i].type]);
+            printf("        x = %d\n", q->data[i].x);
+            printf("        bearingX = %d\n", gb_glyph->bearing[0]);
+            printf("        advance = %d\n", gb_glyph->advance);
+        } else {
+            printf("    cp = ???\n");
+            printf("        type = %s\n", s_typeToStringMap[q->data[i].type]);
+            printf("        x = %d\n", q->data[i].x);
+        }
+    }
+}
+
+static uint32_t loop_begin_rtl(uint32_t num_glyphs) { return num_glyphs - 1; }
+static uint32_t loop_begin_ltr(uint32_t num_glyphs) { return 0; }
+static uint32_t loop_end_rtl(uint32_t num_glyphs) { return -1; }
+static uint32_t loop_end_ltr(uint32_t num_glyphs) { return num_glyphs; }
+static uint32_t loop_next_rtl(uint32_t i) { return i - 1; }
+static uint32_t loop_next_ltr(uint32_t i) { return i + 1; }
+
+typedef uint32_t (*iter_func_t)(uint32_t i);
+
 static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *text)
 {
     // iterate over each glyph and build runs.
-    int num_glyphs = hb_buffer_get_length(text->hb_buffer);
+    uint32_t num_glyphs = hb_buffer_get_length(text->hb_buffer);
     hb_glyph_info_t *glyphs = hb_buffer_get_glyph_infos(text->hb_buffer, NULL);
+    hb_direction_t dir = hb_buffer_get_direction(text->hb_buffer);
 
     // create a queue to hold word-wrapped glyphs
     struct GB_GlyphInfoQueue *q;
     _GB_QueueMake(&q);
+
+    iter_func_t begin, end, next, prev;
+    if (dir == HB_DIRECTION_RTL)
+    {
+        begin = loop_begin_rtl;
+        end = loop_end_rtl;
+        next = loop_next_rtl;
+        prev = loop_next_ltr;
+    } else {
+        begin = loop_begin_ltr;
+        end = loop_end_ltr;
+        next = loop_next_ltr;
+        prev = loop_next_rtl;
+    }
 
     int32_t i = 0;
     int32_t x = 0;
@@ -215,15 +262,15 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
     uint32_t word_start, word_end;
     int32_t word_start_x = 0;
     int32_t word_end_x = 0;
-    for (i = 0; i < num_glyphs; i++) {
+    for (i = begin(num_glyphs); i < end(num_glyphs); i = next(i)) {
         // NOTE: cluster is an offset to the first byte in the utf8 encoded string which represents this glyph.
         utf8_next_cp(text->utf8_string + glyphs[i].cluster, &cp);
 
         // lookup kerning
         int32_t dx = 0;
-        if (i+1 < num_glyphs) {
+        if (next(i) != end(num_glyphs)) {
             FT_Vector delta;
-            FT_Get_Kerning(text->font->ft_face, glyphs[i].codepoint, glyphs[i+1].codepoint,
+            FT_Get_Kerning(text->font->ft_face, glyphs[i].codepoint, glyphs[next(i)].codepoint,
                            FT_KERNING_DEFAULT, &delta);
             dx = FIXED_TO_INT(delta.x);
         }
@@ -239,6 +286,8 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
             if (inside_word) {
                 // does glyph fit on this line?
                 if (x + glyph->advance + dx <= text->size[0]) {
+                    if (dir == HB_DIRECTION_RTL)
+                        x += glyph->advance + dx;
                     if (is_space(cp)) {
                         _GB_QueuePushGlyph(q, SPACE_GLYPH, glyphs + i, glyph, x);
                         // exiting word
@@ -248,15 +297,16 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
                     } else {
                         _GB_QueuePushGlyph(q, NORMAL_GLYPH, glyphs + i, glyph, x);
                     }
-                    x += glyph->advance + dx;
+                    if (dir == HB_DIRECTION_LTR)
+                        x += glyph->advance + dx;
                 } else {
                     if (is_space(cp)) {
                         // skip spaces
                         while (is_space(cp)) {
-                            i++;
+                            i = next(i);
                             utf8_next_cp(text->utf8_string + glyphs[i].cluster, &cp);
                         }
-                        i--;
+                        prev(i);
                     } else {
                         // if the current word starts at the beginning of the line.
                         if (word_start_x == 0) {
@@ -267,7 +317,7 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
                             while (i >= word_start) {
                                 x = q->data[q->count-1].x;
                                 _GB_QueuePopBack(q);
-                                i--;
+                                i = prev(i);
                             }
                         }
                     }
@@ -278,6 +328,8 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
             } else { // !inside_word
                 // does glyph fit on this line?
                 if (x + glyph->advance + dx <= text->size[0]) {
+                    if (dir == HB_DIRECTION_RTL)
+                        x += glyph->advance + dx;
                     if (is_space(cp)) {
                         _GB_QueuePushGlyph(q, SPACE_GLYPH, glyphs + i, glyph, x);
                     } else {
@@ -287,14 +339,15 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
                         word_start_x = x;
                         inside_word = 1;
                     }
-                    x += glyph->advance + dx;
+                    if (dir == HB_DIRECTION_LTR)
+                        x += glyph->advance + dx;
                 } else {
                     // skip spaces
                     while (is_space(cp)) {
-                        i++;
+                        i = next(i);
                         utf8_next_cp(text->utf8_string + glyphs[i].cluster, &cp);
                     }
-                    i--; // backup one char, so the next iteration thru the loop will be a non-space character
+                    i = prev(i); // backup one char, so the next iteration thru the loop will be a non-space character
                     _GB_QueuePushGlyph(q, NEWLINE_GLYPH, NULL, NULL, word_end_x);
                     x = 0;
                     inside_word = 0;
@@ -314,25 +367,38 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
     int32_t line_height = FIXED_TO_INT(text->font->ft_face->size->metrics.height);
     int32_t y = text->origin[1] + line_height;
 
+    /*
+    printf("AJT: queue before justification!\n");
+    _GB_QueueDump(q, text);
+    */
+
+    GB_HORIZONTAL_ALIGN h_align = text->horizontal_align;
+    if (dir == HB_DIRECTION_RTL) {
+        // flip horizontal justification.
+        if (h_align == GB_HORIZONTAL_ALIGN_LEFT)
+            h_align = GB_HORIZONTAL_ALIGN_RIGHT;
+        else if (h_align == GB_HORIZONTAL_ALIGN_RIGHT)
+            h_align = GB_HORIZONTAL_ALIGN_LEFT;
+    }
+
     // horizontal justification
-    if (text->horizontal_align != GB_HORIZONTAL_ALIGN_LEFT) {
-        uint32_t i, j;
-        uint32_t line_start = 0;
-        for (i = 0; i < q->count; i++) {
-            if (q->data[i].type == NEWLINE_GLYPH) {
-                int32_t line_length = q->data[i].x;
-                int32_t offset = 0;
-                if (text->horizontal_align == GB_HORIZONTAL_ALIGN_RIGHT) {
-                    offset = text->size[0] - line_length;
-                } else if (text->horizontal_align == GB_HORIZONTAL_ALIGN_CENTER) {
-                    offset = (text->size[0] - line_length) / 2;
-                }
-                // apply offset to each glyphinfo.x
-                for (j = line_start; j < i; j++) {
-                    q->data[j].x += offset;
-                }
-                line_start = i + 1;
+    uint32_t j;
+    uint32_t line_start = 0;
+    for (i = 0; i < q->count; i++) {
+
+        if (q->data[i].type == NEWLINE_GLYPH) {
+            int32_t line_length = q->data[i].x;
+            int32_t offset = 0;
+            if (h_align == GB_HORIZONTAL_ALIGN_RIGHT) {
+                offset = text->size[0] - line_length;
+            } else if (h_align == GB_HORIZONTAL_ALIGN_CENTER) {
+                offset = (text->size[0] - line_length) / 2;
             }
+            // apply offset to each glyphinfo.x
+            for (j = line_start; j < i; j++) {
+                q->data[j].x += offset;
+            }
+            line_start = i + 1;
         }
     }
 
@@ -341,11 +407,19 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
         if (q->data[i].type == NEWLINE_GLYPH) {
             y += line_height;
         } else if (q->data[i].type == NORMAL_GLYPH) {
+
+            if (dir == HB_DIRECTION_RTL) {
+                q->data[i].x = text->size[0] - q->data[i].x;
+            }
+
             // NOTE: y axis points down, quad origin is upper-left corner of glyph
             // build quad
             struct GB_Glyph *gb_glyph = q->data[i].gb_glyph;
             struct GB_GlyphQuad *quad = text->glyph_quads + text->num_glyph_quads;
-            quad->origin[0] = text->origin[0] + q->data[i].x + gb_glyph->bearing[0];
+            if (dir == HB_DIRECTION_RTL)
+                quad->origin[0] = text->origin[0] + q->data[i].x + gb_glyph->bearing[0];
+            else
+                quad->origin[0] = text->origin[0] + q->data[i].x + gb_glyph->bearing[0];
             quad->origin[1] = y - gb_glyph->bearing[1];
             quad->size[0] = gb_glyph->size[0];
             quad->size[1] = gb_glyph->size[1];
