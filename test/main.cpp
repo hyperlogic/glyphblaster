@@ -222,7 +222,7 @@ int main(int argc, char* argv[])
     }
 
     // load lorem.txt
-    int fd = open("hebrew-lorem.txt", O_RDONLY);
+    int fd = open("lorem.txt", O_RDONLY);
     if (fd < 0) {
         fprintf(stderr, "open failed\n");
         exit(1);
@@ -246,7 +246,7 @@ int main(int argc, char* argv[])
     //err = GB_FontMake(gb, "Ayuthaya.ttf", 16, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);
     //err = GB_FontMake(gb, "dejavu-fonts-ttf-2.33/ttf/DejaVuSans.ttf", 24, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);
     //err = GB_FontMake(gb, "Zar/XB Zar.ttf", 48, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);
-    err = GB_FontMake(gb, "Times New Roman.ttf", 48, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);
+    err = GB_FontMake(gb, "Times New Roman.ttf", 18, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_MakeFont Error %s\n", GB_ErrorToString(err));
         exit(1);
@@ -269,7 +269,7 @@ int main(int argc, char* argv[])
     GB_Text* helloText = NULL;
     uint32_t textColor = MakeColor(255, 255, 255, 255);
     err = GB_TextMake(gb, (uint8_t*)lorem, mainFont, textColor, origin, size,
-                      GB_HORIZONTAL_ALIGN_CENTER, GB_VERTICAL_ALIGN_CENTER, &helloText);
+                      GB_HORIZONTAL_ALIGN_LEFT, GB_VERTICAL_ALIGN_CENTER, &helloText);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_MakeText Error %s\n", GB_ErrorToString(err));
         exit(1);
