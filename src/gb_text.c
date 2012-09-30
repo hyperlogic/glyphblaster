@@ -223,12 +223,17 @@ static void _GB_QueueDump(struct GB_GlyphInfoQueue *q, struct GB_Text* text)
 
 static uint32_t loop_begin_rtl(uint32_t num_glyphs) { return num_glyphs - 1; }
 static uint32_t loop_begin_ltr(uint32_t num_glyphs) { return 0; }
+
 static uint32_t loop_end_rtl(uint32_t num_glyphs) { return -1; }
 static uint32_t loop_end_ltr(uint32_t num_glyphs) { return num_glyphs; }
+
 static uint32_t loop_next_rtl(uint32_t i) { return i - 1; }
 static uint32_t loop_next_ltr(uint32_t i) { return i + 1; }
+
+// TODO: fix inf. loop if fit always returns false.
 static int loop_fit_ltr(int32_t pen_x, uint32_t advance, int32_t kern, uint32_t size) { return (pen_x + advance + kern) <= size; }
-static int loop_fit_rtl(int32_t pen_x, uint32_t advance, int32_t kern, uint32_t size) { return (pen_x - advance - kern) >= size; }
+static int loop_fit_rtl(int32_t pen_x, uint32_t advance, int32_t kern, uint32_t size) { return -pen_x <= size; }
+
 static int32_t loop_advance_ltr(int32_t pen_x, uint32_t advance, int32_t kern) { return pen_x + advance + kern; }
 static int32_t loop_advance_rtl(int32_t pen_x, uint32_t advance, int32_t kern) { return pen_x - advance - kern; }
 static int32_t loop_advance_none(int32_t pen_x, uint32_t advance, int32_t kern) { return pen_x; }
@@ -276,7 +281,7 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
     int32_t inside_word = 0;
     uint32_t word_start_i = 0, word_end_i = 0;
     int32_t word_start_x = 0, word_end_x = 0;
-    for (i = begin(num_glyphs); i < end(num_glyphs); i = next(i)) {
+    for (i = begin(num_glyphs); i != end(num_glyphs); i = next(i)) {
         // NOTE: cluster is an offset to the first byte in the utf8 encoded string which represents this glyph.
         utf8_next_cp(text->utf8_string + glyphs[i].cluster, &cp);
 
@@ -323,10 +328,10 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
                         // if the current word starts at the beginning of the line.
                         if (word_start_x == 0) {
                             // we will have to split the word in the middle.
-                            i--;
+                            i = prev(i);
                         } else {
-                            // backtrack to word_start_i
-                            while (i >= word_start_i) {
+                            // backtrack to one before word_start_i
+                            while (i != prev(word_start_i)) {
                                 pen_x = q->data[q->count-1].x;
                                 _GB_QueuePopBack(q);
                                 i = prev(i);
@@ -377,10 +382,8 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
     int32_t line_height = FIXED_TO_INT(text->font->ft_face->size->metrics.height);
     int32_t y = text->origin[1] + line_height;
 
-    /*
-    printf("AJT: queue before justification!\n");
-    _GB_QueueDump(q, text);
-    */
+    //printf("AJT: queue before justification!\n");
+    //_GB_QueueDump(q, text);
 
     // horizontal justification
     uint32_t j;
