@@ -241,12 +241,12 @@ int main(int argc, char* argv[])
 
     // create a font
     GB_Font* mainFont = NULL;
-    //err = GB_FontMake(gb, "Droid-Sans/DroidSans.ttf", 20, GB_RENDER_NORMAL, GB_HINT_FORCE_AUTO, &mainFont);
+    err = GB_FontMake(gb, "Droid-Sans/DroidSans.ttf", 20, GB_RENDER_NORMAL, GB_HINT_FORCE_AUTO, &mainFont);
     //err = GB_FontMake(gb, "Arial.ttf", 48, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);
     //err = GB_FontMake(gb, "Ayuthaya.ttf", 16, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);
     //err = GB_FontMake(gb, "dejavu-fonts-ttf-2.33/ttf/DejaVuSans.ttf", 24, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);
     //err = GB_FontMake(gb, "Zar/XB Zar.ttf", 48, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);
-    err = GB_FontMake(gb, "Times New Roman.ttf", 18, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);
+    //err = GB_FontMake(gb, "Times New Roman.ttf", 30, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_MakeFont Error %s\n", GB_ErrorToString(err));
         exit(1);

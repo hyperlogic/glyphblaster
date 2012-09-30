@@ -228,7 +228,9 @@ static uint32_t loop_end_ltr(uint32_t num_glyphs) { return num_glyphs; }
 static uint32_t loop_next_rtl(uint32_t i) { return i - 1; }
 static uint32_t loop_next_ltr(uint32_t i) { return i + 1; }
 static int loop_fit_ltr(int32_t pen_x, uint32_t advance, int32_t kern, uint32_t size) { return (pen_x + advance + kern) <= size; }
+static int loop_fit_rtl(int32_t pen_x, uint32_t advance, int32_t kern, uint32_t size) { return (pen_x - advance - kern) >= size; }
 static int32_t loop_advance_ltr(int32_t pen_x, uint32_t advance, int32_t kern) { return pen_x + advance + kern; }
+static int32_t loop_advance_rtl(int32_t pen_x, uint32_t advance, int32_t kern) { return pen_x - advance - kern; }
 static int32_t loop_advance_none(int32_t pen_x, uint32_t advance, int32_t kern) { return pen_x; }
 
 typedef uint32_t (*iter_func_t)(uint32_t i);
@@ -246,19 +248,20 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
     struct GB_GlyphInfoQueue *q;
     _GB_QueueMake(&q);
 
+    fit_func_t fit;
+    advance_func_t pre_advance, post_advance;
     iter_func_t begin, end, next, prev;
-    fit_func_t fit = loop_fit_ltr;
-    advance_func_t pre_advance;
-    advance_func_t post_advance;
     if (dir == HB_DIRECTION_RTL)
     {
-        pre_advance = loop_advance_ltr;
+        fit = loop_fit_rtl;
+        pre_advance = loop_advance_rtl;
         post_advance = loop_advance_none;
         begin = loop_begin_rtl;
         end = loop_end_rtl;
         next = loop_next_rtl;
         prev = loop_next_ltr;
     } else {
+        fit = loop_fit_ltr;
         pre_advance = loop_advance_none;
         post_advance = loop_advance_ltr;
         begin = loop_begin_ltr;
@@ -379,26 +382,24 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
     _GB_QueueDump(q, text);
     */
 
-    GB_HORIZONTAL_ALIGN h_align = text->horizontal_align;
-    if (dir == HB_DIRECTION_RTL) {
-        // flip horizontal justification.
-        if (h_align == GB_HORIZONTAL_ALIGN_LEFT)
-            h_align = GB_HORIZONTAL_ALIGN_RIGHT;
-        else if (h_align == GB_HORIZONTAL_ALIGN_RIGHT)
-            h_align = GB_HORIZONTAL_ALIGN_LEFT;
-    }
-
     // horizontal justification
     uint32_t j;
     uint32_t line_start = 0;
     for (i = 0; i < q->count; i++) {
         if (q->data[i].type == NEWLINE_GLYPH) {
-            int32_t line_length = q->data[i].x;
+            int32_t left_edge = (dir == HB_DIRECTION_RTL) ? q->data[i].x : 0;
+            int32_t right_edge = (dir == HB_DIRECTION_RTL) ? 0 : q->data[i].x;
             int32_t offset = 0;
-            if (h_align == GB_HORIZONTAL_ALIGN_RIGHT) {
-                offset = text->size[0] - line_length;
-            } else if (h_align == GB_HORIZONTAL_ALIGN_CENTER) {
-                offset = (text->size[0] - line_length) / 2;
+            switch (text->horizontal_align) {
+            case GB_HORIZONTAL_ALIGN_LEFT:
+                offset = -left_edge;
+                break;
+            case GB_HORIZONTAL_ALIGN_RIGHT:
+                offset = text->size[0] - right_edge;
+                break;
+            case GB_HORIZONTAL_ALIGN_CENTER:
+                offset = (text->size[0] - left_edge - right_edge) / 2;
+                break;
             }
             // apply offset to each glyphinfo.x
             for (j = line_start; j < i; j++) {
@@ -413,19 +414,11 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
         if (q->data[i].type == NEWLINE_GLYPH) {
             y += line_height;
         } else if (q->data[i].type == NORMAL_GLYPH) {
-
-            if (dir == HB_DIRECTION_RTL) {
-                q->data[i].x = text->size[0] - q->data[i].x;
-            }
-
             // NOTE: y axis points down, quad origin is upper-left corner of glyph
             // build quad
             struct GB_Glyph *gb_glyph = q->data[i].gb_glyph;
             struct GB_GlyphQuad *quad = text->glyph_quads + text->num_glyph_quads;
-            if (dir == HB_DIRECTION_RTL)
-                quad->origin[0] = text->origin[0] + q->data[i].x + gb_glyph->bearing[0];
-            else
-                quad->origin[0] = text->origin[0] + q->data[i].x + gb_glyph->bearing[0];
+            quad->origin[0] = text->origin[0] + q->data[i].x + gb_glyph->bearing[0];
             quad->origin[1] = y - gb_glyph->bearing[1];
             quad->size[0] = gb_glyph->size[0];
             quad->size[1] = gb_glyph->size[1];
