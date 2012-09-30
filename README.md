@@ -19,7 +19,6 @@ Dependencies
 
 TODO:
 -----------------
-* FIX broken RTL text word wrapping
 * assertion and more graceful failure when static buffers overflow.
 * Test support of LCD subpixel decimated RGB using shader and GL_COLOR_MASK
 * Enable sRGB aware blending, during rendering. (if available)
@@ -43,4 +42,6 @@ NOTES:
 * I'm not sure if the interface is very good.
   * Text's are not mutable, they must be destroyed and re-created.
   * No metrics available.
+  * The metrics should be good enough to perform custom word-wrapping, bidi & html styles
+    at a higher level.
 

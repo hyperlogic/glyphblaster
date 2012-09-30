@@ -232,7 +232,7 @@ static uint32_t loop_next_ltr(uint32_t i) { return i + 1; }
 
 // TODO: fix inf. loop if fit always returns false.
 static int loop_fit_ltr(int32_t pen_x, uint32_t advance, int32_t kern, uint32_t size) { return (pen_x + advance + kern) <= size; }
-static int loop_fit_rtl(int32_t pen_x, uint32_t advance, int32_t kern, uint32_t size) { return -pen_x <= size; }
+static int loop_fit_rtl(int32_t pen_x, uint32_t advance, int32_t kern, uint32_t size) { return (-pen_x + advance + kern) <= size; }
 
 static int32_t loop_advance_ltr(int32_t pen_x, uint32_t advance, int32_t kern) { return pen_x + advance + kern; }
 static int32_t loop_advance_rtl(int32_t pen_x, uint32_t advance, int32_t kern) { return pen_x - advance - kern; }
@@ -330,10 +330,13 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
                             // we will have to split the word in the middle.
                             i = prev(i);
                         } else {
-                            // backtrack to one before word_start_i
+                            // backtrack to one before word_start_i, and restore pen_x
                             while (i != prev(word_start_i)) {
-                                pen_x = q->data[q->count-1].x;
+                                if (dir == HB_DIRECTION_LTR)
+                                    pen_x = q->data[q->count-1].x;
                                 _GB_QueuePopBack(q);
+                                if (dir == HB_DIRECTION_RTL)
+                                    pen_x = q->data[q->count-1].x;
                                 i = prev(i);
                             }
                         }
@@ -382,8 +385,10 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
     int32_t line_height = FIXED_TO_INT(text->font->ft_face->size->metrics.height);
     int32_t y = text->origin[1] + line_height;
 
-    //printf("AJT: queue before justification!\n");
-    //_GB_QueueDump(q, text);
+    /*
+    printf("AJT: queue before justification!\n");
+    _GB_QueueDump(q, text);
+    */
 
     // horizontal justification
     uint32_t j;
