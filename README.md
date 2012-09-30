@@ -1,15 +1,15 @@
 Glyph Blaster
----------------
+===============
 
-Things:
+Features
+---------------
   * C API
-  * Pluggable render function.  Have pluggable texture creation & sub-loading later.
-  * Limited Wrapping support, for now
-  * Use HarfBuzz for glyph shaping.
-  * Manages OpenGL resources
-  * Glyph packer
-  * FreeType is used for rasterization.
-  * utf8
+  * Pluggable render function, to integrate into existing engines.
+  * Uses HarfBuzz for glyph shaping for liguatures & arabic languages.
+  * FreeType is used for rasterization, after shaping.
+  * Manages glyph bitmaps in a tightly packed set of OpenGL textures.
+  * utf8 support
+  * rtl language support (arabic & hebrew)
 
 Dependencies
 -----------------
@@ -32,6 +32,7 @@ TODO:
 * add glyph bitmap-padding option, necessary for scaled or non-screen aligned text.
 * bidi
 * Better SDL test prog.
+* Add pluggable texture creation & subload functions, for Direct3D renderers.
 
 NOTES:
 ----------------
