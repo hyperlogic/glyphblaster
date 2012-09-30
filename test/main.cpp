@@ -176,7 +176,7 @@ int main(int argc, char* argv[])
 	const SDL_VideoInfo* videoInfo = SDL_GetVideoInfo();
 
 	// TODO: get this from config file.
-    s_config = new Config(false, false, 768/2 / 2, 1024/2);
+    s_config = new Config(false, false, 768/2, 1024/2);
     Config& config = *s_config;
     config.title = "glyphblaster test";
 
@@ -222,7 +222,7 @@ int main(int argc, char* argv[])
     }
 
     // load lorem.txt
-    int fd = open("hebrew-lorem.txt", O_RDONLY);
+    int fd = open("fancy.txt", O_RDONLY);
     if (fd < 0) {
         fprintf(stderr, "open failed\n");
         exit(1);
@@ -244,9 +244,9 @@ int main(int argc, char* argv[])
     //err = GB_FontMake(gb, "Droid-Sans/DroidSans.ttf", 20, GB_RENDER_NORMAL, GB_HINT_FORCE_AUTO, &mainFont);
     //err = GB_FontMake(gb, "Arial.ttf", 48, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);
     //err = GB_FontMake(gb, "Ayuthaya.ttf", 16, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);
-    //err = GB_FontMake(gb, "dejavu-fonts-ttf-2.33/ttf/DejaVuSans.ttf", 24, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);
+    err = GB_FontMake(gb, "dejavu-fonts-ttf-2.33/ttf/DejaVuSans.ttf", 24, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);
     //err = GB_FontMake(gb, "Zar/XB Zar.ttf", 48, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);
-    err = GB_FontMake(gb, "Times New Roman.ttf", 40, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);
+    //err = GB_FontMake(gb, "Times New Roman.ttf", 20, GB_RENDER_NORMAL, GB_HINT_FORCE_AUTO, &mainFont);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_MakeFont Error %s\n", GB_ErrorToString(err));
         exit(1);
@@ -269,7 +269,7 @@ int main(int argc, char* argv[])
     GB_Text* helloText = NULL;
     uint32_t textColor = MakeColor(255, 255, 255, 255);
     err = GB_TextMake(gb, (uint8_t*)lorem, mainFont, textColor, origin, size,
-                      GB_HORIZONTAL_ALIGN_CENTER, GB_VERTICAL_ALIGN_CENTER, &helloText);
+                      GB_HORIZONTAL_ALIGN_LEFT, GB_VERTICAL_ALIGN_CENTER, &helloText);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_MakeText Error %s\n", GB_ErrorToString(err));
         exit(1);
