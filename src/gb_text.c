@@ -578,8 +578,7 @@ GB_ERROR GB_TextDraw(struct GB_Context *gb, struct GB_Text *text)
     // send each run of glyph_quads to rendering func.
     if (gb && text) {
         if (gb->text_render_func) {
-            GB_TextRenderFunc func = (GB_TextRenderFunc)gb->text_render_func;
-            func(text->glyph_quads, text->num_glyph_quads);
+            gb->text_render_func(text->glyph_quads, text->num_glyph_quads);
             return GB_ERROR_NONE;
         }
         else {

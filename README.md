@@ -19,6 +19,11 @@ Dependencies
 
 TODO:
 -----------------
+* Split MakeGlyphQuadRuns into two parts.
+  * Build metrics/do word wrapping.
+  * Build quads from metrics.
+* Add get metrics function to text.
+* Add ability to set pen position.
 * assertion and more graceful failure when static buffers overflow.
 * Test support of LCD subpixel decimated RGB using shader and GL_COLOR_MASK
 * Enable sRGB aware blending, during rendering. (if available)

@@ -54,10 +54,6 @@ GB_ERROR GB_TextMake(struct GB_Context *gb, const uint8_t *utf8_string,
 GB_ERROR GB_TextRetain(struct GB_Context *gb, struct GB_Text *text);
 GB_ERROR GB_TextRelease(struct GB_Context *gb, struct GB_Text *text);
 
-// this should really be in gb_context.h, but is not to prevent circular deps.
-typedef void (*GB_TextRenderFunc)(struct GB_GlyphQuad *quads, uint32_t num_quads);
-GB_ERROR GB_ContextSetTextRenderFunc(struct GB_Context *gb, GB_TextRenderFunc func);
-
 // Renders given text using renderer func.
 GB_ERROR GB_TextDraw(struct GB_Context *gb, struct GB_Text *text);
 

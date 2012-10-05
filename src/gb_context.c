@@ -24,8 +24,8 @@ static int IsPowerOfTwo(uint32_t x)
     return ((x != 0) && !(x & (x - 1)));
 }
 
-GB_ERROR GB_ContextMake(uint32_t texture_size, uint32_t num_sheets, enum GB_TextureFormat texture_format,
-                        struct GB_Context **gb_out)
+GB_ERROR GB_ContextMake(uint32_t texture_size, uint32_t num_sheets,
+                        enum GB_TextureFormat texture_format, struct GB_Context **gb_out)
 {
     if (num_sheets < GB_MAX_SHEETS_PER_CACHE && texture_size > 0 && IsPowerOfTwo(texture_size)) {
         struct GB_Context *gb = (struct GB_Context*)malloc(sizeof(struct GB_Context));
