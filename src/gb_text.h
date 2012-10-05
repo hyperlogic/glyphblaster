@@ -32,14 +32,16 @@ struct GB_GlyphQuad {
     uint32_t gl_tex_obj;
 };
 
+// text object
+// reference counted
 struct GB_Text {
     int32_t rc;
     struct GB_Font *font;
     uint8_t *utf8_string;
     uint32_t utf8_string_len; // in bytes (not including null term)
-    hb_buffer_t *hb_buffer;
+    hb_buffer_t *hb_buffer;  // harfbuzz buffer, used for shaping
     uint32_t color;  // ABGR
-    uint32_t origin[2];
+    uint32_t origin[2];  // bounding rectangle, used for word-wrapping & alignment
     uint32_t size[2];
     GB_HORIZONTAL_ALIGN horizontal_align;
     GB_VERTICAL_ALIGN vertical_align;
@@ -54,7 +56,7 @@ GB_ERROR GB_TextMake(struct GB_Context *gb, const uint8_t *utf8_string,
 GB_ERROR GB_TextRetain(struct GB_Context *gb, struct GB_Text *text);
 GB_ERROR GB_TextRelease(struct GB_Context *gb, struct GB_Text *text);
 
-// Renders given text using renderer func.
+// renders given text using renderer func.
 GB_ERROR GB_TextDraw(struct GB_Context *gb, struct GB_Text *text);
 
 #ifdef __cplusplus

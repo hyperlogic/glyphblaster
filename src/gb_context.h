@@ -16,12 +16,13 @@ enum GB_TextureFormat { GB_TEXTURE_FORMAT_ALPHA, GB_TEXTURE_FORMAT_RGBA = 1 };
 
 typedef void (*GB_TextRenderFunc)(struct GB_GlyphQuad *quads, uint32_t num_quads);
 
-// Main context object, must be created before any GB_Font or GB_Text objects.
-// You should only need one per application.
+// main context object, must be created before any GB_Font or GB_Text objects.
+// you should only need one per application.
+// reference counted
 struct GB_Context {
     int32_t rc;  // reference count
     FT_Library ft_library;  // freetype2
-    struct GB_Cache *cache;  // holds textures which contain rasterized glyphs
+    struct GB_Cache *cache;  // holds textures which contain rendered glyphs
     struct GB_Font *font_list;  // list of all GB_Font instances
     struct GB_Glyph *glyph_hash;  // retains all glyphs in use by GB_Text structs
     uint32_t next_font_index;  // counter used to uniquely identify GB_Font objects
@@ -61,7 +62,7 @@ struct GB_Glyph *GB_ContextHashFind(struct GB_Context *gb, uint32_t glyph_index,
 // remove glyph from context hash
 void GB_ContextHashRemove(struct GB_Context *gb, uint32_t glyph_index, uint32_t font_index);
 
-// returns a malloced array of pointers to all the glyphs currently in the context hash.
+// returns an array of pointers to all the glyphs currently in the context hash.
 // num_ptrs_out is modified to contain the number of elements
 // caller must free returned ptr.
 struct GB_Glyph **GB_ContextHashValues(struct GB_Context *gb, uint32_t *num_ptrs_out);

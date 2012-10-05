@@ -13,11 +13,27 @@ extern "C" {
 
 struct GB_Context;
 
-enum GB_FontRenderOptions { GB_RENDER_NORMAL = 0, GB_RENDER_LIGHT, GB_RENDER_MONO,
-                            GB_RENDER_LCD_RGB, GB_RENDER_LCD_BGR, 
-                            GB_RENDER_LCD_RGB_V, GB_RENDER_LCD_BGR_V };
-enum GB_FontHintOptions { GB_HINT_DEFAULT = 0, GB_HINT_FORCE_AUTO, GB_HINT_NO_AUTO, GB_HINT_NONE };
+// argument to GB_FontMake
+enum GB_FontRenderOptions {
+    GB_RENDER_NORMAL = 0,  // normal anti-aliased font rendering
+    GB_RENDER_LIGHT,  // lighter anti-aliased outline hinting, this will force auto hinting.
+    GB_RENDER_MONO,  // no anti-aliasing
+    GB_RENDER_LCD_RGB,  // subpixel anti-aliasing, designed for LCD RGB displays
+    GB_RENDER_LCD_BGR,  // subpixel anti-aliasing, designed for LCD BGR displays
+    GB_RENDER_LCD_RGB_V,  // vertical subpixel anti-aliasing, designed for LCD RGB displays
+    GB_RENDER_LCD_BGR_V   // vertical subpixel anti-aliasing, designed for LCD BGR displays
+};
 
+// argument to GB_FontMake
+enum GB_FontHintOptions {
+    GB_HINT_DEFAULT = 0,  // default hinting algorithm is chosen.
+    GB_HINT_FORCE_AUTO,  // always use the FreeType2 auto hinting algorithm
+    GB_HINT_NO_AUTO,  // always use the fonts hinting algorithm
+    GB_HINT_NONE  // use no hinting algorithm at all.
+};
+
+// font object
+// reference counted
 struct GB_Font {
     int32_t rc;
     uint32_t index;
@@ -30,9 +46,16 @@ struct GB_Font {
     uint32_t flags;
 };
 
+// filename - ttf or otf font
+// point_size - pixels per em
+// render_options - controls how anti-aliasing is preformed during glyph rendering.
+// hint_pitons - controls which hinting algorithm is chosen during glyph rendering.
+// reference count starts at 1, must release font objects to destroy them.
 GB_ERROR GB_FontMake(struct GB_Context *gb, const char *filename, uint32_t point_size,
                      enum GB_FontRenderOptions render_options, enum GB_FontHintOptions hint_options,
                      struct GB_Font **font_out);
+
+// reference count
 GB_ERROR GB_FontRetain(struct GB_Context *gb, struct GB_Font *font);
 GB_ERROR GB_FontRelease(struct GB_Context *gb, struct GB_Font *font);
 
