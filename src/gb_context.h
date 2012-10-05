@@ -40,22 +40,30 @@ GB_ERROR GB_ContextMake(uint32_t texture_size, uint32_t num_sheets,
 
 // reference count
 GB_ERROR GB_ContextRetain(struct GB_Context *gb);
-
 GB_ERROR GB_ContextRelease(struct GB_Context *gb);
 
+// install a text rendering function
 GB_ERROR GB_ContextSetTextRenderFunc(struct GB_Context *gb, GB_TextRenderFunc func);
 
+// perform compaction/garbage collection on texture glyphs.
 GB_ERROR GB_ContextCompact(struct GB_Context *gb);
 
 // private
+
+// add glyph to context hash, and retain glyph
 void GB_ContextHashAdd(struct GB_Context *gb, struct GB_Glyph *glyph);
 
+// look up glyph in context hash and return it.
+// returns NULL if glyph is not present.
 struct GB_Glyph *GB_ContextHashFind(struct GB_Context *gb, uint32_t glyph_index,
                                     uint32_t font_index);
 
+// remove glyph from context hash
 void GB_ContextHashRemove(struct GB_Context *gb, uint32_t glyph_index, uint32_t font_index);
 
-// caller must free returned ptr
+// returns a malloced array of pointers to all the glyphs currently in the context hash.
+// num_ptrs_out is modified to contain the number of elements
+// caller must free returned ptr.
 struct GB_Glyph **GB_ContextHashValues(struct GB_Context *gb, uint32_t *num_ptrs_out);
 
 #ifdef __cplusplus
