@@ -13,21 +13,25 @@ extern "C" {
 enum GB_TextureFormat { GB_TEXTURE_FORMAT_ALPHA, GB_TEXTURE_FORMAT_RGBA = 1 };
 
 struct GB_Context {
-    int32_t rc;
-    FT_Library ft_library;
-    struct GB_Cache *cache;
-    struct GB_Font *font_list;
+    int32_t rc;  // reference count
+    FT_Library ft_library;  // freetype2
+    struct GB_Cache *cache;  // holds textures which contain rasterized glyphs
+    struct GB_Font *font_list;  // list of all GB_Font instances
     struct GB_Glyph *glyph_hash;  // retains all glyphs in use by GB_Text structs
-    uint32_t next_font_index;
-    void *text_render_func;
-    uint32_t fallback_gl_tex_obj;
-    enum GB_TextureFormat texture_format;
+    uint32_t next_font_index;  // counter used to uniquely identify GB_Font objects
+    void *text_render_func;  // user supplied render function
+    uint32_t fallback_gl_tex_obj;  // this texture is used to render glyphs which do not fit in the cache
+    enum GB_TextureFormat texture_format;  // pixel format of cache textures
 };
 
 // texture_size - width of texture sheets used by glyph cache in pixels (must be power of two)
 // num_sheets - number of texture sheets used by glyph cache.
+// texture_format - pixel format of each texture used by the glyph cache.
+//     use GB_TEXTURE_FORMAT_ALPHA unless you are using LCD sub-pixel rendering
 GB_ERROR GB_ContextMake(uint32_t texture_size, uint32_t num_sheets, enum GB_TextureFormat texture_format,
                         struct GB_Context **gb_out);
+
+// reference count
 GB_ERROR GB_ContextRetain(struct GB_Context *gb);
 GB_ERROR GB_ContextRelease(struct GB_Context *gb);
 
