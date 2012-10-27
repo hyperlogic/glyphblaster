@@ -488,14 +488,14 @@ GB_ERROR GB_TextMake(struct GB_Context *gb, const uint8_t *utf8_string,
             hb_direction_t dir = hb_buffer_get_direction(text->hb_buffer);
             hb_script_t script = hb_buffer_get_script(text->hb_buffer);
             hb_tag_t tag = hb_script_to_iso15924_tag(script);
-            printf("AJT: direction = %s\n", hb_direction_to_string(dir));
+            //printf("AJT: direction = %s\n", hb_direction_to_string(dir));
             char tag_str[5];
             tag_str[0] = tag >> 24;
             tag_str[1] = tag >> 16;
             tag_str[2] = tag >> 8;
             tag_str[3] = tag;
             tag_str[4] = 0;
-            printf("AJT: script = %s\n", tag_str);
+            //printf("AJT: script = %s\n", tag_str);
 
             // Insert new glyphs into cache
             // This is where glyph rasterization occurs.
