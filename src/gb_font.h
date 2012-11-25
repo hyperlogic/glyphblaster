@@ -59,6 +59,12 @@ GB_ERROR GB_FontMake(struct GB_Context *gb, const char *filename, uint32_t point
 GB_ERROR GB_FontRetain(struct GB_Context *gb, struct GB_Font *font);
 GB_ERROR GB_FontRelease(struct GB_Context *gb, struct GB_Font *font);
 
+// fills max_advance_out returns advance width in pixels
+GB_ERROR GB_FontGetMaxAdvance(struct GB_Context *gb, struct GB_Font *font, uint32_t *max_advance_out);
+
+// fills line_height_out with line height in pixels
+GB_ERROR GB_FontGetLineHeight(struct GB_Context *gb, struct GB_Font *font, uint32_t *line_height_out);
+
 #ifdef __cplusplus
 }
 #endif

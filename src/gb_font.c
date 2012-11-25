@@ -96,3 +96,34 @@ GB_ERROR GB_FontRelease(struct GB_Context *gb, struct GB_Font *font)
         return GB_ERROR_INVAL;
     }
 }
+
+// 26.6 fixed to int (truncates)
+#define FIXED_TO_INT(n) (uint32_t)(n >> 6)
+
+GB_ERROR GB_FontGetMaxAdvance(struct GB_Context *gb, struct GB_Font *font, uint32_t *max_advance_out)
+{
+    if (gb && font && max_advance_out) {
+        if (font->ft_face && font->ft_face->size) {
+            *max_advance_out = FIXED_TO_INT(font->ft_face->size->metrics.max_advance);
+            return GB_ERROR_NONE;
+        } else {
+            return GB_ERROR_INVAL;
+        }
+    } else {
+        return GB_ERROR_INVAL;
+    }
+}
+
+GB_ERROR GB_FontGetLineHeight(struct GB_Context *gb, struct GB_Font *font, uint32_t *line_height_out)
+{
+    if (gb && font && line_height_out) {
+        if (font->ft_face && font->ft_face->size) {
+            *line_height_out = FIXED_TO_INT(font->ft_face->size->metrics.height);
+            return GB_ERROR_NONE;
+        } else {
+            return GB_ERROR_INVAL;
+        }
+    } else {
+        return GB_ERROR_INVAL;
+    }
+}

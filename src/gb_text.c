@@ -485,7 +485,7 @@ GB_ERROR GB_TextMake(struct GB_Context *gb, const uint8_t *utf8_string,
             hb_shape(text->font->hb_font, text->hb_buffer, NULL, 0);
 
             // debug print detected direction & script
-            hb_direction_t dir = hb_buffer_get_direction(text->hb_buffer);
+            //hb_direction_t dir = hb_buffer_get_direction(text->hb_buffer);
             hb_script_t script = hb_buffer_get_script(text->hb_buffer);
             hb_tag_t tag = hb_script_to_iso15924_tag(script);
             //printf("AJT: direction = %s\n", hb_direction_to_string(dir));
