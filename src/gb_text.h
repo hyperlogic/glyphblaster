@@ -24,6 +24,7 @@ typedef enum GB_Vertical_Align {
 // y axis points down
 // origin is upper-left corner of glyph
 struct GB_GlyphQuad {
+    uint32_t pen[2];
     uint32_t origin[2];
     uint32_t size[2];
     float uv_origin[2];

@@ -421,11 +421,13 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
     for (i = 0; i < q->count; i++) {
         if (q->data[i].type == NEWLINE_GLYPH) {
             y += line_height;
-        } else if (q->data[i].type == NORMAL_GLYPH) {
+        } else {
             // NOTE: y axis points down, quad origin is upper-left corner of glyph
             // build quad
             struct GB_Glyph *gb_glyph = q->data[i].gb_glyph;
             struct GB_GlyphQuad *quad = text->glyph_quads + text->num_glyph_quads;
+            quad->pen[0] = text->origin[0] + q->data[i].x;
+            quad->pen[1] = y;
             quad->origin[0] = text->origin[0] + q->data[i].x + gb_glyph->bearing[0];
             quad->origin[1] = y - gb_glyph->bearing[1];
             quad->size[0] = gb_glyph->size[0];
