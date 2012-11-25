@@ -151,7 +151,7 @@ void TextRenderFunc(GB_GlyphQuad* quads, uint32_t num_quads)
             printf("    uv_origin = [%.3f, %.3f]\n", quads[i].uv_origin[0], quads[i].uv_origin[1]);
             printf("    uv_size = [%.3f, %.3f]\n", quads[i].uv_size[0], quads[i].uv_size[1]);
             printf("    gl_tex_obj = %u\n", quads[i].gl_tex_obj);
-            printf("    color = 0x%x\n", quads[i].color);
+            printf("    user_data = %p\n", quads[i].user_data);
         }
 
         DrawTexturedQuad(quads[i].gl_tex_obj,
@@ -159,7 +159,7 @@ void TextRenderFunc(GB_GlyphQuad* quads, uint32_t num_quads)
                          Vector2f(quads[i].size[0], quads[i].size[1]),
                          Vector2f(quads[i].uv_origin[0], quads[i].uv_origin[1]),
                          Vector2f(quads[i].uv_size[0], quads[i].uv_size[1]),
-                         quads[i].color);
+                         *((uint32_t*)quads[i].user_data));
     }
 
     count++;
@@ -268,7 +268,9 @@ int main(int argc, char* argv[])
     uint32_t size[2] = {videoInfo->current_w - 1, videoInfo->current_h};
     GB_Text* helloText = NULL;
     uint32_t textColor = MakeColor(255, 255, 255, 255);
-    err = GB_TextMake(gb, (uint8_t*)lorem, mainFont, textColor, origin, size,
+    uint32_t* userData = (uint32_t*)malloc(sizeof(uint32_t));
+    *userData = textColor;
+    err = GB_TextMake(gb, (uint8_t*)lorem, mainFont, userData, origin, size,
                       GB_HORIZONTAL_ALIGN_LEFT, GB_VERTICAL_ALIGN_CENTER, &helloText);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_MakeText Error %s\n", GB_ErrorToString(err));
