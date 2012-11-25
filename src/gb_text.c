@@ -434,7 +434,7 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
             quad->uv_origin[1] = gb_glyph->origin[1] / texture_size;
             quad->uv_size[0] = gb_glyph->size[0] / texture_size;
             quad->uv_size[1] = gb_glyph->size[1] / texture_size;
-            quad->color = text->color;
+            quad->user_data = text->user_data;
             quad->gl_tex_obj = gb_glyph->gl_tex_obj ? gb_glyph->gl_tex_obj : gb->fallback_gl_tex_obj;
             text->num_glyph_quads++;
         }
@@ -446,7 +446,7 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
 }
 
 GB_ERROR GB_TextMake(struct GB_Context *gb, const uint8_t *utf8_string,
-                     struct GB_Font *font, uint32_t color, uint32_t origin[2],
+                     struct GB_Font *font, void *user_data, uint32_t origin[2],
                      uint32_t size[2], GB_HORIZONTAL_ALIGN horizontal_align,
                      GB_VERTICAL_ALIGN vertical_align, struct GB_Text **text_out)
 {
@@ -471,7 +471,7 @@ GB_ERROR GB_TextMake(struct GB_Context *gb, const uint8_t *utf8_string,
             hb_buffer_add_utf8(text->hb_buffer, (const char*)text->utf8_string,
                                text->utf8_string_len, 0, text->utf8_string_len);
 
-            text->color = color;
+            text->user_data = user_data;
             text->origin[0] = origin[0];
             text->origin[1] = origin[1];
             text->size[0] = size[0];
@@ -538,6 +538,9 @@ static void _GB_TextDestroy(struct GB_Context *gb, struct GB_Text *text)
     GB_FontRelease(gb, text->font);
 
     free(text->utf8_string);
+
+    if (text->user_data)
+        free(text->user_data);
 
     // prepare to iterate over all the glyphs in the hb_buffer
     int num_glyphs = hb_buffer_get_length(text->hb_buffer);

@@ -28,7 +28,7 @@ struct GB_GlyphQuad {
     uint32_t size[2];
     float uv_origin[2];
     float uv_size[2];
-    uint32_t color;
+    void *user_data;
     uint32_t gl_tex_obj;
 };
 
@@ -40,7 +40,7 @@ struct GB_Text {
     uint8_t *utf8_string;
     uint32_t utf8_string_len; // in bytes (not including null term)
     hb_buffer_t *hb_buffer;  // harfbuzz buffer, used for shaping
-    uint32_t color;  // ABGR
+    void *user_data;
     uint32_t origin[2];  // bounding rectangle, used for word-wrapping & alignment
     uint32_t size[2];
     GB_HORIZONTAL_ALIGN horizontal_align;
@@ -49,8 +49,10 @@ struct GB_Text {
     uint32_t num_glyph_quads;
 };
 
+// NOTE: ownership of memory pointed to by user_data is passed to text.
+// it will be deallocated when the text object ref-count goes to zero with free().
 GB_ERROR GB_TextMake(struct GB_Context *gb, const uint8_t *utf8_string,
-                     struct GB_Font *font, uint32_t color, uint32_t origin[2],
+                     struct GB_Font *font, void* user_data, uint32_t origin[2],
                      uint32_t size[2], GB_HORIZONTAL_ALIGN horizontal_align,
                      GB_VERTICAL_ALIGN vertical_align, struct GB_Text **text_out);
 GB_ERROR GB_TextRetain(struct GB_Context *gb, struct GB_Text *text);
