@@ -447,10 +447,25 @@ static GB_ERROR _GB_MakeGlyphQuadRuns(struct GB_Context *gb, struct GB_Text *tex
     return GB_ERROR_NONE;
 }
 
+static void ft_shape(hb_font_t *hb_font, hb_buffer_t *hb_buffer, FT_Face ft_face, uint8_t* utf8_string)
+{
+    assert(hb_font && hb_buffer && ft_face);
+    int num_glyphs = hb_buffer_get_length(hb_buffer);
+    hb_glyph_info_t *glyphs = hb_buffer_get_glyph_infos(hb_buffer, NULL);
+
+    // iterate over each glyph
+    int i;
+    for (i = 0; i < num_glyphs; i++) {
+        uint32_t cp;
+        utf8_next_cp(utf8_string + glyphs[i].cluster, &cp);
+        glyphs[i].codepoint = FT_Get_Char_Index(ft_face, cp);
+    }
+}
+
 GB_ERROR GB_TextMake(struct GB_Context *gb, const uint8_t *utf8_string,
                      struct GB_Font *font, void *user_data, uint32_t origin[2],
                      uint32_t size[2], GB_HORIZONTAL_ALIGN horizontal_align,
-                     GB_VERTICAL_ALIGN vertical_align, struct GB_Text **text_out)
+                     GB_VERTICAL_ALIGN vertical_align, uint32_t option_flags, struct GB_Text **text_out)
 {
     if (gb && utf8_string && font && font->hb_font && text_out) {
         struct GB_Text *text = (struct GB_Text*)malloc(sizeof(struct GB_Text));
@@ -480,24 +495,32 @@ GB_ERROR GB_TextMake(struct GB_Context *gb, const uint8_t *utf8_string,
             text->size[1] = size[1];
             text->horizontal_align = horizontal_align;
             text->vertical_align = vertical_align;
+            text->option_flags = option_flags;
             text->glyph_quads = NULL;
             text->num_glyph_quads = 0;
 
-            // Use harf-buzz to perform glyph shaping
-            hb_shape(text->font->hb_font, text->hb_buffer, NULL, 0);
+            if (!(option_flags & GB_TEXT_OPTION_DISABLE_SHAPING))
+            {
+                // Use harf-buzz to perform glyph shaping
+                hb_shape(text->font->hb_font, text->hb_buffer, NULL, 0);
 
-            // debug print detected direction & script
-            //hb_direction_t dir = hb_buffer_get_direction(text->hb_buffer);
-            hb_script_t script = hb_buffer_get_script(text->hb_buffer);
-            hb_tag_t tag = hb_script_to_iso15924_tag(script);
-            //printf("AJT: direction = %s\n", hb_direction_to_string(dir));
-            char tag_str[5];
-            tag_str[0] = tag >> 24;
-            tag_str[1] = tag >> 16;
-            tag_str[2] = tag >> 8;
-            tag_str[3] = tag;
-            tag_str[4] = 0;
-            //printf("AJT: script = %s\n", tag_str);
+                // debug print detected direction & script
+                //hb_direction_t dir = hb_buffer_get_direction(text->hb_buffer);
+                hb_script_t script = hb_buffer_get_script(text->hb_buffer);
+                hb_tag_t tag = hb_script_to_iso15924_tag(script);
+                //printf("AJT: direction = %s\n", hb_direction_to_string(dir));
+                char tag_str[5];
+                tag_str[0] = tag >> 24;
+                tag_str[1] = tag >> 16;
+                tag_str[2] = tag >> 8;
+                tag_str[3] = tag;
+                tag_str[4] = 0;
+                //printf("AJT: script = %s\n", tag_str);
+            } else {
+                // TODO: need a compile time option to remove dependency on harf-buzz
+                // just use FT_Get_Char_Index to look up glyph index
+                ft_shape(text->font->hb_font, text->hb_buffer, text->font->ft_face, text->utf8_string);
+            }
 
             // Insert new glyphs into cache
             // This is where glyph rasterization occurs.

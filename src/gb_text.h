@@ -46,16 +46,21 @@ struct GB_Text {
     uint32_t size[2];
     GB_HORIZONTAL_ALIGN horizontal_align;
     GB_VERTICAL_ALIGN vertical_align;
+    uint32_t option_flags;
     struct GB_GlyphQuad *glyph_quads;
     uint32_t num_glyph_quads;
 };
+
+typedef enum GB_Text_Option_Flags {
+    GB_TEXT_OPTION_DISABLE_SHAPING = 0x01
+} GB_TEXT_OPTION_FLAGS;
 
 // NOTE: ownership of memory pointed to by user_data is passed to text.
 // it will be deallocated when the text object ref-count goes to zero with free().
 GB_ERROR GB_TextMake(struct GB_Context *gb, const uint8_t *utf8_string,
                      struct GB_Font *font, void* user_data, uint32_t origin[2],
                      uint32_t size[2], GB_HORIZONTAL_ALIGN horizontal_align,
-                     GB_VERTICAL_ALIGN vertical_align, struct GB_Text **text_out);
+                     GB_VERTICAL_ALIGN vertical_align, uint32_t option_flags, struct GB_Text **text_out);
 GB_ERROR GB_TextRetain(struct GB_Context *gb, struct GB_Text *text);
 GB_ERROR GB_TextRelease(struct GB_Context *gb, struct GB_Text *text);
 
