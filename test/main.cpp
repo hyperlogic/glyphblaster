@@ -271,7 +271,7 @@ int main(int argc, char* argv[])
     uint32_t* userData = (uint32_t*)malloc(sizeof(uint32_t));
     *userData = textColor;
     err = GB_TextMake(gb, (uint8_t*)lorem, mainFont, userData, origin, size,
-                      GB_HORIZONTAL_ALIGN_LEFT, GB_VERTICAL_ALIGN_CENTER, &helloText);
+                      GB_HORIZONTAL_ALIGN_LEFT, GB_VERTICAL_ALIGN_CENTER, 0, &helloText);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_MakeText Error %s\n", GB_ErrorToString(err));
         exit(1);
