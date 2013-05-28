@@ -43,6 +43,7 @@ TODO: implemenetation work
 * bidi
 * Better SDL test prog.
 * Add pluggable texture creation & subload functions, for Direct3D renderers.
+* Render func is lame, just provide raw access to data.
 
 NOTES:
 ----------------
