@@ -39,7 +39,7 @@ struct Config
     Config(bool fullscreenIn, bool msaaIn, int widthIn, int heightIn) :
         fullscreen(fullscreenIn), msaa(msaaIn), msaaSamples(4), width(widthIn), height(heightIn) {};
 
-	bool fullscreen;
+    bool fullscreen;
     bool msaa;
     int msaaSamples;
     int width;
@@ -129,7 +129,7 @@ void DebugDrawGlyphCache(GB_Context* gb, const Config& config)
     }
 }
 
-void TextRenderFunc(GB_GlyphQuad* quads, uint32_t num_quads)
+void RenderText(GB_GlyphQuad* quads, uint32_t num_quads)
 {
     // note this flips y-axis so y is down.
     Matrixf proj = Matrixf::Ortho(0, s_config->width, s_config->height, 0, -10, 10);
@@ -172,10 +172,10 @@ int main(int argc, char* argv[])
 
     atexit(SDL_Quit);
 
-	// Get the current desktop width & height
-	const SDL_VideoInfo* videoInfo = SDL_GetVideoInfo();
+    // Get the current desktop width & height
+    const SDL_VideoInfo* videoInfo = SDL_GetVideoInfo();
 
-	// TODO: get this from config file.
+    // TODO: get this from config file.
     s_config = new Config(false, false, 768/2, 1024/2);
     Config& config = *s_config;
     config.title = "glyphblaster test";
@@ -187,19 +187,19 @@ int main(int argc, char* argv[])
         SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, config.msaaSamples);
     }
 
-	SDL_Surface* screen;
-	if (config.fullscreen)
-	{
-		int width = videoInfo->current_w;
-		int height = videoInfo->current_h;
-		int bpp = videoInfo->vfmt->BitsPerPixel;
-		screen = SDL_SetVideoMode(width, height, bpp,
+    SDL_Surface* screen;
+    if (config.fullscreen)
+    {
+        int width = videoInfo->current_w;
+        int height = videoInfo->current_h;
+        int bpp = videoInfo->vfmt->BitsPerPixel;
+        screen = SDL_SetVideoMode(width, height, bpp,
                                   SDL_HWSURFACE | SDL_OPENGL | SDL_FULLSCREEN);
-	}
-	else
-	{
+    }
+    else
+    {
         screen = SDL_SetVideoMode(config.width, config.height, 32, SDL_HWSURFACE | SDL_OPENGL);
-	}
+    }
 
     SDL_WM_SetCaption(config.title.c_str(), config.title.c_str());
 
@@ -258,8 +258,8 @@ int main(int argc, char* argv[])
     // create an arabic font
     err = GB_FontMake(gb, "Zar/XB Zar.ttf", 48, &arabicFont);
     if (err != GB_ERROR_NONE) {
-        fprintf(stderr, "GB_MakeFont Error %s\n", GB_ErrorToString(err));
-        exit(1);
+    fprintf(stderr, "GB_MakeFont Error %s\n", GB_ErrorToString(err));
+    exit(1);
     }
     */
 
@@ -285,10 +285,8 @@ int main(int argc, char* argv[])
     char XXX[1024];
     sprintf(XXX, "%s hello", abjad);
     err = GB_TextMake(gb, XXX, mainFont, 0xffffffff, origin, size,
-                      GB_HORIZONTAL_ALIGN_CENTER, GB_VERTICAL_ALIGN_CENTER, &helloText);
+    GB_HORIZONTAL_ALIGN_CENTER, GB_VERTICAL_ALIGN_CENTER, &helloText);
     */
-
-    GB_ContextSetTextRenderFunc(gb, TextRenderFunc);
 
     int done = 0;
     while (!done)
@@ -320,14 +318,14 @@ int main(int argc, char* argv[])
                 }
                 break;
 
-			case SDL_JOYAXISMOTION:
-				// stick move
-				break;
+            case SDL_JOYAXISMOTION:
+                // stick move
+                break;
 
-			case SDL_JOYBUTTONDOWN:
-			case SDL_JOYBUTTONUP:
-				// joy pad press
-				break;
+            case SDL_JOYBUTTONDOWN:
+            case SDL_JOYBUTTONUP:
+                // joy pad press
+                break;
             }
         }
 
@@ -338,11 +336,8 @@ int main(int argc, char* argv[])
 
             //DebugDrawGlyphCache(gb, config);
 
-            err = GB_TextDraw(gb, helloText);
-            if (err != GB_ERROR_NONE) {
-                fprintf(stderr, "GB_DrawText Error %s\n", GB_ErrorToString(err));
-                exit(1);
-            }
+            RenderText(helloText->glyph_quads, helloText->num_glyph_quads);
+
             SDL_GL_SwapBuffers();
         }
     }

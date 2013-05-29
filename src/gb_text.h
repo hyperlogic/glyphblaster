@@ -64,9 +64,6 @@ GB_ERROR GB_TextMake(struct GB_Context *gb, const uint8_t *utf8_string,
 GB_ERROR GB_TextRetain(struct GB_Context *gb, struct GB_Text *text);
 GB_ERROR GB_TextRelease(struct GB_Context *gb, struct GB_Text *text);
 
-// renders given text using renderer func.
-GB_ERROR GB_TextDraw(struct GB_Context *gb, struct GB_Text *text);
-
 #ifdef __cplusplus
 }
 #endif

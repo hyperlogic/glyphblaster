@@ -50,7 +50,6 @@ GB_ERROR GB_ContextMake(uint32_t texture_size, uint32_t num_sheets,
             gb->font_list = NULL;
             gb->glyph_hash = NULL;
             gb->next_font_index = 0;
-            gb->text_render_func = NULL;
             _GB_ContextInitFallbackOpenGLTexture(&gb->fallback_gl_tex_obj);
             gb->texture_format = texture_format;
             *gb_out = gb;
@@ -102,16 +101,6 @@ GB_ERROR GB_ContextRelease(struct GB_Context *gb)
         if (gb->rc == 0) {
             _GB_ContextDestroy(gb);
         }
-        return GB_ERROR_NONE;
-    } else {
-        return GB_ERROR_INVAL;
-    }
-}
-
-GB_ERROR GB_ContextSetTextRenderFunc(struct GB_Context *gb, GB_TextRenderFunc func)
-{
-    if (gb) {
-        gb->text_render_func = func;
         return GB_ERROR_NONE;
     } else {
         return GB_ERROR_INVAL;

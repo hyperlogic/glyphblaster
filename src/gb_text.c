@@ -596,23 +596,3 @@ GB_ERROR GB_TextRelease(struct GB_Context *gb, struct GB_Text *text)
         return GB_ERROR_INVAL;
     }
 }
-
-// Renders given text using renderer func.
-GB_ERROR GB_TextDraw(struct GB_Context *gb, struct GB_Text *text)
-{
-    // text.glyphs.each do |glyph|
-    //   build run of glyph_quads that share same opengl texture
-    // end
-    // send each run of glyph_quads to rendering func.
-    if (gb && text) {
-        if (gb->text_render_func) {
-            gb->text_render_func(text->glyph_quads, text->num_glyph_quads);
-            return GB_ERROR_NONE;
-        }
-        else {
-            return GB_ERROR_NOIMP;
-        }
-    } else {
-        return GB_ERROR_INVAL;
-    }
-}

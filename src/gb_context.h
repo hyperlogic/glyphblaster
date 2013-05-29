@@ -26,7 +26,6 @@ struct GB_Context {
     struct GB_Font *font_list;  // list of all GB_Font instances
     struct GB_Glyph *glyph_hash;  // retains all glyphs in use by GB_Text structs
     uint32_t next_font_index;  // counter used to uniquely identify GB_Font objects
-    GB_TextRenderFunc text_render_func;  // user supplied render function
     uint32_t fallback_gl_tex_obj;  // this texture is used to render glyphs which do not fit in the cache
     enum GB_TextureFormat texture_format;  // pixel format of cache textures
 };
@@ -42,9 +41,6 @@ GB_ERROR GB_ContextMake(uint32_t texture_size, uint32_t num_sheets,
 // reference count
 GB_ERROR GB_ContextRetain(struct GB_Context *gb);
 GB_ERROR GB_ContextRelease(struct GB_Context *gb);
-
-// install a text rendering function
-GB_ERROR GB_ContextSetTextRenderFunc(struct GB_Context *gb, GB_TextRenderFunc func);
 
 // perform compaction/garbage collection on texture glyphs.
 GB_ERROR GB_ContextCompact(struct GB_Context *gb);
