@@ -1,9 +1,23 @@
 Glyph Blaster
 ===============
 
+WIP C++11 Port
+---------------
+Justifications.
+
+  * Standard smart pointers that will make the memory management of recources less error prone.
+  * can drop dependency on uthash and utlist, and use standard collections
+  * lamdas provide a better mechinsim for rendering hooks then c function ptrs.
+  * all of my personal projects are in C++, C linkage is not important to me.
+  * shared lib version of library is also not important to me.
+  * Interop with other languages is not important to me.
+
+Proposed Architecture Diagram
+---------------
+![Image](docs/glyphblaster.png)
+
 Features
 ---------------
-  * C API
   * Pluggable render function, to integrate into existing engines.
   * Uses HarfBuzz for glyph shaping for liguatures & arabic languages.
   * FreeType is used for rasterization, after shaping.
@@ -19,9 +33,8 @@ Dependencies
 
 TODO: dependency build work
 -----------------
-* Replace uthash
-* Bundle harf-buzz, to make building easier
 * compile option to make dependency on HarfBuzz & icu4c optional
+* Bundle harf-buzz, to make building easier
 * Minimize/control use of icu4c, might have to implement some stuff for harf-buzz as well.
 
 TODO: implemenetation work
