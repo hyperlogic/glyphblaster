@@ -1,8 +1,7 @@
-Glyph Blaster
-===============
+# Glyph Blaster
 
-WIP C++11 Port
----------------
+## WIP C++11 Port
+
 Justifications.
 
   * Standard smart pointers that will make the memory management of recources less error prone.
@@ -12,12 +11,14 @@ Justifications.
   * shared lib version of library is also not important to me.
   * Interop with other languages is not important to me.
 
-Proposed Architecture Diagram
----------------
+### Design questions
+
+### Proposed Architecture Diagram
+
 ![Image](docs/glyphblaster.png)
 
-Features
----------------
+## Features
+
   * Pluggable render function, to integrate into existing engines.
   * Uses HarfBuzz for glyph shaping for liguatures & arabic languages.
   * FreeType is used for rasterization, after shaping.
@@ -25,20 +26,34 @@ Features
   * utf8 support
   * rtl language support (arabic & hebrew)
 
-Dependencies
------------------
+## Dependencies
+
   * icu4c
   * FreeType2
   * HarfBuzz-0.9.0
 
-TODO: dependency build work
------------------
+## Implementation Notes
+
+* When cache is full, glyphs will use a fallback texture, which is 1/2 alpha.
+* When glyph is not present in the font, the replacement character is used. �
+* Bidi makes word-wrapping a pain.  do this after word wrapping/justification is functional for rtl & ltr text.
+* I still don't know how slow a full repack is. Benchmark it.
+* I'm not sure if the interface is very good.
+  * Text's are not mutable, they must be destroyed and re-created.
+  * No metrics available.
+  * The metrics should be good enough to perform custom word-wrapping, bidi, underline & html styles
+    at a higher level.
+
+## TODO:
+
+### Dependency Build Tasks
+
 * compile option to make dependency on HarfBuzz & icu4c optional
 * Bundle harf-buzz, to make building easier
 * Minimize/control use of icu4c, might have to implement some stuff for harf-buzz as well.
 
-TODO: implemenetation work
------------------
+### TODO: Implemenetation Tasks
+
 * Split MakeGlyphQuadRuns into two parts.
   * Build metrics/do word wrapping.
   * Build quads from metrics.
@@ -56,16 +71,4 @@ TODO: implemenetation work
 * bidi
 * Better SDL test prog.
 * Add pluggable texture creation & subload functions, for Direct3D renderers.
-
-NOTES:
-----------------
-* When cache is full, glyphs will use a fallback texture, which is 1/2 alpha.
-* When glyph is not present in the font, the replacement character is used. �
-* Bidi makes word-wrapping a pain.  do this after word wrapping/justification is functional for rtl & ltr text.
-* I still don't know how slow a full repack is. Benchmark it.
-* I'm not sure if the interface is very good.
-  * Text's are not mutable, they must be destroyed and re-created.
-  * No metrics available.
-  * The metrics should be good enough to perform custom word-wrapping, bidi, underline & html styles
-    at a higher level.
 
