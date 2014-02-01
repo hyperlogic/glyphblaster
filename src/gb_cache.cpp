@@ -6,113 +6,98 @@
 #include "gb_cache.h"
 #include "gb_texture.h"
 
-static GB_ERROR _GB_SheetInit(struct GB_Cache *cache, enum GB_TextureFormat texture_format, struct GB_Sheet *sheet)
+Sheet::Sheet(uint32_t textureSize, TextureFormat textureFormat) :
+    m_textureSize(textureSize),
+    m_textureFormat(textureFormat)
 {
-    uint8_t *image = NULL;
-
-    const uint32_t texture_size = cache->texture_size;
 #ifndef NDEBUG
     // in debug fill image with 128.
-    uint32_t pixel_size = texture_format == GB_TEXTURE_FORMAT_ALPHA ? 1 : 4;
-    image = (uint8_t*)malloc(texture_size * texture_size * pixel_size);
-    memset(image, 0x80, texture_size * texture_size * pixel_size);
+    const uint32_t kPixelSize = textureFormat == GB_TEXTURE_FORMAT_ALPHA ? 1 : 4;
+    const uint32_t kImageSize = textureSize * textureSize * kPixelSize;
+    std::unique_ptr<uint8_t> image(new uint8_t[kImageSize]);
+    memset(image.get(), 0x80, kImageSize);
+    TextureInit(textureFormat, textureSize, image.get(), &this->m_glTexObj);
+#else
+    TextureInit(textureFormat, textureSize, nullptr, &this->m_glTexObj)
 #endif
-
-    GB_TextureInit(texture_format, cache->texture_size, image, &sheet->gl_tex_obj);
-    sheet->texture_format = texture_format;
-    sheet->num_levels = 0;
-
-#ifndef NDEBUG
-    free(image);
-#endif
-
-    return GB_ERROR_NONE;
 }
 
-static int _GB_SheetAddNewLevel(struct GB_Cache *cache, struct GB_Sheet *sheet, uint32_t height)
+bool Sheet::AddNewLevel(uint32_t height)
 {
-    struct GB_SheetLevel *prev_level = (sheet->num_levels == 0) ? NULL : &sheet->level[sheet->num_levels - 1];
-    uint32_t baseline = prev_level ? prev_level->baseline + prev_level->height : 0;
-    if (sheet->num_levels < GB_MAX_LEVELS_PER_SHEET && (baseline + height) <= cache->texture_size) {
-        struct GB_SheetLevel *level = &sheet->level[sheet->num_levels++];
-        memset(level, 0, sizeof(struct GB_SheetLevel));
-        level->baseline = baseline;
-        level->height = height;
-        level->num_glyphs = 0;
-        return 1;
-    } else {
-        return 0;
+    SheetLevel* prevLevel = m_sheetLevelVec.empty() ? nullptr : m_sheetLevelVec.last().get();
+    uint32_t baseline = prevLevel ? prevLevel->m_baseline + prevLevel->m_height : 0;
+    if ((baseline + height) <= m_textureSize)
+    {
+        m_sheetLevelVec.push_back(new SheetLevel(baseline, height));
+        return true;
+    }
+    else
+    {
+        return false;
     }
 }
 
-static void _GB_SheetSubloadGlyph(struct GB_Sheet *sheet, struct GB_Glyph *glyph)
+void Sheet::SubloadGlyph(Glyph& glyph)
 {
-    assert(sheet);
-    GB_TextureSubLoad(sheet->gl_tex_obj, sheet->texture_format, glyph->origin, glyph->size, glyph->image);
+    TextureSubLoad(m_glTexObj, m_textureFormat, glyph.m_origin, glyph.m_size, glyph.m_image);
 }
 
-static int _GB_SheetLevelInsertGlyph(struct GB_Cache *cache, struct GB_SheetLevel *level,
-                                     struct GB_Glyph *glyph)
+bool SheetLevel::InsertGlyph(Glyph& glyph)
 {
-    struct GB_Glyph *prev_glyph = level->num_glyphs == 0 ? NULL : level->glyph[level->num_glyphs - 1];
+    Glyph* prevGlyph = m_glyphVec.empty() ? nullptr : m_glyphVec.last().get();
+    if (prevGlyph && prevGlyph->m_origin.x + prevGlyph->size.x + glyph->size.x <= m_textureSize)
+    {
+        glyph->origin.x = prevGlyph->origin.x + prevGlyph->size.x;
+        glyph->origin.y = m_baseline;
+        m_glyphVec.push_back(glyph);
+        return true;
+    }
+    else if (glyph->size.x <= m_textureSize)
+    {
+        glyph->origin.x = 0;
+        glyph->origin.y = m_baseline;
+        m_glyphVec.push_back(glyph);
+        return true;
+    }
+    else
+    {
+        // very rare glyph is larger then the width of the texture
+        return false;
+    }
+}
 
-    if (level->num_glyphs < GB_MAX_GLYPHS_PER_LEVEL) {
-        if (prev_glyph) {
-            if (prev_glyph->origin[0] + prev_glyph->size[0] + glyph->size[0] <= cache->texture_size) {
-
-                // update glyph origin
-                glyph->origin[0] = prev_glyph->origin[0] + prev_glyph->size[0];
-                glyph->origin[1] = level->baseline;
-
-                // add glyph to sheet
-                level->glyph[level->num_glyphs++] = glyph;
-                return 1;
-            }
-        } else {
-            if (glyph->size[0] <= cache->texture_size) {
-                glyph->origin[0] = 0;
-                glyph->origin[1] = level->baseline;
-
-                // add glyph to sheet
-                level->glyph[level->num_glyphs++] = glyph;
-                return 1;
-            }
+void Sheet::InsertGlyph(Glyph& glyph)
+{
+    for (auto sheetLevel : m_sheetLevelVec)
+    {
+        if (glyph.size.y <= sheetLevel->m_height && sheetLevel->InsertGlyph(glyph))
+        {
+            glyph->m_glTexObj = m_glTexObj;
+            sheet->SubloadGlyph(glyph);
+            return true;
         }
     }
 
-    // no free space
-    return 0;
-}
-
-static int _GB_SheetInsertGlyph(struct GB_Cache *cache, struct GB_Sheet *sheet, struct GB_Glyph *glyph)
-{
-    int i = 0;
-    for (i = 0; i < sheet->num_levels; i++) {
-        if (glyph->size[1] <= sheet->level[i].height) {
-            if (_GB_SheetLevelInsertGlyph(cache, &sheet->level[i], glyph)) {
-                glyph->gl_tex_obj = sheet->gl_tex_obj;
-                _GB_SheetSubloadGlyph(sheet, glyph);
-                return 1;
-            }
-        }
+    // need to add a new level
+    if (AddNewLevel(glyph->size.y) && m_sheetLevelVec.last()->InsertGlyph(glyph))
+    {
+        glyph->m_glTexObj = m_glTexObj;
+        sheet->SubloadGlyph(glyph);
+        return true;
     }
-
-    // add a new level.
-    if (_GB_SheetAddNewLevel(cache, sheet, glyph->size[1])) {
-        if (_GB_SheetLevelInsertGlyph(cache, &sheet->level[i], glyph)) {
-            glyph->gl_tex_obj = sheet->gl_tex_obj;
-            _GB_SheetSubloadGlyph(sheet, glyph);
-            return 1;
-        } else {
-            // glyph is wider then the texture?!?
-            glyph->gl_tex_obj = 0;
-            return 0;
-        }
-    } else {
-        glyph->gl_tex_obj = 0;
+    else
+    {
         // out of room
-        return 0;
+        glyph->glTexObj = 0;
+        return false;
     }
+}
+
+/// TODO
+
+Cache::Cache(uint32_t textureSize, uint32_t numSheets, TextureFormat textureFormat)
+{
+
 }
 
 GB_ERROR GB_CacheMake(uint32_t texture_size, uint32_t num_sheets, enum GB_TextureFormat texture_format,
