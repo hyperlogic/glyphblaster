@@ -4,12 +4,12 @@
 
 Justifications.
 
-  * Standard smart pointers that will make the memory management of recources less error prone.
-  * can drop dependency on uthash and utlist, and use standard collections
-  * lamdas provide a better mechinsim for rendering hooks then c function ptrs.
-  * all of my personal projects are in C++, C linkage is not important to me.
-  * shared lib version of library is also not important to me.
-  * Interop with other languages is not important to me.
+* Standard smart pointers that will make the memory management of recources less error prone.
+* can drop dependency on uthash and utlist, and use standard collections
+* lamdas provide a better mechinsim for rendering hooks then c function ptrs.
+* all of my personal projects are in C++, C linkage is not important to me.
+* shared lib version of library is also not important to me.
+* Interop with other languages is not important to me.
 
 ### Design questions
 
@@ -19,18 +19,18 @@ Justifications.
 
 ## Features
 
-  * Pluggable render function, to integrate into existing engines.
-  * Uses HarfBuzz for glyph shaping for liguatures & arabic languages.
-  * FreeType is used for rasterization, after shaping.
-  * Manages glyph bitmaps in a tightly packed set of OpenGL textures.
-  * utf8 support
-  * rtl language support (arabic & hebrew)
+* Pluggable render function, to integrate into existing engines.
+* Uses HarfBuzz for glyph shaping for liguatures & arabic languages.
+* FreeType is used for rasterization, after shaping.
+* Manages glyph bitmaps in a tightly packed set of OpenGL textures.
+* utf8 support
+* rtl language support (arabic & hebrew)
 
 ## Dependencies
 
-  * icu4c
-  * FreeType2
-  * HarfBuzz-0.9.0
+* icu4c
+* FreeType2
+* HarfBuzz-0.9.0
 
 ## Implementation Notes
 
@@ -52,7 +52,7 @@ Justifications.
 * Bundle harf-buzz, to make building easier
 * Minimize/control use of icu4c, might have to implement some stuff for harf-buzz as well.
 
-### TODO: Implemenetation Tasks
+### Implemenetation Tasks
 
 * Split MakeGlyphQuadRuns into two parts.
   * Build metrics/do word wrapping.
