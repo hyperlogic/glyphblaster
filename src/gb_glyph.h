@@ -1,36 +1,40 @@
 #ifndef GB_GLYPH_H
 #define GB_GLYPH_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stdint.h>
 #include "gb_error.h"
 #include "uthash.h"
 #include "gb_context.h"
 
-struct GB_Glyph {
-    uint64_t key;
-    int rc;
-    uint32_t index;
-    uint32_t font_index;
-    uint32_t gl_tex_obj;
-    uint32_t origin[2];
-    uint32_t size[2];
-    uint32_t advance;
-    uint32_t bearing[2];
-    uint8_t *image;
-    UT_hash_handle context_hh;
-    UT_hash_handle cache_hh;
+namespace gb {
+
+struct GlyphKey
+{
+    GlyphKey(uint32_t glyphIndex, uint32_t fontIndex) : key(((uint64_t)fontIndex << 32) | glyphIndex) {}
+    bool operator<(const GlyphKey& rhs) const { return value < rhs.value; }
+    uint64_t value;
 };
 
-GB_ERROR GB_GlyphMake(struct GB_Context* gb, uint32_t index, struct GB_Font *font, struct GB_Glyph **glyph_out);
-GB_ERROR GB_GlyphRetain(struct GB_Glyph *glyph);
-GB_ERROR GB_GlyphRelease(struct GB_Glyph *glyph);
+class Glyph
+{
+public:
+    Glyph(const Context& context, uint32_t index, const Font& font);
+    ~Glyph();
 
-#ifdef __cplusplus
-}
-#endif
+    GlyphKey GetKey() const;
+
+protected:
+    void InitImageAndSize(FT_Bitmap* ftBitmap, TextureFormat textureFormat, Font::RenderOption renderOption);
+
+    GlyphKey m_key;
+    uint32_t m_glTexObj;
+    uint32_t m_origin[2];
+    uint32_t m_size[2];
+    uint32_t m_advance;
+    uint32_t m_bearing[2];
+    std::unique_ptr<uint8_t> m_image;
+};
+
+} // namespace gb
 
 #endif // GB_GLYPH_H

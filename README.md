@@ -13,6 +13,8 @@ Justifications.
 
 ### Design questions
 
+Should Context be a singleton? NO. want to leave open the possibility of multi-threading.
+
 ### Proposed Architecture Diagram
 
 ![Image](docs/glyphblaster.png)
