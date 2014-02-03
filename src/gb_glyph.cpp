@@ -14,48 +14,49 @@ Glyph::Glyph(const Context& context, uint32_t index, const Font& font) :
     m_origin{0, 0}
 {
     assert(font.getFTFace());
+    FT_Face ftFace = font.getFTFace();
 
     uint32_t ftLoadFlags;
 
-    switch (font.getHintOption())
+    switch (font.GetHintOption())
     {
     default:
-    case Font::HintOption_Default:
+    case FontHintOption_Default:
         ftLoadFlags = FT_LOAD_DEFAULT;
         break;
-    case Font::HintOption_ForceAuto:
+    case FontHintOption_ForceAuto:
         ftLoadFlags = FT_LOAD_FORCE_AUTOHINT;
         break;
-    case Font::HintOption_NoAuto:
+    case FontHintOption_NoAuto:
         ftLoadFlags = FT_LOAD_NO_AUTOHINT;
         break;
-    case Font::HintOption_None:
+    case FontHintOption_None:
         ftLoadFlags = FT_LOAD_NO_HINTING;
         break;
     }
 
-    swtich (font.getRenderOption())
+    swtich (font.GetRenderOption())
     {
     default:
-    case Font::RenderOption_Normal:
+    case FontRenderOption_Normal:
         ftLoadFlags |= FT_LOAD_TARGET_NORMAL;
         break;
-    case Font::RenderOption_Light:
+    case FontRenderOption_Light:
         ftLoadFlags |= FT_LOAD_TARGET_LIGHT;
         break;
-    case Font::RenderOption_Mono:
+    case FontRenderOption_Mono:
         ftLoadFlags |= FT_LOAD_TARGET_MONO;
         break;
-    case Font::RenderOption_LCD_RGB:
-    case Font::RenderOption_LCD_BGR:
+    case FontRenderOption_LCD_RGB:
+    case FontRenderOption_LCD_BGR:
         // Only do sub-pixel anti-aliasing if we are using RGBA textures.
-        if (context->GetTextureFormat() == TextureFormat_RGBA)
+        if (context.GetTextureFormat() == TextureFormat_RGBA)
             ftLoadFlags |= FT_LOAD_TARGET_LCD;
         break;
-    case Font::RenderOption_LCD_RGB_V:
-    case Font::RenderOption_LCD_BGR_V:
+    case FontRenderOption_LCD_RGB_V:
+    case FontRenderOption_LCD_BGR_V:
         // Only do sub-pixel anti-aliasing if we are using RGBA textures.
-        if (context->GetTextureFormat() == TextureFormat_RGBA)
+        if (context.GetTextureFormat() == TextureFormat_RGBA)
             ftLoadFlags |= FT_LOAD_TARGET_LCD_V;
         break;
     }
@@ -65,43 +66,43 @@ Glyph::Glyph(const Context& context, uint32_t index, const Font& font) :
         abort();
 
     FT_Render_Mode ftRenderMode;
-    switch (font.getRenderOption())
+    switch (font.GetRenderOption())
     {
     default:
-    case Font::RenderOption_Normal:
+    case FontRenderOption_Normal:
         ftRenderMode = FT_RENDER_MODE_NORMAL;
         break;
-    case Font::RenderOption_Light:
+    case FontRenderOption_Light:
         ftRenderMode = FT_RENDER_MODE_LIGHT;
         break;
-    case Font::RenderOption_Mono:
+    case FontRenderOption_Mono:
         ftRenderMode = FT_RENDER_MODE_MONO;
         break;
-    case Font::RenderOption_LCD_RGB:
-    case Font::RenderOption_LCD_BGR:
+    case FontRenderOption_LCD_RGB:
+    case FontRenderOption_LCD_BGR:
         // Only do sub-pixel anti-aliasing if we are using RGBA textures.
-        if (context->GetTextureFormat() == TextureFormat_RGBA)
+        if (context.GetTextureFormat() == TextureFormat_RGBA)
             ftRenderMode = FT_RENDER_MODE_LCD;
         break;
-    case Font::RenderOption_LCD_RGB_V:
-    case Font::RenderOption_LCD_BGR_V:
+    case FontRenderOption_LCD_RGB_V:
+    case FontRenderOption_LCD_BGR_V:
         // Only do sub-pixel anti-aliasing if we are using RGBA textures.
-        if (context->GetTextureFormat() == TextureFormat_RGBA)
+        if (context.GetTextureFormat() == TextureFormat_RGBA)
             ftRenderMode = FT_RENDER_MODE_LCD_V;
         break;
     }
 
     // render glyph into ftFace->glyph->bitmap
-    ftError = FT_Render_Glyph(ft_face->glyph, render_mode);
+    ftError = FT_Render_Glyph(ftFace->glyph, render_mode);
     if (ftError)
         abort();
 
     // record post-hinting advance and bearing.
-    m_advance = FIXED_TO_INT(ft_face->glyph->metrics.horiAdvance);
-    m_bearing = {FIXED_TO_INT(ft_face->glyph->metrics.horiBearingX),
-                 FIXED_TO_INT(ft_face->glyph->metrics.horiBearingY)};
+    m_advance = FIXED_TO_INT(ftFace->glyph->metrics.horiAdvance);
+    m_bearing = {FIXED_TO_INT(ftFace->glyph->metrics.horiBearingX),
+                 FIXED_TO_INT(ftFace->glyph->metrics.horiBearingY)};
 
-    FT_Bitmap* ftBitmap = &ft_face->glyph->bitmap;
+    FT_Bitmap* ftBitmap = &ftFace->glyph->bitmap;
     InitImageAndSize(ftBitmap, context.GetTextureFormat(), font.GetRenderOption());
 }
 
@@ -115,7 +116,7 @@ GlyphKey Glyph::GetKey() const
     return m_key;
 }
 
-void Glyph::InitImageAndSize(FT_Bitmap* ftBitmap, TextureFormat textureFormat, Font::RenderOption renderOption)
+void Glyph::InitImageAndSize(FT_Bitmap* ftBitmap, TextureFormat textureFormat, FontRenderOption renderOption)
 {
     if (ftBitmap->width > 0 && ftBitmap->rows > 0)
     {
@@ -130,8 +131,8 @@ void Glyph::InitImageAndSize(FT_Bitmap* ftBitmap, TextureFormat textureFormat, F
 
         swtich (renderOption)
         {
-        case Font::RenderOption_Normal:
-        case Font::RenderOption_Light:
+        case FontRenderOption_Normal:
+        case FontRenderOption_Light:
             if (textureFormat == TextureFormat__ALPHA)
             {
                 // allocate an image to hold a copy of the rasterized glyph
@@ -171,7 +172,7 @@ void Glyph::InitImageAndSize(FT_Bitmap* ftBitmap, TextureFormat textureFormat, F
             m_size = {ftBitmap->width, ftBitmap->rows};
             break;
 
-        case Font::RenderOption_Mono:
+        case FontRenderOption_Mono:
             // ftBitmap is 1 bit per pixel.
             if (textureFormat == TextureFormat_Alpha)
             {
@@ -215,17 +216,17 @@ void Glyph::InitImageAndSize(FT_Bitmap* ftBitmap, TextureFormat textureFormat, F
             m_size = {ftBitmap->width, ftBitmap->rows};
             break;
 
-        case Font::RenderOption_LCD_RGB:
-        case Font::RenderOption_LCD_BGR:
-        case Font::RenderOption_LCD_RGB_V:
-        case Font::RenderOption_LCD_BGR_V:
+        case FontRenderOption_LCD_RGB:
+        case FontRenderOption_LCD_BGR:
+        case FontRenderOption_LCD_RGB_V:
+        case FontRenderOption_LCD_BGR_V:
             assert(textureFormat == TextureFormat_RGBA);
             if (textureFormat == TextureFormat_RGBA)
             {
                 // allocate an image to hold a copy of the rasterized glyph
                 m_image = new uint8_t[4 * ftBitmap->width * ftBitmap->rows];
 
-                if (renderOption == RenderOption_LCD_RGB || renderOption == RenderOption_LCD_RGB_V)
+                if (renderOption == FontRenderOption_LCD_RGB || renderOption == FontRenderOption_LCD_RGB_V)
                 {
                     // copy image from ftBitmap.buffer into image, row by row.
                     // The pitch of each row in the ft_bitmap maybe >= width,

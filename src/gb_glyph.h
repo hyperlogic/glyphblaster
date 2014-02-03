@@ -3,7 +3,6 @@
 
 #include <stdint.h>
 #include "gb_error.h"
-#include "uthash.h"
 #include "gb_context.h"
 
 namespace gb {
@@ -24,7 +23,7 @@ public:
     GlyphKey GetKey() const;
 
 protected:
-    void InitImageAndSize(FT_Bitmap* ftBitmap, TextureFormat textureFormat, Font::RenderOption renderOption);
+    void InitImageAndSize(FT_Bitmap* ftBitmap, TextureFormat textureFormat, FontRenderOption renderOption);
 
     GlyphKey m_key;
     uint32_t m_glTexObj;

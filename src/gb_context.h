@@ -34,6 +34,10 @@ public:
 
 protected:
 
+    // Used by Font to create FT_Face objects
+    FT_Library GetFTLibrary() const { return m_ftLibrary; }
+    uint32_t GetNextFontIndex() { return m_nextFontIndex++; }
+
     // Used by Text instances.
     // Notifies context that a new glyph was created.
     void HashAdd(std::shared_ptr<Glyph> glyph);

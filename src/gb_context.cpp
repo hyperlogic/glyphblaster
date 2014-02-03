@@ -64,7 +64,8 @@ Context::Context(uint32_t textureSize, uint32_t numSheets, TextureFormat texture
 
 Context::~Context()
 {
-
+    if (m_ftLibrary)
+        FT_Done_FreeType(m_ftLibrary);
 }
 
 void Context::SetTextRenderFunc(RenderFunc renderFunc)
