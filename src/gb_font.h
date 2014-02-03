@@ -41,8 +41,8 @@ public:
 
     FontRenderOption GetRenderOption() const { return m_renderOption; }
     FontHintOption GetHintOption() const { return m_hintOption; }
-    uint32_t GetMaxAdvance() const;
-    uint32_t GetLineHeight() const;
+    int GetMaxAdvance() const;
+    int GetLineHeight() const;
 
 protected:
     FT_Face GetFTFace() const { return m_ftFace; }

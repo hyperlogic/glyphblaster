@@ -40,13 +40,13 @@ protected:
 
     // Used by Text instances.
     // Notifies context that a new glyph was created.
-    void HashAdd(std::shared_ptr<Glyph> glyph);
+    void Add(std::shared_ptr<Glyph> glyph);
 
     // Notifies context that a glyph is no longer needed.
-    void HashRemove(GlyphKey key);
+    void Remove(GlyphKey key);
 
     // Used to avoid creating multiple copies of the same glyph.
-    std::shared_ptr<Glyph> HashFind(GlyphKey key);
+    std::shared_ptr<Glyph> Find(GlyphKey key);
 
     FT_Library m_ftLibrary;
     std::unique_ptr<Cache> m_cache;

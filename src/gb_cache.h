@@ -19,7 +19,7 @@ protected:
 
     class SheetLevel
     {
-        std::vector< std::unique_ptr<Glyph> > m_glyphVec;
+        std::vector<std::weak_ptr<Glyph>> m_glyphVec;
         uint32_t m_textureSize;
         uint32_t m_baseline;
         uint32_t m_height;
@@ -37,10 +37,10 @@ protected:
         uint32_t m_glTexObj;
         uint32_t m_textureSize;
         TextureFormat m_textureFormat;
-        std::vector< std::unique_ptr <Sheet> > m_sheetLevelVec;
+        std::vector<std::unique_ptr<Sheet>> m_sheetLevelVec;
     };
 
-    std::vector< std::unique_ptr<Sheet> > m_sheetVec;
+    std::vector<std::unique_ptr<Sheet>> m_sheetVec;
     uint32_t textureSize;
     std::map<std::uint64_t, GB_Glyph> m_glyphMap;
 };

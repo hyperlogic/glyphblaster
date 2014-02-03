@@ -12,9 +12,10 @@
 #define FIXED_TO_INT(n) (uint32_t)(n >> 6)
 
 // cp is a utf32 codepoint
-static int is_space(uint32_t cp)
+static bool IsSpace(uint32_t codePoint)
 {
-    switch (cp) {
+    switch (codePoint)
+    {
     case 0x0020: // space
     case 0x1680: // ogham space mark
     case 0x180e: // mongolian vowel separator
@@ -33,16 +34,17 @@ static int is_space(uint32_t cp)
     case 0x200d: // zero width joiner
     case 0x205f: // medium mathematical space
     case 0x3000: // ideograpfic space
-        return 1;
+        return true;
     default:
-        return 0;
+        return false;
     }
 }
 
 // cp is a utf32 codepoint
-static int is_newline(uint32_t cp)
+static bool IsNewline(uint32_t codePoint)
 {
-    switch (cp) {
+    switch (codePoint)
+    {
     case 0x000a: // new line
     case 0x000b: // vertical tab
     case 0x000c: // form feed
@@ -50,82 +52,88 @@ static int is_newline(uint32_t cp)
     case 0x0085: // NEL next line
     case 0x2028: // line separator
     case 0x2029: // paragraph separator
-        return 1;
+        return true;
     default:
-        return 0;
+        return false;
     }
 }
 
 // returns the number of bytes to advance
 // fills cp_out with the code point at p.
-static uint32_t utf8_next_cp(const uint8_t *p, uint32_t *cp_out)
+static int NextCodePoint(const uint8_t *p, uint32_t *codePointOut)
 {
-    if ((*p & 0x80) == 0) {
-        *cp_out = *p;
+    if ((*p & 0x80) == 0)
+    {
+        *codePointOut = *p;
         return 1;
-    } else if ((*p & 0xe0) == 0xc0) { // 110xxxxx 10xxxxxx
-        *cp_out = ((*p & ~0xe0) << 6) | (*(p+1) & ~0xc0);
+    }
+    else if ((*p & 0xe0) == 0xc0) // 110xxxxx 10xxxxxx
+    {
+        *codePointOut = ((*p & ~0xe0) << 6) | (*(p+1) & ~0xc0);
         return 2;
-    } else if ((*p & 0xf0) == 0xe0) { // 1110xxxx 10xxxxxx 10xxxxxx
-        *cp_out = ((*p & ~0xf0) << 12) | ((*(p+1) & ~0xc0) << 6) | (*(p+2) & ~0xc0);
+    }
+    else if ((*p & 0xf0) == 0xe0) // 1110xxxx 10xxxxxx 10xxxxxx
+    {
+        *codePointOut = ((*p & ~0xf0) << 12) | ((*(p+1) & ~0xc0) << 6) | (*(p+2) & ~0xc0);
         return 3;
-    } else if ((*p & 0xf8) == 0xf0) { // 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
-        *cp_out = ((*p & ~0xf8) << 18) | ((*(p+1) & ~0xc0) << 12) | ((*(p+1) & ~0xc0) << 6) | (*(p+2) & ~0xc0);
+    }
+    else if ((*p & 0xf8) == 0xf0) // 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+    {
+        *codePointOut = ((*p & ~0xf8) << 18) | ((*(p+1) & ~0xc0) << 12) | ((*(p+1) & ~0xc0) << 6) | (*(p+2) & ~0xc0);
         return 4;
-    } else {
+    }
+    else
+    {
         // p is not at a valid starting point. p is not utf8 encoded or is at a bad offset.
         assert(0);
-        *cp_out = 0;
+        *codePointOut = 0;
         return 1;
     }
 }
 
-static GB_ERROR _GB_TextUpdateCache(struct GB_Context *gb, struct GB_Text *text)
+void Text::UpdateCache(Context& context)
 {
-    assert(gb);
-    assert(text);
-
     // hold a temp array of glyph ptrs, this is so we can sort glyphs by height before
     // adding them to the GlyphCache, which improves texture utilization for long strings of glyphs.
-    int num_glyphs = hb_buffer_get_length(text->hb_buffer);
-    struct GB_Glyph **glyph_ptrs = (struct GB_Glyph**)malloc(sizeof(struct GB_Glyph*) * num_glyphs);
-    int num_glyph_ptrs = 0;
+    int numGlyphs = hb_buffer_get_length(m_hbBuffer);
 
-    struct GB_Cache *cache = gb->cache;
+    std::vector<Glyph*> glyphPtrVec;
+    glyphPtrVec.reserve(numGlyphs);
 
-    assert(text->hb_buffer);
+    Cache& cache = context.GetCache();
 
-    // prepare to iterate over all the glyphs in the hb_buffer
-    hb_glyph_info_t *glyphs = hb_buffer_get_glyph_infos(text->hb_buffer, NULL);
+    assert(m_hbBuffer);
+
+    // prepare to iterate over all the glyphs in the hbBuffer
+    hb_glyph_info_t *glyphs = hb_buffer_get_glyph_infos(m_hbBuffer, NULL);
 
     // iterate over each glyph
-    int i;
-    for (i = 0; i < num_glyphs; i++) {
+    for (int i = 0; i < numGlyphs; i++) {
         int index = glyphs[i].codepoint;
+        GlyphKey key = GlyphKey(index, m_font->GetIndex());
 
         // check to see if this glyph already exists in the context
-        struct GB_Glyph *glyph = GB_ContextHashFind(gb, index, text->font->index);
-        if (!glyph) {
+        //struct GB_Glyph *glyph = GB_ContextHashFind(gb, index, text->font->index);
+        auto glyph = context.Find(key);
+        if (!glyph)
+        {
             // check to see if this glyph already exists in the cache
-            glyph = GB_CacheHashFind(cache, index, text->font->index);
-            if (!glyph) {
-
+            glyph = cache.Find(key);
+            if (!glyph)
+            {
                 // skip new-lines
                 uint32_t cp;
-                utf8_next_cp(text->utf8_string + glyphs[i].cluster, &cp);
-                if (!is_newline(cp)) {
-
+                NextCodePoint(m_utf8String.c_str() + glyphs[i].cluster, &cp);
+                if (!IsNewline(cp))
+                {
                     // will rasterize and initialize glyph
-                    GB_ERROR gb_error = GB_GlyphMake(gb, index, text->font, &glyph);
-                    if (gb_error)
-                        return gb_error;
-
-                    // add to glyph_ptr array
-                    glyph_ptrs[num_glyph_ptrs++] = glyph;
+                    glyphPtrVec.push_back(new Glyph(context, index, *m_font.get()));
                 }
-            } else {
+            }
+            else
+            {
                 // add glyph to context
-                GB_ContextHashAdd(gb, glyph);
+                context.Add(glyph);
             }
         }
     }

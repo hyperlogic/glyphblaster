@@ -27,10 +27,10 @@ protected:
 
     GlyphKey m_key;
     uint32_t m_glTexObj;
-    uint32_t m_origin[2];
-    uint32_t m_size[2];
-    uint32_t m_advance;
-    uint32_t m_bearing[2];
+    Point m_origin;
+    Point m_size;
+    int m_advance;
+    Point m_bearing;
     std::unique_ptr<uint8_t> m_image;
 };
 

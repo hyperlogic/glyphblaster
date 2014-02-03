@@ -45,17 +45,17 @@ void Sheet::SubloadGlyph(Glyph& glyph)
 bool SheetLevel::InsertGlyph(Glyph& glyph)
 {
     Glyph* prevGlyph = m_glyphVec.empty() ? nullptr : m_glyphVec.last().get();
-    if (prevGlyph && prevGlyph->m_origin.x + prevGlyph->size.x + glyph->size.x <= m_textureSize)
+    if (prevGlyph && prevGlyph->m_origin.x + prevGlyph->m_size.x + glyph.m_size.x <= m_textureSize)
     {
-        glyph->origin.x = prevGlyph->origin.x + prevGlyph->size.x;
+        glyph->origin.x = prevGlyph->origin.x + prevGlyph->m_size.x;
         glyph->origin.y = m_baseline;
         m_glyphVec.push_back(glyph);
         return true;
     }
-    else if (glyph->size.x <= m_textureSize)
+    else if (glyph.m_size.x <= m_textureSize)
     {
-        glyph->origin.x = 0;
-        glyph->origin.y = m_baseline;
+        glyph.m_origin.x = 0;
+        glyph.m_origin.y = m_baseline;
         m_glyphVec.push_back(glyph);
         return true;
     }

@@ -83,12 +83,12 @@ void Context::Compact()
     m_cache->Compact();
 }
 
-void Context::HashAdd(std::shared_ptr<Glyph> glyph)
+void Context::GlyphAdd(std::shared_ptr<Glyph> glyph)
 {
     m_glyphMap[glyph->GetKey()] = glyph;
 }
 
-void Context::HashRemove(GlyphKey key)
+void Context::GlyphRemove(GlyphKey key)
 {
     m_glyphMap.erase(key);
 }
