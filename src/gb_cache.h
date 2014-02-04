@@ -19,7 +19,7 @@ protected:
 
     class SheetLevel
     {
-        std::vector<std::weak_ptr<Glyph>> m_glyphVec;
+        std::vector<std::shared_ptr<Glyph>> m_glyphVec;
         uint32_t m_textureSize;
         uint32_t m_baseline;
         uint32_t m_height;

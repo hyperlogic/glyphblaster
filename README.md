@@ -13,7 +13,7 @@ Justifications.
 
 ### Design questions
 
-Should Context be a singleton? NO. want to leave open the possibility of multi-threading.
+Should Context be a singleton? YES. simplifies things, i can sort this out later if necessary.
 
 ### Proposed Architecture Diagram
 
