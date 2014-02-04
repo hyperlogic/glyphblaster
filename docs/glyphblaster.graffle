@@ -1121,7 +1121,7 @@ setRenderFunc}</string>
 				<key>stroke</key>
 				<dict>
 					<key>HeadArrow</key>
-					<string>Diamond</string>
+					<string>FilledDiamond</string>
 					<key>HeadScale</key>
 					<real>2</real>
 					<key>Legacy</key>
@@ -1785,7 +1785,7 @@ compact}</string>
 	<key>MasterSheets</key>
 	<array/>
 	<key>ModificationDate</key>
-	<string>2014-02-02 22:11:37 +0000</string>
+	<string>2014-02-04 04:09:52 +0000</string>
 	<key>Modifier</key>
 	<string>Anthony Thibault</string>
 	<key>NotesVisible</key>
