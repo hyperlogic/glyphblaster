@@ -12,14 +12,15 @@
 
 namespace gb {
 
-Font::Font(Context& context, const std::string filename, uint32_t pointSize,
+Font::Font(const std::string filename, uint32_t pointSize,
            FontRenderOption renderOption, FontHintOption hintOption) :
-    m_index(context.GetNextFontIndex()),
     m_ftFace(nullptr),
     m_hbFont(nullptr),
     m_renderOption(renderOption),
     m_hintOption(hintOption)
 {
+    Context& context = Context::Get();
+
     FT_New_Face(context.GetFTLibrary(), filename.c_str(), 0, &m_ftFace);
     if (!m_ftFace)
     {
@@ -33,10 +34,16 @@ Font::Font(Context& context, const std::string filename, uint32_t pointSize,
     // create harfbuzz font
     m_hbFont = hb_ft_font_create(m_ftFace, 0);
     hb_ft_font_set_funcs(m_hbFont);
+
+    // notify context
+    context.OnFontCreate(this);
 }
 
 Font::~Font()
 {
+    // notify context
+    context.OnFontDestroy(this);
+
     if (m_ftFace)
         FT_Done_Face(m_ftFace);
 

@@ -1,23 +1,24 @@
 #ifndef GB_TEXTURE
 #define GB_TEXTURE
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stdint.h>
-#include "gb_error.h"
-#include "gb_context.h"
+#include "glyphblaster.h"
 
-// TODO: make into class?
+namespace gb {
 
-GB_ERROR GB_TextureInit(enum GB_TextureFormat format, uint32_t texture_size, uint8_t *image,uint32_t *tex_out);
-GB_ERROR GB_TextureDestroy(uint32_t tex);
-GB_ERROR GB_TextureSubLoad(uint32_t tex, enum GB_TextureFormat format, uint32_t origin[2], uint32_t size[2],
-                           uint8_t *image);
+enum TextureFormat { TextureFormat_Alpha = 0, TextureFormat_RGBA };
 
-#ifdef __cplusplus
-}
-#endif
+class Texture
+{
+public:
+    Texture(TextureFormat format, uint32_t texture_size, uint8_t* image)
+    ~Texture();
+    uint32_t GetGLTexObj() const { return m_texObj; }
+    Subload(IntPoint origin, IntPoint size, uint8_t* image);
+protected:
+    uint32_t m_texObj;
+};
+
+} // namespace gb
 
 #endif // GB_TEXTURE_H

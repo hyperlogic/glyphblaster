@@ -15,8 +15,6 @@ public:
     void Compact();
 protected:
     bool InsertIntoSheets(std::shared_ptr<Glyph> glyph);
-    void InsertIntoMap(std::shared_ptr<Glyph> glyph);
-    std::shared_ptr<Glyph> FindInMap(GlyphKey key) const;
 
     class SheetLevel
     {
@@ -47,12 +45,9 @@ protected:
     };
 
     std::vector<std::unique_ptr<Sheet>> m_sheetVec;
-
-    // all glyphs that are currently in the cache.
-    // NOTE: this may contain glyphs that are not activly in use by any Text instances.
-    std::map<GlyphKey, std::shared_ptr<Glyph>> m_glyphMap;
-
     uint32_t m_textureSize;
+
+    GB_NO_COPY(Cache);
 };
 
 }

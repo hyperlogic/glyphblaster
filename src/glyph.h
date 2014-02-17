@@ -11,27 +11,31 @@ struct GlyphKey
 {
     GlyphKey(uint32_t glyphIndex, uint32_t fontIndex) : key(((uint64_t)fontIndex << 32) | glyphIndex) {}
     bool operator<(const GlyphKey& rhs) const { return value < rhs.value; }
+    uint32_t GetFontIndex() const { return (uint32_t)(value >> 32); }
+    uint32_t GetGlyphIndex() const { return (uint32_t)value; }
     uint64_t value;
 };
 
 class Glyph
 {
 public:
-    Glyph(const Context& context, uint32_t index, const Font& font);
+    Glyph(uint32_t index, const Font& font);
     ~Glyph();
 
     GlyphKey GetKey() const;
-    Point GetSize() const;
+    IntPoint GetSize() const;
+    IntPoint GetBearing() const;
+    IntPoint GetOrigin() const;
 
 protected:
     void InitImageAndSize(FT_Bitmap* ftBitmap, TextureFormat textureFormat, FontRenderOption renderOption);
 
     GlyphKey m_key;
     uint32_t m_glTexObj;
-    Point m_origin;
-    Point m_size;
+    IntPoint m_origin;
+    IntPoint m_size;
     int m_advance;
-    Point m_bearing;
+    IntPoint m_bearing;
     std::unique_ptr<uint8_t> m_image;
 };
 

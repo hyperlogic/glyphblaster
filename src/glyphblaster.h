@@ -7,7 +7,13 @@
 
 namespace gb {
 
-enum TextureFormat { TextureFormat_Alpha = 0, TextureFormat_RGBA };
+struct Point<type T>
+{
+    T x, y;
+};
+
+typedef Point<int> IntPoint;
+typedef Point<float> FloatPoint;
 
 } // namespace gb
 

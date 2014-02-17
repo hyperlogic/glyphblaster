@@ -46,10 +46,12 @@ public:
 
 protected:
     FT_Face GetFTFace() const { return m_ftFace; }
+    hb_font_t* GetHarfbuzzFont() const { return m_hbFont; }
+    uint32_t GetIndex() const { return m_index; }
 
     uint32_t m_index;
     FT_Face m_ftFace;
-    hb_font_t* hbFont;
+    hb_font_t* m_hbFont;
     FontRenderOption m_renderOption;
     FontHintOption m_hintOption;
 };

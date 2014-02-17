@@ -133,7 +133,10 @@ void Cache::Compact()
     glyphVec.reserve(context->m_glyphMap.size());
     for (auto kv : m_glyphMap)
     {
-        glyphVec.push_back(kv->second);
+        if (!kv->second.expired())
+        {
+            glyphVec.push_back(kv->second.lock());
+        }
     }
 
     // clear all sheets
@@ -141,9 +144,6 @@ void Cache::Compact()
     {
         sheet->Clear();
     }
-
-    // clear all glyph instances in the map.
-    m_glyphVec.clear();
 
     // sort glyphs in decreasing height
     std::sort(glyphVec.begin(), glyphVec.end(), [](Glyph* a, Glyph* b)
@@ -190,31 +190,8 @@ void Cache::Insert(std::vector<std::shared_ptr<Glyph>> glyphVec);
                     }
                 }
             }
-
-            // add to both context and cache maps.
-            InsertIntoMap(glyph);
-            context->InsertIntoMap(glyph);
         }
     }
-}
-
-void InsertIntoMap(std::shared_ptr<Glyph> glyph)
-{
-#ifndef NDEBUG
-    if (FindInMap(glyph)) {
-        printf("GB_CacheHashAdd() WARNING glyph index = %d, font_index = %d is already in cache!\n", glyph->index, glyph->font_index);
-    }
-#endif
-    m_glyphMap[glyph->GetKey()] = glyph;
-}
-
-std::shared_ptr<Glyph> Cache::FindInMap(GlyphKey key) const
-{
-    auto iter = m_glyphMap.find(key);
-    if (iter != m_glyphMap.end())
-        return iter->second;
-    else
-        return std::shared_ptr<Glyph>();
 }
 
 } // namespace gb

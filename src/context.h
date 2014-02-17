@@ -18,7 +18,6 @@ class GlyphKey;
 class Quad;
 class Texture;
 
-typedef std::vector<std::unique_ptr<Quad>> QuadVec;
 typedef std::function<void (const QuadVec&)> RenderFunc;
 
 class Context
@@ -26,7 +25,7 @@ class Context
 public:
     static void Init(uint32_t textureSize, uint32_t numSheets, TextureFormat textureFormat);
     static void Shutdown();
-    static Context* Get();
+    static Context& Get();
 
 protected:
     Context(uint32_t textureSize, uint32_t numSheets, TextureFormat textureFormat);
@@ -39,29 +38,32 @@ public:
     void Compact();
 
 protected:
-    // Used by Font to create FT_Face objects
+    // Used by Font objects
     FT_Library GetFTLibrary() const { return m_ftLibrary; }
-    uint32_t GetNextFontIndex() { return m_nextFontIndex++; }
+    void Context::OnNotifyCreate(Font* font);
+    void Context::OnNotifyDestroy(Font* font);
 
     // Used by Text instances.
-    // Notifies context that a new glyph was created.
-    void InsertIntoMap(std::shared_ptr<Glyph> glyph);
+    void RasterizeAndSubloadGlyphs(const std::vector<GlyphKey>& keyVecIn,
+                                   std::vector<std::shared_ptr<Glyph>>& glyphVecOut);
 
-    // Notifies context that a glyph is no longer needed.
-    void RemoveFromMap(GlyphKey key);
+    const Texture& GetFallbackTexture() { return *(m_fallbackTexture.get()); }
+    const Cache& GetCache() { return *(m_cache.get()); }
 
     // Used to avoid creating multiple copies of the same glyph.
-    std::shared_ptr<Glyph> FindInMap(GlyphKey key);
+    std::weak_ptr<Glyph> FindInMap(GlyphKey key);
 
     FT_Library m_ftLibrary;
     std::unique_ptr<Cache> m_cache;
 
-    // all glyphs currently in use by Text instances.
-    // NOTE: this is a sub-set of all the glyphs held onto by m_cache.
-    std::map<GlyphKey, std::shared_ptr<Glyph>> m_glyphMap;
+    // holds all glyph instances
+    std::map<GlyphKey, std::weak_ptr<Glyph>> m_glyphMap;
+
+    // holds all font instances
+    std::map<uint32_t, Font*> m_fontMap;
 
     uint32_t m_nextFontIndex;
-    std::shared_ptr<Texture> m_fallbackTexture;
+    std::unique_ptr<Texture> m_fallbackTexture;
     RenderFunc m_renderFunc;
     TextureFormat m_textureFormat;
 

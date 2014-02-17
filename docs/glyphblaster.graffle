@@ -46,11 +46,48 @@
 	<key>Creator</key>
 	<string>Anthony Thibault</string>
 	<key>DisplayScale</key>
-	<string>1 0/72 in = 1 0/72 in</string>
+	<string>1 0/72 in = 1.0000 in</string>
 	<key>GraphDocumentVersion</key>
 	<integer>8</integer>
 	<key>GraphicsList</key>
 	<array>
+		<dict>
+			<key>Class</key>
+			<string>LineGraphic</string>
+			<key>Head</key>
+			<dict>
+				<key>ID</key>
+				<integer>56</integer>
+			</dict>
+			<key>ID</key>
+			<integer>94</integer>
+			<key>Points</key>
+			<array>
+				<string>{476.50279742352427, 407.16692528846602}</string>
+				<string>{294.49720282815588, 387.83284348161214}</string>
+			</array>
+			<key>Style</key>
+			<dict>
+				<key>stroke</key>
+				<dict>
+					<key>HeadArrow</key>
+					<string>FilledDiamond</string>
+					<key>HeadScale</key>
+					<real>2</real>
+					<key>Legacy</key>
+					<true/>
+					<key>LineType</key>
+					<integer>1</integer>
+					<key>TailArrow</key>
+					<string>0</string>
+				</dict>
+			</dict>
+			<key>Tail</key>
+			<dict>
+				<key>ID</key>
+				<integer>75</integer>
+			</dict>
+		</dict>
 		<dict>
 			<key>Bounds</key>
 			<string>{{228, 26}, {271, 29}}</string>
@@ -118,8 +155,8 @@
 			<integer>91</integer>
 			<key>Points</key>
 			<array>
-				<string>{619.5070225808962, 314.02345273754497}</string>
-				<string>{263.49295656148485, 253.71778120586791}</string>
+				<string>{619.50702464520884, 314.02211216275816}</string>
+				<string>{263.49297506028319, 253.70743490116661}</string>
 			</array>
 			<key>Style</key>
 			<dict>
@@ -186,14 +223,14 @@
 			<key>Head</key>
 			<dict>
 				<key>ID</key>
-				<integer>88</integer>
+				<integer>87</integer>
 			</dict>
 			<key>ID</key>
 			<integer>89</integer>
 			<key>Points</key>
 			<array>
-				<string>{294.49984888782387, 444.88112861142201}</string>
-				<string>{325.50015108143117, 444.11881066950508}</string>
+				<string>{294.49740644928153, 450.65218864208231}</string>
+				<string>{347.50290736100231, 456.07209295210669}</string>
 			</array>
 			<key>Style</key>
 			<dict>
@@ -224,7 +261,7 @@
 			<array>
 				<dict>
 					<key>Bounds</key>
-					<string>{{326, 415}, {90, 14}}</string>
+					<string>{{348, 454}, {90, 14}}</string>
 					<key>Class</key>
 					<string>ShapedGraphic</string>
 					<key>FitText</key>
@@ -269,7 +306,7 @@
 				</dict>
 				<dict>
 					<key>Bounds</key>
-					<string>{{326, 429}, {90, 28}}</string>
+					<string>{{348, 468}, {90, 28}}</string>
 					<key>Class</key>
 					<string>ShapedGraphic</string>
 					<key>FitText</key>
@@ -427,8 +464,8 @@
 			<integer>85</integer>
 			<key>Points</key>
 			<array>
-				<string>{100.64898453722815, 397.50054678993473}</string>
-				<string>{90.679367320828391, 184.49945206253307}</string>
+				<string>{100.64896181745387, 397.50054686375944}</string>
+				<string>{90.678699257750878, 184.49945313606744}</string>
 			</array>
 			<key>Style</key>
 			<dict>
@@ -464,15 +501,15 @@
 			<integer>83</integer>
 			<key>Points</key>
 			<array>
-				<string>{157.49998872294, 446.62043682200419}</string>
-				<string>{203.50001169534195, 446.31141171771787}</string>
+				<string>{157.49998859719602, 446.61840812412595}</string>
+				<string>{203.50001144471688, 446.30773133560876}</string>
 			</array>
 			<key>Style</key>
 			<dict>
 				<key>stroke</key>
 				<dict>
 					<key>HeadArrow</key>
-					<string>FilledDiamond</string>
+					<string>Diamond</string>
 					<key>HeadScale</key>
 					<real>2</real>
 					<key>Legacy</key>
@@ -501,8 +538,8 @@
 			<integer>82</integer>
 			<key>Points</key>
 			<array>
-				<string>{567.45336054656354, 433.14109792559827}</string>
-				<string>{619.54663945343646, 457.37052997182718}</string>
+				<string>{567.45336054656354, 433.14109792792107}</string>
+				<string>{619.54663945343646, 457.37052997681212}</string>
 			</array>
 			<key>Style</key>
 			<dict>
@@ -538,8 +575,8 @@
 			<integer>81</integer>
 			<key>Points</key>
 			<array>
-				<string>{567.43037783491104, 385.13419516903747}</string>
-				<string>{619.56962216508896, 354.30102078297693}</string>
+				<string>{567.42859169565361, 384.70567934368819}</string>
+				<string>{619.56634703952705, 353.38037165663155}</string>
 			</array>
 			<key>Style</key>
 			<dict>
@@ -1680,7 +1717,7 @@ glTexObj}</string>
 
 \f0\fs24 \cf0 sheetVec\
 textureSize\
-glyphMap}</string>
+}</string>
 						<key>VerticalPad</key>
 						<integer>0</integer>
 					</dict>
@@ -1785,7 +1822,7 @@ compact}</string>
 	<key>MasterSheets</key>
 	<array/>
 	<key>ModificationDate</key>
-	<string>2014-02-04 04:09:52 +0000</string>
+	<string>2014-02-17 04:34:16 +0000</string>
 	<key>Modifier</key>
 	<string>Anthony Thibault</string>
 	<key>NotesVisible</key>

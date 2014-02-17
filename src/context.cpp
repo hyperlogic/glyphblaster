@@ -60,14 +60,9 @@ void Context::Shutdown()
     }
 }
 
-Context* Context::Get()
+Context& Context::Get()
 {
-    return s_context;
-}
-
-const Context* Context::Get() const
-{
-    return s_context;
+    return *s_context;
 }
 
 Context::Context(uint32_t textureSize, uint32_t numSheets, TextureFormat textureFormat) :
@@ -119,16 +114,52 @@ void Context::InsertIntoMap(std::shared_ptr<Glyph> glyph)
     m_glyphMap[glyph->GetKey()] = glyph;
 }
 
-void Context::RemoveFromMap(GlyphKey key)
-{
-    m_glyphMap.erase(key);
-}
-
-std::shared_ptr<Glyph> Context::FindInMap(GlyphKey key)
+std::weak_ptr<Glyph> Context::FindInMap(GlyphKey key)
 {
     auto iter = m_glyphMap.find(key);
     if (iter != m_glyphMap.end())
         return iter->second;
     else
-        return std::shared_ptr<Glyph>();
+        return std::weak_ptr<Glyph>();
+}
+
+void Context::OnNotifyCreate(Font* font)
+{
+    font->m_index = m_nextFontIndex++;
+    m_fontMap[font->m_index] = font;
+}
+
+void Context::OnNotifyDestroy(Font* font)
+{
+    m_fontMap.erase(font->m_index);
+}
+
+void RasterizeAndSubloadGlyphs(const std::vector<GlyphKey>& keyVecIn,
+                               std::vector<std::shared_ptr<Glyph>>& glyphVecOut)
+{
+    for (auto key : keyVecIn)
+    {
+        // check to see if this glyph already exists.
+        auto glyph = FindInMap(key);
+        if (glyph.expired())
+        {
+            // look up font by index.
+            auto iter = m_fontMap.find(key.GetFontIndex());
+            Font* font = iter != m_fontMap.end() ? iter.second : nullptr;
+            assert(font);
+
+            // will rasterize and initialize glyph
+            std::shared_ptr<Glyph> glyph = new Glyph(key.GetGlyphIndex(), font);
+
+            // will subload glyph into texture atlas
+            m_cache->InsertIntoSheets(glyph);
+
+            InsertIntoMap(glyph);
+            glyphVecOut.push_back(glyph);
+        }
+        else
+        {
+            glyphVecOut.push_back(glyph.lock());
+        }
+    }
 }

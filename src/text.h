@@ -7,14 +7,6 @@
 
 namespace gb {
 
-struct Point<type T>
-{
-    T x, y;
-};
-
-typedef Point<int> IntPoint;
-typedef Point<float> FloatPoint;
-
 enum TextHorizontalAlign {
     TextHorizontalAlign_Left = 0,
     TextHorizontalAlign_Right,
@@ -44,19 +36,25 @@ struct Quad
     uint32_t glTexObj;
 };
 
+typedef std::vector<Quad> QuadVec;
+
 class Text
 {
 public:
-    Text(Context& context, std::string utf8String, std::shared_ptr<Font> font,
+    // string is assumed to be utf8 encoded.
+    Text(const std::string& string, std::shared_ptr<Font> font,
          void* userData, IntPoint origin, IntPoint size,
          TextHorizontalAlign horizontalAlign, TextVerticalAlign verticalAlign,
-         uint32_t flags);
+         uint32_t optionFlags);
+    ~Text();
+    Draw();
 
 protected:
-    void UpdateCache(Context& context);
+    void UpdateCache();
+    void WordWrapAndGenerateQuads();
 
     std::shared_ptr<Font> m_font;
-    std::string m_utf8String;
+    std::string m_string; // utf8 encoding.
     hb_buffer_t *m_hbBuffer;  // harfbuzz buffer, used for shaping
     void* m_userData;
     IntPoint m_origin[2];  // bounding rectangle, used for word-wrapping & alignment
@@ -64,7 +62,8 @@ protected:
     TextHorizontalAlign m_horizontalAlign;
     TextVerticalAlign m_verticalAlign;
     uint32_t m_optionFlags;
-    std::vector<Quad> m_quadVec;
+    QuadVec m_quadVec;
+    std::vector<std::shared_ptr<Glyph>> m_glyphVec;
 };
 
 } // namespace gb
