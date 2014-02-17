@@ -3,12 +3,14 @@
 
 #include <math.h>
 
-#ifdef ABACI_NAMESPACE
-namespace ABACI_NAMESPACE
+#ifdef USE_ABACI_NAMESPACE
+namespace abaci
 {
+#define ABACI_NAMESPACE abaci
+#else
+#define ABACI_NAMESPACE
 #endif
 
-#define PI M_PI
 
 // Convert from degrees to radians
 template <typename Scalar>
@@ -32,13 +34,10 @@ Scalar Mod2Pi(Scalar theta);
 
 // Fuzzy comparison between two Scalar values.
 template <typename Scalar>
-bool FuzzyEqual(Scalar rhs, Scalar lhs, Scalar epsilon = 0.0001);
+bool FuzzyEqual(Scalar lhs, Scalar rhs, Scalar epsilon = 0.0001);
 
 template <typename Scalar>
 Scalar Lerp(Scalar a, Scalar b, Scalar t);
-
-// forward declare
-template <typename Scalar> class Complex;
 
 // returns a random integer between min and max.
 // Note: closed interval. i.e. the values of min & max can be returned.
@@ -50,6 +49,9 @@ template <typename Scalar>
 Scalar RandomScalar(Scalar min, Scalar max);
 
 //////////////////////////////////////////////////////
+
+// forward declare
+template <typename Scalar> struct Complex;
 
 template <typename Scalar>
 struct Vector2
@@ -694,7 +696,7 @@ bool FuzzyEqual(const Complex<Scalar>& rhs, const Complex<Scalar>& lhs, Scalar e
 // inlines
 #include "abaciinlines.cpp"
 
-#ifdef ABACI_NAMESPACE
+#ifdef USE_ABACI_NAMESPACE
 } // namespace
 #endif
 

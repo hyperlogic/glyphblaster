@@ -1,12 +1,9 @@
-#include "utlist.h"
 #include <assert.h>
-#include "gb_context.h"
-#include "gb_glyph.h"
-#include "gb_font.h"
-#include "gb_cache.h"
-#include "gb_texture.h"
+#include "cache.h"
 
-Sheet::Sheet(uint32_t textureSize, TextureFormat textureFormat) :
+namespace gb {
+
+Cache::Sheet::Sheet(uint32_t textureSize, TextureFormat textureFormat) :
     m_textureSize(textureSize),
     m_textureFormat(textureFormat)
 {
@@ -22,7 +19,12 @@ Sheet::Sheet(uint32_t textureSize, TextureFormat textureFormat) :
 #endif
 }
 
-bool Sheet::AddNewLevel(uint32_t height)
+Cache::Sheet::~Sheet()
+{
+    TextureDestroy(this->m_glTexObj);
+}
+
+bool Cache::Sheet::AddNewLevel(uint32_t height)
 {
     SheetLevel* prevLevel = m_sheetLevelVec.empty() ? nullptr : m_sheetLevelVec.last().get();
     uint32_t baseline = prevLevel ? prevLevel->m_baseline + prevLevel->m_height : 0;
@@ -37,12 +39,17 @@ bool Sheet::AddNewLevel(uint32_t height)
     }
 }
 
-void Sheet::SubloadGlyph(Glyph& glyph)
+void Cache::Sheet::SubloadGlyph(Glyph& glyph)
 {
     TextureSubLoad(m_glTexObj, m_textureFormat, glyph.m_origin, glyph.m_size, glyph.m_image);
 }
 
-bool SheetLevel::InsertGlyph(Glyph& glyph)
+void Cache::Sheet::Clear()
+{
+    m_sheetLevelVec.clear();
+}
+
+bool Cache::SheetLevel::Insert(Glyph& glyph)
 {
     Glyph* prevGlyph = m_glyphVec.empty() ? nullptr : m_glyphVec.last().get();
     if (prevGlyph && prevGlyph->m_origin.x + prevGlyph->m_size.x + glyph.m_size.x <= m_textureSize)
@@ -66,7 +73,7 @@ bool SheetLevel::InsertGlyph(Glyph& glyph)
     }
 }
 
-void Sheet::InsertGlyph(Glyph& glyph)
+bool Cache::Sheet::Insert(Glyph& glyph)
 {
     for (auto sheetLevel : m_sheetLevelVec)
     {
@@ -93,188 +100,121 @@ void Sheet::InsertGlyph(Glyph& glyph)
     }
 }
 
-/// TODO
-
-Cache::Cache(uint32_t textureSize, uint32_t numSheets, TextureFormat textureFormat)
+Cache::Cache(uint32_t textureSize, uint32_t numSheets, TextureFormat textureFormat) :
+    m_textureSize(textureSize),
+    m_full(false)
 {
-
+    m_sheetVec.reserve(numSheets);
+    for (uint32_t i = 0; i < numSheets; i++)
+        m_sheetVec.push_back(new Sheet(textureSize, textureFormat));
 }
 
-GB_ERROR GB_CacheMake(uint32_t texture_size, uint32_t num_sheets, enum GB_TextureFormat texture_format,
-                      struct GB_Cache **cache_out)
+Cache::~Cache()
 {
-    struct GB_Cache *cache = (struct GB_Cache*)malloc(sizeof(struct GB_Cache));
-    memset(cache, 0, sizeof(struct GB_Cache));
-
-    cache->num_sheets = num_sheets;
-    cache->texture_size = texture_size;
-    cache->glyph_hash = NULL;
-
-    uint32_t i;
-    for (i = 0; i < num_sheets; i++)
-        _GB_SheetInit(cache, texture_format, &cache->sheet[i]);
-
-    *cache_out = cache;
-    return GB_ERROR_NONE;
+    ;
 }
 
-GB_ERROR GB_CacheDestroy(struct GB_Cache *cache)
+bool Cache::InsertIntoSheets(Glyph& glyph)
 {
-    if (cache) {
-        // release all glyphs
-        struct GB_Glyph *glyph, *tmp;
-        HASH_ITER(cache_hh, cache->glyph_hash, glyph, tmp) {
-            HASH_DELETE(cache_hh, cache->glyph_hash, glyph);
-            GB_GlyphRelease(glyph);
-        }
-
-        // destroy all textures
-        int i;
-        for (i = 0; i < cache->num_sheets; i++)
-            GB_TextureDestroy(cache->sheet[i].gl_tex_obj);
-
-        free(cache);
+    for (auto sheet : m_sheetVec)
+    {
+        if (sheet->Insert(glyph))
+            return true;
     }
-    return GB_ERROR_NONE;
+    return false;
 }
 
-static int _GB_CacheInsertGlyph(struct GB_Cache *cache, struct GB_Glyph *glyph)
+void Cache::Compact()
 {
-    int i;
-    for (i = 0; i < cache->num_sheets; i++) {
-        struct GB_Sheet *sheet = cache->sheet + i;
-        if (_GB_SheetInsertGlyph(cache, sheet, glyph)) {
-            return 1;
-        }
-    }
-    return 0;
-}
+    Context* context = Context::Get();
 
-static int _GB_CacheAddSheet(struct GB_Cache *cache)
-{
-    // TODO:
-    return 0;
-}
-
-// sort glyph ptrs in decreasing height
-static int glyph_cmp(const void *a, const void *b)
-{
-    return (*(struct GB_Glyph**)b)->size[1] - (*(struct GB_Glyph**)a)->size[1];
-}
-
-GB_ERROR GB_CacheCompact(struct GB_Context *gb, struct GB_Cache *cache)
-{
-    uint32_t num_glyph_ptrs;
-    struct GB_Glyph **glyph_ptrs = GB_ContextHashValues(gb, &num_glyph_ptrs);
-
-    // The goal of all this retaining & releasing is to make sure we dispose of all
-    // glyphs that are in the cache but aren't in the context.
-    // i.e. clear out all the unused glyphs.
-
-    // retain all glyphs in the context
-    int i;
-    for (i = 0; i < num_glyph_ptrs; i++) {
-        GB_GlyphRetain(glyph_ptrs[i]);
+    // build a vector of all glyphs in the context.
+    std::vector<std::shared_ptr<Glyph>> glyphVec;
+    glyphVec.reserve(context->m_glyphMap.size());
+    for (auto kv : m_glyphMap)
+    {
+        glyphVec.push_back(kv->second);
     }
 
-    // release all glyphs in the cache
-    struct GB_Glyph *glyph;
-    for (glyph = cache->glyph_hash; glyph != NULL; glyph = glyph->cache_hh.next) {
-        GB_GlyphRelease(glyph);
+    // clear all sheets
+    for (auto sheet : m_sheetVec)
+    {
+        sheet->Clear();
     }
-    HASH_CLEAR(cache_hh, cache->glyph_hash);
 
-    // Clear all sheets
-    for (i = 0; i < cache->num_sheets; i++) {
-        struct GB_Sheet *sheet = &cache->sheet[i];
-        sheet->num_levels = 0;
-    }
+    // clear all glyph instances in the map.
+    m_glyphVec.clear();
 
     // sort glyphs in decreasing height
-    qsort(glyph_ptrs, num_glyph_ptrs, sizeof(struct GB_Glyph*), glyph_cmp);
+    std::sort(glyphVec.begin(), glyphVec.end(), [](Glyph* a, Glyph* b)
+    {
+        return b->GetSize().y - a->GetSize().y;
+    });
 
-    // decreasing height find-first heuristic.
-    for (i = 0; i < num_glyph_ptrs; i++) {
-        struct GB_Glyph *glyph = glyph_ptrs[i];
-        if (!_GB_CacheInsertGlyph(cache, glyph)) {
-            return GB_ERROR_NOMEM;
-        }
-        GB_CacheHashAdd(cache, glyph);
+    // re-insert glyphs into the sheets in sorted order.
+    // which should improve packing efficiency.
+    for (auto glyph : glyphVec)
+    {
+        InsertGlyph(glyph);
     }
-
-    // release all glyphs in the context, restoring their proper retain counts.
-    for (i = 0; i < num_glyph_ptrs; i++) {
-        GB_GlyphRelease(glyph_ptrs[i]);
-    }
-
-    free(glyph_ptrs);
-
-    return GB_ERROR_NONE;
 }
 
-GB_ERROR GB_CacheInsert(struct GB_Context *gb, struct GB_Cache *cache,
-                        struct GB_Glyph **glyph_ptrs, int num_glyph_ptrs)
+void Cache::Insert(std::vector<std::shared_ptr<Glyph>> glyphVec);
 {
-    int i;
-    int cache_full = 0;
+    Context* context = Context::Get();
 
     // sort glyphs in decreasing height
-    qsort(glyph_ptrs, num_glyph_ptrs, sizeof(struct GB_Glyph*), glyph_cmp);
+    std::sort(glyphVec.begin(), glyphVec.end(), [](Glyph* a, Glyph* b)
+    {
+        return b->GetSize().y - a->GetSize().y;
+    });
+
+    bool full = false;
 
     // decreasing height find-first heuristic.
-    for (i = 0; i < num_glyph_ptrs; i++) {
-        struct GB_Glyph *glyph = glyph_ptrs[i];
-        // make sure duplicates don't end up in the hash
-        if (!GB_CacheHashFind(cache, glyph->index, glyph->font_index)) {
-            if (!_GB_CacheInsertGlyph(cache, glyph)) {
-
-                if (!cache_full) {
+    for (auto glyph : glyphVec)
+    {
+        // make sure duplicates don't end up in the texture
+        if (m_glyphVec.find(glyph->GetKey()) == m_glyphVec.end())
+        {
+            if (!InsertIntoSheets(glyph))
+            {
+                if (!full)
+                {
                     // compact and try again.
-                    GB_ERROR error = GB_CacheCompact(gb, cache);
-                    if (error == GB_ERROR_NONE) {
-                        if (!_GB_CacheInsertGlyph(cache, glyph)) {
-                            // Add another sheet and try again.
-                            if (_GB_CacheAddSheet(cache)) {
-                                if (!_GB_CacheInsertGlyph(cache, glyph)) {
-                                    // glyph must be too big to fit in a single sheet.
-                                    assert(0);
-                                    return GB_ERROR_NOMEM;
-                                }
-                            } else {
-                                // failed to add sheet, no room
-                                cache_full = 1;
-                            }
-                        }
-                    } else {
-                        return error;
+                    Compact();
+                    if (!InsertIntoSheets(glyph))
+                    {
+                        // TODO: could try adding another texture sheet in the future.
+                        full = true;
                     }
                 }
             }
-            // add new glyph to both hashes
-            GB_CacheHashAdd(cache, glyph);
-            GB_ContextHashAdd(gb, glyph);
-            GB_GlyphRelease(glyph);
+
+            // add to both context and cache maps.
+            InsertIntoMap(glyph);
+            context->InsertIntoMap(glyph);
         }
     }
-
-    return GB_ERROR_NONE;
 }
 
-void GB_CacheHashAdd(struct GB_Cache *cache, struct GB_Glyph *glyph)
+void InsertIntoMap(std::shared_ptr<Glyph> glyph)
 {
 #ifndef NDEBUG
-    if (GB_CacheHashFind(cache, glyph->index, glyph->font_index)) {
+    if (FindInMap(glyph)) {
         printf("GB_CacheHashAdd() WARNING glyph index = %d, font_index = %d is already in cache!\n", glyph->index, glyph->font_index);
     }
 #endif
-    HASH_ADD(cache_hh, cache->glyph_hash, key, sizeof(uint64_t), glyph);
-    GB_GlyphRetain(glyph);
+    m_glyphMap[glyph->GetKey()] = glyph;
 }
 
-struct GB_Glyph *GB_CacheHashFind(struct GB_Cache *cache, uint32_t glyph_index, uint32_t font_index)
+std::shared_ptr<Glyph> Cache::FindInMap(GlyphKey key) const
 {
-    struct GB_Glyph *glyph = NULL;
-    uint64_t key = ((uint64_t)font_index << 32) | glyph_index;
-    HASH_FIND(cache_hh, cache->glyph_hash, &key, sizeof(uint64_t), glyph);
-    return glyph;
+    auto iter = m_glyphMap.find(key);
+    if (iter != m_glyphMap.end())
+        return iter->second;
+    else
+        return std::shared_ptr<Glyph>();
 }
+
+} // namespace gb

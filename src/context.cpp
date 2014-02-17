@@ -7,6 +7,8 @@
 
 namespace gb {
 
+static Context* s_context;
+
 static std::shared_ptr<Texture> CreateFallbackTexture()
 {
     uint32_t texObj;
@@ -37,6 +39,35 @@ static int PowerOfTwoRoundUp(int x)
     x |= x >> 8;
     x |= x >> 16;
     return x + 1;
+}
+
+void Context::Init(uint32_t textureSize, uint32_t numSheets, TextureFormat textureFormat)
+{
+    assert(!s_context);
+    if (!s_context)
+    {
+        s_context = new Context(textureSize, numSheets, textureFormat);
+    }
+}
+
+void Context::Shutdown()
+{
+    assert(s_context);
+    if (s_context)
+    {
+        delete s_context;
+        s_context = nullptr;
+    }
+}
+
+Context* Context::Get()
+{
+    return s_context;
+}
+
+const Context* Context::Get() const
+{
+    return s_context;
 }
 
 Context::Context(uint32_t textureSize, uint32_t numSheets, TextureFormat textureFormat) :
@@ -83,17 +114,17 @@ void Context::Compact()
     m_cache->Compact();
 }
 
-void Context::GlyphAdd(std::shared_ptr<Glyph> glyph)
+void Context::InsertIntoMap(std::shared_ptr<Glyph> glyph)
 {
     m_glyphMap[glyph->GetKey()] = glyph;
 }
 
-void Context::GlyphRemove(GlyphKey key)
+void Context::RemoveFromMap(GlyphKey key)
 {
     m_glyphMap.erase(key);
 }
 
-std::shared_ptr<Glyph> Context::HashFind(GlyphKey key)
+std::shared_ptr<Glyph> Context::FindInMap(GlyphKey key)
 {
     auto iter = m_glyphMap.find(key);
     if (iter != m_glyphMap.end())

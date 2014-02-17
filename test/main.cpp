@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <string>
-#include "SDL/SDL.h"
+#include "SDL2/SDL.h"
 
 #ifdef __APPLE__
 #include "TargetConditionals.h"
@@ -24,9 +24,12 @@
 
 #endif
 
-#include "../src/gb_context.h"
-#include "../src/gb_font.h"
-#include "../src/gb_text.h"
+
+#include "../src/context.h"
+#if 0
+#include "../src/font.h"
+#include "../src/text.h"
+#endif
 
 #include "abaci.h"
 
@@ -101,6 +104,7 @@ void DrawTexturedQuad(uint32_t gl_tex, Vector2f const& origin, Vector2f const& s
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, indices);
 }
 
+#if 0
 // for debug draw only
 #include "../src/gb_cache.h"
 
@@ -164,54 +168,24 @@ void TextRenderFunc(GB_GlyphQuad* quads, uint32_t num_quads)
 
     count++;
 }
+#endif
 
 int main(int argc, char* argv[])
 {
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) < 0)
-        fprintf(stderr, "Couldn't init SDL!\n");
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK);
+    SDL_Window* displayWindow;
+    SDL_Renderer* displayRenderer;
+    SDL_CreateWindowAndRenderer(800, 600, SDL_WINDOW_OPENGL, &displayWindow, &displayRenderer);
 
     atexit(SDL_Quit);
 
-	// Get the current desktop width & height
-	const SDL_VideoInfo* videoInfo = SDL_GetVideoInfo();
-
-	// TODO: get this from config file.
-    s_config = new Config(false, false, 768/2, 1024/2);
-    Config& config = *s_config;
-    config.title = "glyphblaster test";
-
-    // msaa
-    if (config.msaa)
-    {
-        SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
-        SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, config.msaaSamples);
-    }
-
-	SDL_Surface* screen;
-	if (config.fullscreen)
-	{
-		int width = videoInfo->current_w;
-		int height = videoInfo->current_h;
-		int bpp = videoInfo->vfmt->BitsPerPixel;
-		screen = SDL_SetVideoMode(width, height, bpp,
-                                  SDL_HWSURFACE | SDL_OPENGL | SDL_FULLSCREEN);
-	}
-	else
-	{
-        screen = SDL_SetVideoMode(config.width, config.height, 32, SDL_HWSURFACE | SDL_OPENGL);
-	}
-
-    SDL_WM_SetCaption(config.title.c_str(), config.title.c_str());
-
-    if (!screen)
-        fprintf(stderr, "Couldn't create SDL screen!\n");
-
     // clear to white
-    Vector4f clearColor(0, 0, 0, 1);
+    Vector4f clearColor(0, 0, 1, 1);
     glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    SDL_GL_SwapBuffers();
+    SDL_GL_SwapWindow(displayWindow);
 
+#if 0
     // create the context
     GB_ERROR err;
     GB_Context* gb;
@@ -289,6 +263,7 @@ int main(int argc, char* argv[])
     */
 
     GB_ContextSetTextRenderFunc(gb, TextRenderFunc);
+#endif
 
     int done = 0;
     while (!done)
@@ -338,15 +313,18 @@ int main(int argc, char* argv[])
 
             //DebugDrawGlyphCache(gb, config);
 
+#if 0
             err = GB_TextDraw(gb, helloText);
             if (err != GB_ERROR_NONE) {
                 fprintf(stderr, "GB_DrawText Error %s\n", GB_ErrorToString(err));
                 exit(1);
             }
-            SDL_GL_SwapBuffers();
+#endif
+            SDL_GL_SwapWindow(displayWindow);
         }
     }
 
+#if 0
     err = GB_TextRelease(gb, helloText);
     if (err != GB_ERROR_NONE) {
         fprintf(stderr, "GB_ReleaseText Error %s\n", GB_ErrorToString(err));
@@ -369,6 +347,7 @@ int main(int argc, char* argv[])
         fprintf(stderr, "GB_Shutdown Error %s\n", GB_ErrorToString(err));
         exit(1);
     }
+#endif
 
     return 0;
 }

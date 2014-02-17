@@ -19,6 +19,25 @@ Should Context be a singleton? YES. simplifies things, i can sort this out later
 
 ![Image](docs/glyphblaster.png)
 
+There are collections of glyphs held onto by the Context and the Cache.
+* The Context contains all glyphs activly in use by Text objects.
+* The Cache contains all glyphs still in the cache, and are mapped into the Texture atlas.
+
+The Context collection is a subset of the Cache collection.
+After a Cache::Compact call they will be equal, i.e. all unused glyphs will be dumped.
+
+## C++11 Port WIP
+
+### glyphblaster header
+### Cache - cache.cpp, cache.h
+### Context - context.cpp, context.h
+### Error - error.cpp, error.h
+### Font - font.cpp, font.h
+### Glyph - glyph.cpp, glyph.h
+
+### Text - text.cpp, text.h
+### Texture - texture.cpp, texture.h
+
 ## Features
 
 * Pluggable render function, to integrate into existing engines.

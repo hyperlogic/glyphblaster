@@ -2,7 +2,7 @@
 #define GLYPH_CACHE_H
 
 #include <stdint.h>
-#include "gb_error.h"
+#include "glyphblaster.h"
 
 namespace gb {
 
@@ -11,14 +11,18 @@ class Cache
 public:
     Cache(uint32_t textureSize, uint32_t numSheets, TextureFormat textureFormat);
     ~Cache();
-    Error::Code Insert(Context& context, std::vector<Glyph*> glyphs);
-    Error::Code Compact(Context& context);
+    void Insert(std::vector<std::shared_ptr<Glyph>> glyphVec);
+    void Compact();
 protected:
-    void Add(Glyph* glyph);
-    Glyph* Find(uint32_t glyphIndex, uint32_t fontIndex) const;
+    bool InsertIntoSheets(std::shared_ptr<Glyph> glyph);
+    void InsertIntoMap(std::shared_ptr<Glyph> glyph);
+    std::shared_ptr<Glyph> FindInMap(GlyphKey key) const;
 
     class SheetLevel
     {
+    public:
+        bool Insert(Glyph& glyph);
+    protected:
         std::vector<std::shared_ptr<Glyph>> m_glyphVec;
         uint32_t m_textureSize;
         uint32_t m_baseline;
@@ -28,11 +32,13 @@ protected:
     class Sheet
     {
     public:
-        Sheet::Sheet(uint32_t textureSize, TextureFormat textureFormat);
-
+        Sheet(uint32_t textureSize, TextureFormat textureFormat);
+        ~Sheet();
+        bool Insert(Glyph& glyph);
+        void Clear();
     protected:
-        bool Sheet::AddNewLevel(uint32_t height);
-        void Sheet::SubloadGlyph(Glyph& glyph);
+        bool AddNewLevel(uint32_t height);
+        void SubloadGlyph(Glyph& glyph);
 
         uint32_t m_glTexObj;
         uint32_t m_textureSize;
@@ -41,8 +47,12 @@ protected:
     };
 
     std::vector<std::unique_ptr<Sheet>> m_sheetVec;
-    uint32_t textureSize;
-    std::map<std::uint64_t, GB_Glyph> m_glyphMap;
+
+    // all glyphs that are currently in the cache.
+    // NOTE: this may contain glyphs that are not activly in use by any Text instances.
+    std::map<GlyphKey, std::shared_ptr<Glyph>> m_glyphMap;
+
+    uint32_t m_textureSize;
 };
 
 }

@@ -21,6 +21,7 @@ public:
     ~Glyph();
 
     GlyphKey GetKey() const;
+    Point GetSize() const;
 
 protected:
     void InitImageAndSize(FT_Bitmap* ftBitmap, TextureFormat textureFormat, FontRenderOption renderOption);
