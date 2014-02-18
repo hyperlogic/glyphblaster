@@ -2,40 +2,27 @@
 #define GB_FONT_H
 
 #include <stdint.h>
+#include <string>
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #include <harfbuzz/hb.h>
-#include "gb_error.h"
+#include "glyphblaster.h"
 
 namespace gb {
 
 class Context;
 
-enum FontRenderOption {
-    FontRenderOption_Normal = 0,  // normal anti-aliased font rendering
-    FontRenderOption_Light,  // lighter anti-aliased outline hinting, this will force auto hinting.
-    FontRenderOption_Mono,  // no anti-aliasing
-    FontRenderOption_LCD_RGB,  // subpixel anti-aliasing, designed for LCD RGB displays
-    FontRenderOption_LCD_BGR,  // subpixel anti-aliasing, designed for LCD BGR displays
-    FontRenderOption_LCD_RGB_V,  // vertical subpixel anti-aliasing, designed for LCD RGB displays
-    FontRenderOption_LCD_BGR_V   // vertical subpixel anti-aliasing, designed for LCD BGR displays
-};
-
-enum FontHintOption {
-    FontHintOption_Default = 0,  // default hinting algorithm is chosen.
-    FontHintOption_ForceAuto,  // always use the FreeType2 auto hinting algorithm
-    FontHintOption_NoAuto,  // always use the fonts hinting algorithm
-    FontHintOption_None  // use no hinting algorithm at all.
-};
-
 class Font
 {
+    friend class Context;
+    friend class Glyph;
+    friend class Text;
 public:
     // filename - ttf or otf font
     // pointSize - pixels per em
     // renderOption - controls how anti-aliasing is preformed during glyph rendering.
     // hintOption - controls which hinting algorithm is chosen during glyph rendering.
-    Font(Context& context, const std::string filename, uint32_t pointSize,
+    Font(const std::string filename, uint32_t pointSize,
          FontRenderOption renderOption, FontHintOption hintOption);
     ~Font();
 
@@ -45,9 +32,9 @@ public:
     int GetLineHeight() const;
 
 protected:
+    uint32_t GetIndex() const { return m_index; }
     FT_Face GetFTFace() const { return m_ftFace; }
     hb_font_t* GetHarfbuzzFont() const { return m_hbFont; }
-    uint32_t GetIndex() const { return m_index; }
 
     uint32_t m_index;
     FT_Face m_ftFace;

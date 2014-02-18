@@ -1,15 +1,17 @@
 #include <assert.h>
-#include <unicode/ubidi.h>
-#include <unicode/ustring.h>
-#include "uthash.h"
-#include "gb_context.h"
-#include "gb_font.h"
-#include "gb_glyph.h"
-#include "gb_cache.h"
-#include "gb_text.h"
+//#include <unicode/ubidi.h>
+//#include <unicode/ustring.h>
+#include <deque>
+#include "text.h"
+#include "context.h"
+#include "cache.h"
+#include "font.h"
+#include "glyph.h"
 
 // 26.6 fixed to int (truncates)
 #define FIXED_TO_INT(n) (uint32_t)(n >> 6)
+
+namespace gb {
 
 // cp is a utf32 codepoint
 static bool IsSpace(uint32_t codePoint)
@@ -60,7 +62,7 @@ static bool IsNewline(uint32_t codePoint)
 
 // returns the number of bytes to advance
 // fills cp_out with the code point at p.
-static int NextCodePoint(const uint8_t *p, uint32_t *codePointOut)
+static int NextCodePoint(const char *p, uint32_t *codePointOut)
 {
     if ((*p & 0x80) == 0)
     {
@@ -127,7 +129,7 @@ struct GlyphInfo
 {
     enum GlyphType type;
     hb_glyph_info_t *hbGlyph;
-    struct GB_Glyph *gbGlyph;
+    Glyph *gbGlyph;
     int32_t x;
 };
 
@@ -158,9 +160,11 @@ typedef int32_t (*advance_func_t)(int32_t pen_x, uint32_t advance, int32_t kern)
 // TODO: more c++ like impl, use traits or interfaces instead of function pointers.
 void Text::WordWrapAndGenerateQuads()
 {
+    Context& context = Context::Get();
+
     uint32_t num_glyphs = hb_buffer_get_length(m_hbBuffer);
     hb_glyph_info_t *glyphs = hb_buffer_get_glyph_infos(m_hbBuffer, NULL);
-    hb_direction_t dir = hb_buffer_get_direction(text->hb_buffer);
+    hb_direction_t dir = hb_buffer_get_direction(m_hbBuffer);
 
     // create a queue to hold word-wrapped glyphs
     std::deque<GlyphInfo> q;
@@ -198,14 +202,14 @@ void Text::WordWrapAndGenerateQuads()
     for (i = begin(num_glyphs); i != end(num_glyphs); i = next(i))
     {
         // NOTE: cluster is an offset to the first byte in the utf8 encoded string which represents this glyph.
-        NextCodePoint(text->utf8_string + glyphs[i].cluster, &cp);
+        NextCodePoint(m_string.c_str() + glyphs[i].cluster, &cp);
 
         // lookup kerning
         int32_t kern = 0;
         if (next(i) != end(num_glyphs))
         {
             FT_Vector delta;
-            FT_Get_Kerning(text->font->ft_face, glyphs[i].codepoint, glyphs[next(i)].codepoint,
+            FT_Get_Kerning(m_font->GetFTFace(), glyphs[i].codepoint, glyphs[next(i)].codepoint,
                            FT_KERNING_DEFAULT, &delta);
             kern = FIXED_TO_INT(delta.x);
         }
@@ -218,18 +222,19 @@ void Text::WordWrapAndGenerateQuads()
         }
         else
         {
-            auto glyph = context->FindInMap(GlyphKey(glyphs[i].codepoint, m_font->GetIndex()));
-            assert(glyph);
+            auto weakGlyphPtr = context.FindInMap(GlyphKey(glyphs[i].codepoint, m_font->GetIndex()));
+            assert(!weakGlyphPtr.expired());
+            std::shared_ptr<Glyph> glyph(weakGlyphPtr.lock());
 
             if (inside_word)
             {
                 // does glyph fit on this line?
-                if (fit(pen_x, glyph->advance, kern, text->size[0]))
+                if (fit(pen_x, glyph->GetAdvance(), kern, m_size.x))
                 {
-                    pen_x = pre_advance(pen_x, glyph->advance, kern);
+                    pen_x = pre_advance(pen_x, glyph->GetAdvance(), kern);
                     if (IsSpace(cp))
                     {
-                        q.push_back(GlyphInfo{SPACE_GLYPH, glyphs + i, glyph, pen_x});
+                        q.push_back(GlyphInfo{SPACE_GLYPH, glyphs + i, glyph.get(), pen_x});
                         // exiting word
                         word_end_i = i;
                         word_end_x = pen_x;
@@ -237,9 +242,9 @@ void Text::WordWrapAndGenerateQuads()
                     }
                     else
                     {
-                        q.push_back(GlyphInfo{NORMAL_GLYPH, glyphs + i, glyph, pen_x});
+                        q.push_back(GlyphInfo{NORMAL_GLYPH, glyphs + i, glyph.get(), pen_x});
                     }
-                    pen_x = post_advance(pen_x, glyph->advance, kern);
+                    pen_x = post_advance(pen_x, glyph->GetAdvance(), kern);
                 }
                 else
                 {
@@ -249,7 +254,7 @@ void Text::WordWrapAndGenerateQuads()
                         while (IsSpace(cp))
                         {
                             i = next(i);
-                            NextCodePoint(text->utf8_string + glyphs[i].cluster, &cp);
+                            NextCodePoint(m_string.c_str() + glyphs[i].cluster, &cp);
                         }
                         prev(i);
                     }
@@ -283,22 +288,22 @@ void Text::WordWrapAndGenerateQuads()
             else  // !inside_word
             {
                 // does glyph fit on this line?
-                if (fit(pen_x, glyph->advance, kern, text->size[0]))
+                if (fit(pen_x, glyph->GetAdvance(), kern, m_size.x))
                 {
-                    pen_x = pre_advance(pen_x, glyph->advance, kern);
+                    pen_x = pre_advance(pen_x, glyph->GetAdvance(), kern);
                     if (IsSpace(cp))
                     {
-                        q.push_back(GlyphInfo{SPACE_GLYPH, glyphs + i, glyph, pen_x});
+                        q.push_back(GlyphInfo{SPACE_GLYPH, glyphs + i, glyph.get(), pen_x});
                     }
                     else
                     {
-                        q.push_back(GlyphInfo{NORMAL_GLYPH, glyphs + i, glyph, pen_x});
+                        q.push_back(GlyphInfo{NORMAL_GLYPH, glyphs + i, glyph.get(), pen_x});
                         // entering word
                         word_start_i = i;
                         word_start_x = pen_x;
                         inside_word = 1;
                     }
-                    pen_x = post_advance(pen_x, glyph->advance, kern);
+                    pen_x = post_advance(pen_x, glyph->GetAdvance(), kern);
                 }
                 else
                 {
@@ -306,7 +311,7 @@ void Text::WordWrapAndGenerateQuads()
                     while (IsSpace(cp))
                     {
                         i = next(i);
-                        NextCodePoint(text->utf8_string + glyphs[i].cluster, &cp);
+                        NextCodePoint(m_string.c_str() + glyphs[i].cluster, &cp);
                     }
                     // backup one char, so the next iteration thru the loop will be a non-space character
                     i = prev(i);
@@ -325,9 +330,10 @@ void Text::WordWrapAndGenerateQuads()
     m_quadVec.clear();
     m_quadVec.reserve(q.size());
 
-    const float texture_size = (float)gb->cache->texture_size;
-    int32_t line_height = FIXED_TO_INT(text->font->ft_face->size->metrics.height);
-    int32_t y = text->origin[1] + line_height;
+    const Cache& cache = context.GetCache();
+    const float texture_size = (float)cache.GetTextureSize();
+    int32_t line_height = FIXED_TO_INT(m_font->GetFTFace()->size->metrics.height);
+    int32_t y = m_origin.y + line_height;
 
     // horizontal justification
     uint32_t j;
@@ -345,10 +351,10 @@ void Text::WordWrapAndGenerateQuads()
                 offset = -left_edge;
                 break;
             case TextHorizontalAlign_Right:
-                offset = text->size[0] - right_edge;
+                offset = m_size.x - right_edge;
                 break;
             case TextHorizontalAlign_Center:
-                offset = (text->size[0] - left_edge - right_edge) / 2;
+                offset = (m_size.x - left_edge - right_edge) / 2;
                 break;
             }
             // apply offset to each glyphinfo.x
@@ -371,28 +377,25 @@ void Text::WordWrapAndGenerateQuads()
         {
             // NOTE: y axis points down, quad origin is upper-left corner of glyph
             // build quad
-            struct GB_Glyph *gbGlyph = info.gbGlyph;
-            struct GB_GlyphQuad *quad = text->glyph_quads + text->num_glyph_quads;
-
-            IntPoint glyphBearing = info.gbGlyph.GetBearing();
-            IntPoint glyphOrigin = info.gbGlyph.GetOrigin();
-            IntPoint glyphSize = info.gbGlyph.GetSize();
+            IntPoint glyphBearing = info.gbGlyph->GetBearing();
+            IntPoint glyphOrigin = info.gbGlyph->GetOrigin();
+            IntPoint glyphSize = info.gbGlyph->GetSize();
 
             IntPoint pen = {m_origin.x + info.x, y};
             IntPoint origin = {m_origin.x + info.x + glyphBearing.x, y - glyphBearing.y};
-            IntPoint size = info.GetSize();
+            IntPoint size = glyphSize;
             FloatPoint uvOrigin = {glyphOrigin.x / texture_size, glyphOrigin.y / texture_size};
             FloatPoint uvSize = {glyphSize.x / texture_size, glyphSize.y / texture_size};
-            uint32_t glTexObj = info.gbGlyph->gl_tex_obj ? info.gbGlyph->gl_tex_obj : context->GetFallbackTexture().GetGLTexObj();
+            uint32_t glTexObj = info.gbGlyph->GetTexObj() ? info.gbGlyph->GetTexObj() : context.GetFallbackTexture().GetTexObj();
 
             m_quadVec.push_back(Quad{pen, origin, size, uvOrigin, uvSize, m_userData, glTexObj});
         }
     }
 }
 
-static void ft_shape(hb_font_t *hb_font, hb_buffer_t *hb_buffer, FT_Face ft_face, uint8_t* utf8_string)
+static void ft_shape(hb_buffer_t *hb_buffer, FT_Face ft_face, const char* utf8_string)
 {
-    assert(hb_font && hb_buffer && ft_face);
+    assert(hb_buffer && ft_face);
     int num_glyphs = hb_buffer_get_length(hb_buffer);
     hb_glyph_info_t *glyphs = hb_buffer_get_glyph_infos(hb_buffer, NULL);
 
@@ -409,26 +412,28 @@ Text::Text(const std::string& string, std::shared_ptr<Font> font,
            void* userData, IntPoint origin, IntPoint size,
            TextHorizontalAlign horizontalAlign, TextVerticalAlign verticalAlign,
            uint32_t optionFlags) :
+    m_font(font),
     m_string(string),
     m_hbBuffer(hb_buffer_create()),
-    m_font(font),
+    m_userData(userData),
     m_origin(origin),
     m_size(size),
     m_horizontalAlign(horizontalAlign),
     m_verticalAlign(verticalAlign),
     m_optionFlags(optionFlags)
 {
+    hb_buffer_set_direction(m_hbBuffer, HB_DIRECTION_LTR);
     hb_buffer_add_utf8(m_hbBuffer, m_string.c_str(), m_string.size(), 0, m_string.size());
 
     if (!(m_optionFlags & TextOptionFlags_DisableShaping))
     {
         // Use harf-buzz to perform glyph shaping
-        hb_shape(m_font->GetHarfbuzzFont(), text->hb_buffer, NULL, 0);
+        hb_shape(m_font->GetHarfbuzzFont(), m_hbBuffer, NULL, 0);
 
         /*
         // debug print detected direction & script
-        hb_direction_t dir = hb_buffer_get_direction(text->hb_buffer);
-        hb_script_t script = hb_buffer_get_script(text->hb_buffer);
+        hb_direction_t dir = hb_buffer_get_direction(m_hbBuffer);
+        hb_script_t script = hb_buffer_get_script(m_hbBuffer);
         hb_tag_t tag = hb_script_to_iso15924_tag(script);
         printf("AJT: direction = %s\n", hb_direction_to_string(dir));
         char tag_str[5];
@@ -443,7 +448,7 @@ Text::Text(const std::string& string, std::shared_ptr<Font> font,
     } else {
         // TODO: need a compile time option to remove dependency on harf-buzz
         // just use FT_Get_Char_Index to look up glyph index
-        ft_shape(text->font->hb_font, text->hb_buffer, text->font->ft_face, text->utf8_string);
+        ft_shape(m_hbBuffer, m_font->GetFTFace(), m_string.c_str());
     }
 
     UpdateCache();
@@ -453,14 +458,16 @@ Text::Text(const std::string& string, std::shared_ptr<Font> font,
 Text::~Text()
 {
     if (m_userData)
-        free(text->userData);
+        free(m_userData);
 
     hb_buffer_destroy(m_hbBuffer);
 }
 
 // Renders given text using renderer func.
-Text::Draw()
+void Text::Draw()
 {
     Context& context = Context::Get();
     context.m_renderFunc(m_quadVec);
 }
+
+} // namspace gb

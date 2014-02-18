@@ -6,17 +6,16 @@
 
 namespace gb {
 
-enum TextureFormat { TextureFormat_Alpha = 0, TextureFormat_RGBA };
-
 class Texture
 {
 public:
-    Texture(TextureFormat format, uint32_t texture_size, uint8_t* image)
+    Texture(TextureFormat format, uint32_t texture_size, uint8_t* image);
     ~Texture();
-    uint32_t GetGLTexObj() const { return m_texObj; }
-    Subload(IntPoint origin, IntPoint size, uint8_t* image);
+    uint32_t GetTexObj() const { return m_texObj; }
+    void Subload(IntPoint origin, IntPoint size, uint8_t* image);
 protected:
     uint32_t m_texObj;
+    TextureFormat m_format;
 };
 
 } // namespace gb

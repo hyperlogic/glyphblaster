@@ -9,19 +9,22 @@
 #include FT_FREETYPE_H
 
 #include "glyphblaster.h"
+#include "texture.h"
+#include "glyph.h"
 
 namespace gb {
 
 class Cache;
-class Glyph;
-class GlyphKey;
-class Quad;
-class Texture;
+class Font;
 
+typedef std::vector<Quad> QuadVec;
 typedef std::function<void (const QuadVec&)> RenderFunc;
 
 class Context
 {
+    friend class Cache;
+    friend class Font;
+    friend class Text;
 public:
     static void Init(uint32_t textureSize, uint32_t numSheets, TextureFormat textureFormat);
     static void Shutdown();
@@ -40,13 +43,16 @@ public:
 protected:
     // Used by Font objects
     FT_Library GetFTLibrary() const { return m_ftLibrary; }
-    void Context::OnNotifyCreate(Font* font);
-    void Context::OnNotifyDestroy(Font* font);
+    void OnFontCreate(Font* font);
+    void OnFontDestroy(Font* font);
 
     // Used by Text instances.
     void RasterizeAndSubloadGlyphs(const std::vector<GlyphKey>& keyVecIn,
                                    std::vector<std::shared_ptr<Glyph>>& glyphVecOut);
 
+    void GetAllGlyphs(std::vector<std::shared_ptr<Glyph>>& glyphVecOut) const;
+
+    void InsertIntoMap(std::shared_ptr<Glyph> glyph);
     const Texture& GetFallbackTexture() { return *(m_fallbackTexture.get()); }
     const Cache& GetCache() { return *(m_cache.get()); }
 

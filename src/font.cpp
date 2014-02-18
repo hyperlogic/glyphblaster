@@ -1,11 +1,10 @@
 #include <harfbuzz/hb.h>
 #include <harfbuzz/hb-ft.h>
-#include "utlist.h"
-#include "uthash.h"
-#include "gb_context.h"
-#include "gb_glyph.h"
-#include "gb_cache.h"
-#include "gb_font.h"
+#include "font.h"
+#include "context.h"
+#include "glyph.h"
+#include "cache.h"
+#include "font.h"
 
 // 26.6 fixed to int (truncates)
 #define FIXED_TO_INT(n) (uint32_t)(n >> 6)
@@ -24,7 +23,7 @@ Font::Font(const std::string filename, uint32_t pointSize,
     FT_New_Face(context.GetFTLibrary(), filename.c_str(), 0, &m_ftFace);
     if (!m_ftFace)
     {
-        fprintf(stderr, "Error loading font \"%s\"\n", filename);
+        fprintf(stderr, "Error loading font \"%s\"\n", filename.c_str());
         abort();
     }
 
@@ -41,6 +40,8 @@ Font::Font(const std::string filename, uint32_t pointSize,
 
 Font::~Font()
 {
+    Context& context = Context::Get();
+
     // notify context
     context.OnFontDestroy(this);
 
@@ -48,15 +49,17 @@ Font::~Font()
         FT_Done_Face(m_ftFace);
 
     if (m_hbFont)
-        hb_font_destroy(font->hb_font);
+        hb_font_destroy(m_hbFont);
 }
 
-uint32_t Font::GetMaxAdvance() const
+int Font::GetMaxAdvance() const
 {
     return FIXED_TO_INT(m_ftFace->size->metrics.max_advance);
 }
 
-uint32_t Font::GetLineHeight() const
+int Font::GetLineHeight() const
 {
     return FIXED_TO_INT(m_ftFace->size->metrics.height);
 }
+
+} // namespace gb

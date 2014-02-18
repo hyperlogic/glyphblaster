@@ -1,27 +1,28 @@
 #include <assert.h>
-#include "gb_context.h"
-#include "gb_glyph.h"
-#include "gb_cache.h"
-#include "gb_text.h"
-#include "gb_texture.h"
+#include "context.h"
+#include "glyph.h"
+#include "cache.h"
+#include "text.h"
+#include "font.h"
+#include "texture.h"
 
 namespace gb {
 
 static Context* s_context;
 
-static std::shared_ptr<Texture> CreateFallbackTexture()
+static Texture* CreateFallbackTexture()
 {
-    uint32_t texObj;
-    const int imageSize = 16 * 16;
-    std::unique_ptr<uint8_t> image = uint8_t[imageSize];
+    const int textureSize = 16;
+    const int imageSize = textureSize * textureSize;
+    std::unique_ptr<uint8_t> image(new uint8_t[imageSize]);
 
     // fallback texture is gray
     memset(image.get(), 128, imageSize);
 
-    return new Texture(TextureFormat_Alpha, texture_size, image.get());
+    return new Texture(TextureFormat_Alpha, textureSize, image.get());
 }
 
-static void NullRenderFunc(const std::vector<std::unique_ptr<Quad>>& quads) {}
+static void NullRenderFunc(const QuadVec& quadVec) {}
 
 static int IsPowerOfTwo(uint32_t x)
 {
@@ -70,8 +71,8 @@ Context::Context(uint32_t textureSize, uint32_t numSheets, TextureFormat texture
     m_cache(new Cache(PowerOfTwoRoundUp(textureSize), numSheets, textureFormat)),
     m_nextFontIndex(0),
     m_fallbackTexture(CreateFallbackTexture()),
-    m_renderFunc = NullRenderFunc,
-    m_textureFormat = textureFormat
+    m_renderFunc(NullRenderFunc),
+    m_textureFormat(textureFormat)
 {
     if (FT_Init_FreeType(&m_ftLibrary))
     {
@@ -84,8 +85,6 @@ Context::Context(uint32_t textureSize, uint32_t numSheets, TextureFormat texture
     FT_Library_Version(m_ftLibrary, &major, &minor, &patch);
     printf("FT_Version %d.%d.%d\n", major, minor, patch);
 #endif
-
-    m_fallbackTexObj = CreateFallbackTexture();
 }
 
 Context::~Context()
@@ -94,7 +93,7 @@ Context::~Context()
         FT_Done_FreeType(m_ftLibrary);
 }
 
-void Context::SetTextRenderFunc(RenderFunc renderFunc)
+void Context::SetRenderFunc(RenderFunc renderFunc)
 {
     m_renderFunc = renderFunc;
 }
@@ -123,20 +122,23 @@ std::weak_ptr<Glyph> Context::FindInMap(GlyphKey key)
         return std::weak_ptr<Glyph>();
 }
 
-void Context::OnNotifyCreate(Font* font)
+void Context::OnFontCreate(Font* font)
 {
     font->m_index = m_nextFontIndex++;
     m_fontMap[font->m_index] = font;
 }
 
-void Context::OnNotifyDestroy(Font* font)
+void Context::OnFontDestroy(Font* font)
 {
     m_fontMap.erase(font->m_index);
 }
 
-void RasterizeAndSubloadGlyphs(const std::vector<GlyphKey>& keyVecIn,
-                               std::vector<std::shared_ptr<Glyph>>& glyphVecOut)
+void Context::RasterizeAndSubloadGlyphs(const std::vector<GlyphKey>& keyVecIn,
+                                        std::vector<std::shared_ptr<Glyph>>& glyphVecOut)
 {
+    bool cacheIsFull = false;
+
+    // TODO: sort glyphs in decreasing height, to improve texture atlas packing.
     for (auto key : keyVecIn)
     {
         // check to see if this glyph already exists.
@@ -145,14 +147,24 @@ void RasterizeAndSubloadGlyphs(const std::vector<GlyphKey>& keyVecIn,
         {
             // look up font by index.
             auto iter = m_fontMap.find(key.GetFontIndex());
-            Font* font = iter != m_fontMap.end() ? iter.second : nullptr;
+            Font* font = iter != m_fontMap.end() ? iter->second : nullptr;
             assert(font);
 
             // will rasterize and initialize glyph
-            std::shared_ptr<Glyph> glyph = new Glyph(key.GetGlyphIndex(), font);
+            std::shared_ptr<Glyph> glyph(new Glyph(key.GetGlyphIndex(), *font));
 
             // will subload glyph into texture atlas
-            m_cache->InsertIntoSheets(glyph);
+            if (!cacheIsFull && !m_cache->InsertIntoSheets(glyph))
+            {
+                // compact and try again.
+                m_cache->Compact();
+
+                if (!m_cache->InsertIntoSheets(glyph))
+                {
+                    cacheIsFull = true;
+                    fprintf(stderr, "Warning: glyphblaster texture cache is full");
+                }
+            }
 
             InsertIntoMap(glyph);
             glyphVecOut.push_back(glyph);
@@ -163,3 +175,16 @@ void RasterizeAndSubloadGlyphs(const std::vector<GlyphKey>& keyVecIn,
         }
     }
 }
+
+void Context::GetAllGlyphs(std::vector<std::shared_ptr<Glyph>>& glyphVecOut) const
+{
+    for (auto kv : m_glyphMap)
+    {
+        if (!kv.second.expired())
+        {
+            glyphVecOut.push_back(kv.second.lock());
+        }
+    }
+}
+
+} // namespace gb

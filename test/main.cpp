@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string>
+#include <memory>
 #include "SDL2/SDL.h"
 
 #ifdef __APPLE__
@@ -26,10 +27,8 @@
 
 
 #include "../src/context.h"
-#if 0
 #include "../src/font.h"
 #include "../src/text.h"
-#endif
 
 #include "abaci.h"
 
@@ -133,7 +132,9 @@ void DebugDrawGlyphCache(GB_Context* gb, const Config& config)
     }
 }
 
-void TextRenderFunc(GB_GlyphQuad* quads, uint32_t num_quads)
+#endif
+
+void TextRenderFunc(const std::vector<gb::Quad>& quadVec)
 {
     // note this flips y-axis so y is down.
     Matrixf proj = Matrixf::Ortho(0, s_config->width, s_config->height, 0, -10, 10);
@@ -146,36 +147,37 @@ void TextRenderFunc(GB_GlyphQuad* quads, uint32_t num_quads)
     glEnable(GL_TEXTURE_2D);
 
     static int count = 1;  // set to 0 to enable dumping
-    for (uint32_t i = 0; i < num_quads; ++i) {
+    int i = 0;
+    for (auto &quad : quadVec) {
 
         if (count == 0) {
-            printf("quad[%d]\n", i);
-            printf("    origin = [%d, %d]\n", quads[i].origin[0], quads[i].origin[1]);
-            printf("    size = [%d, %d]\n", quads[i].size[0], quads[i].size[1]);
-            printf("    uv_origin = [%.3f, %.3f]\n", quads[i].uv_origin[0], quads[i].uv_origin[1]);
-            printf("    uv_size = [%.3f, %.3f]\n", quads[i].uv_size[0], quads[i].uv_size[1]);
-            printf("    gl_tex_obj = %u\n", quads[i].gl_tex_obj);
-            printf("    user_data = %p\n", quads[i].user_data);
+            printf("quad[%d]\n", i++);
+            printf("    origin = [%d, %d]\n", quad.origin.x, quad.origin.y);
+            printf("    size = [%d, %d]\n", quad.size.x, quad.size.y);
+            printf("    uv_origin = [%.3f, %.3f]\n", quad.uvOrigin.x, quad.uvOrigin.y);
+            printf("    uv_size = [%.3f, %.3f]\n", quad.uvSize.x, quad.uvSize.y);
+            printf("    gl_tex_obj = %u\n", quad.glTexObj);
+            printf("    user_data = %p\n", quad.userData);
         }
 
-        DrawTexturedQuad(quads[i].gl_tex_obj,
-                         Vector2f(quads[i].origin[0], quads[i].origin[1]),
-                         Vector2f(quads[i].size[0], quads[i].size[1]),
-                         Vector2f(quads[i].uv_origin[0], quads[i].uv_origin[1]),
-                         Vector2f(quads[i].uv_size[0], quads[i].uv_size[1]),
-                         *((uint32_t*)quads[i].user_data));
+        DrawTexturedQuad(quad.glTexObj,
+                         Vector2f(quad.origin.x, quad.origin.y),
+                         Vector2f(quad.size.x, quad.size.y),
+                         Vector2f(quad.uvOrigin.x, quad.uvOrigin.y),
+                         Vector2f(quad.uvSize.x, quad.uvSize.y),
+                         *((uint32_t*)quad.userData));
     }
 
     count++;
 }
-#endif
 
 int main(int argc, char* argv[])
 {
+    s_config = new Config(false, false, 800, 600);
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK);
     SDL_Window* displayWindow;
     SDL_Renderer* displayRenderer;
-    SDL_CreateWindowAndRenderer(800, 600, SDL_WINDOW_OPENGL, &displayWindow, &displayRenderer);
+    SDL_CreateWindowAndRenderer(s_config->width, s_config->height, SDL_WINDOW_OPENGL, &displayWindow, &displayRenderer);
 
     atexit(SDL_Quit);
 
@@ -185,18 +187,11 @@ int main(int argc, char* argv[])
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     SDL_GL_SwapWindow(displayWindow);
 
-#if 0
     // create the context
-    GB_ERROR err;
-    GB_Context* gb;
-    err = GB_ContextMake(512, 3, GB_TEXTURE_FORMAT_ALPHA, &gb);
-    if (err != GB_ERROR_NONE) {
-        fprintf(stderr, "GB_Init Error %d\n", err);
-        exit(1);
-    }
+    gb::Context::Init(4096, 3, gb::TextureFormat_Alpha);
 
     // load lorem.txt
-    int fd = open("utf8-test.txt", O_RDONLY);
+    int fd = open("lorem.txt", O_RDONLY);
     if (fd < 0) {
         fprintf(stderr, "open failed\n");
         exit(1);
@@ -206,7 +201,7 @@ int main(int argc, char* argv[])
         fprintf(stderr, "fstat failed\n errno = %d\n", errno);
         exit(1);
     }
-    const uint8_t* lorem = (uint8_t*)mmap(0, s.st_size + 1, PROT_READ, MAP_PRIVATE, fd, 0);
+    const char* lorem = (char*)mmap(0, s.st_size + 1, PROT_READ, MAP_PRIVATE, fd, 0);
     if (lorem < 0) {
         fprintf(stderr, "mmap failed\n errno = %d\n", errno);
         exit(1);
@@ -214,21 +209,16 @@ int main(int argc, char* argv[])
     // we are lazy, don't unmap the file.
 
     // create a font
-    GB_Font* mainFont = NULL;
+    std::shared_ptr<gb::Font> mainFont(new gb::Font("Droid-Sans/DroidSans.ttf", 12, gb::FontRenderOption_Normal, gb::FontHintOption_ForceAuto));
     //err = GB_FontMake(gb, "Droid-Sans/DroidSans.ttf", 20, GB_RENDER_NORMAL, GB_HINT_FORCE_AUTO, &mainFont);
     //err = GB_FontMake(gb, "Arial.ttf", 48, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);
     //err = GB_FontMake(gb, "Ayuthaya.ttf", 16, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);
-    err = GB_FontMake(gb, "dejavu-fonts-ttf-2.33/ttf/DejaVuSans.ttf", 10, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);
+    //std::shared_ptr<gb::Font> mainFont(new gb::Font("dejavu-fonts-ttf-2.33/ttf/DejaVuSans.ttf", 15, gb::FontRenderOption_Normal, gb::FontHintOption_Default));
     //err = GB_FontMake(gb, "Zar/XB Zar.ttf", 48, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);
     //err = GB_FontMake(gb, "Times New Roman.ttf", 20, GB_RENDER_NORMAL, GB_HINT_FORCE_AUTO, &mainFont);
-    if (err != GB_ERROR_NONE) {
-        fprintf(stderr, "GB_MakeFont Error %s\n", GB_ErrorToString(err));
-        exit(1);
-    }
 
-
-    GB_Font* arabicFont = NULL;
     /*
+    std::shared_ptr<gb::Font> arabicFont;
     // create an arabic font
     err = GB_FontMake(gb, "Zar/XB Zar.ttf", 48, &arabicFont);
     if (err != GB_ERROR_NONE) {
@@ -238,18 +228,16 @@ int main(int argc, char* argv[])
     */
 
     // create a text
-    uint32_t origin[2] = {0, 0};
-    uint32_t size[2] = {videoInfo->current_w - 1, videoInfo->current_h};
-    GB_Text* helloText = NULL;
+    gb::IntPoint origin = {0, 0};
+    gb::IntPoint size = {s_config->width - 1, s_config->height};
     uint32_t textColor = MakeColor(255, 255, 255, 255);
     uint32_t* userData = (uint32_t*)malloc(sizeof(uint32_t));
     *userData = textColor;
-    err = GB_TextMake(gb, (uint8_t*)lorem, mainFont, userData, origin, size,
-                      GB_HORIZONTAL_ALIGN_LEFT, GB_VERTICAL_ALIGN_CENTER, 0, &helloText);
-    if (err != GB_ERROR_NONE) {
-        fprintf(stderr, "GB_MakeText Error %s\n", GB_ErrorToString(err));
-        exit(1);
-    }
+
+    std::shared_ptr<gb::Text> helloText(new gb::Text(lorem, mainFont, userData, origin, size,
+                                                     gb::TextHorizontalAlign_Left,
+                                                     gb::TextVerticalAligh_Center,
+                                                     gb::TextOptionFlags_None));
 
     //GB_TextRelease(gb, helloText);
 
@@ -262,8 +250,7 @@ int main(int argc, char* argv[])
                       GB_HORIZONTAL_ALIGN_CENTER, GB_VERTICAL_ALIGN_CENTER, &helloText);
     */
 
-    GB_ContextSetTextRenderFunc(gb, TextRenderFunc);
-#endif
+    gb::Context::Get().SetRenderFunc(TextRenderFunc);
 
     int done = 0;
     while (!done)
@@ -313,13 +300,7 @@ int main(int argc, char* argv[])
 
             //DebugDrawGlyphCache(gb, config);
 
-#if 0
-            err = GB_TextDraw(gb, helloText);
-            if (err != GB_ERROR_NONE) {
-                fprintf(stderr, "GB_DrawText Error %s\n", GB_ErrorToString(err));
-                exit(1);
-            }
-#endif
+            helloText->Draw();
             SDL_GL_SwapWindow(displayWindow);
         }
     }

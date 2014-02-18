@@ -1,5 +1,7 @@
 #include <assert.h>
 #include "cache.h"
+#include "texture.h"
+#include "context.h"
 
 namespace gb {
 
@@ -9,28 +11,24 @@ Cache::Sheet::Sheet(uint32_t textureSize, TextureFormat textureFormat) :
 {
 #ifndef NDEBUG
     // in debug fill image with 128.
-    const uint32_t kPixelSize = textureFormat == GB_TEXTURE_FORMAT_ALPHA ? 1 : 4;
+    const uint32_t kPixelSize = textureFormat == TextureFormat_Alpha ? 1 : 4;
     const uint32_t kImageSize = textureSize * textureSize * kPixelSize;
     std::unique_ptr<uint8_t> image(new uint8_t[kImageSize]);
     memset(image.get(), 0x80, kImageSize);
-    TextureInit(textureFormat, textureSize, image.get(), &this->m_glTexObj);
+    m_texture = std::unique_ptr<Texture>(new Texture(textureFormat, textureSize, image.get()));
 #else
-    TextureInit(textureFormat, textureSize, nullptr, &this->m_glTexObj)
+    m_texture = std::unique_ptr<Texture>(new Texture(textureFormat, textureSize, nullptr));
 #endif
-}
-
-Cache::Sheet::~Sheet()
-{
-    TextureDestroy(this->m_glTexObj);
 }
 
 bool Cache::Sheet::AddNewLevel(uint32_t height)
 {
-    SheetLevel* prevLevel = m_sheetLevelVec.empty() ? nullptr : m_sheetLevelVec.last().get();
-    uint32_t baseline = prevLevel ? prevLevel->m_baseline + prevLevel->m_height : 0;
+    SheetLevel* prevLevel = m_sheetLevelVec.empty() ? nullptr : m_sheetLevelVec.back().get();
+    uint32_t baseline = prevLevel ? prevLevel->GetBaseline() + prevLevel->GetHeight() : 0;
     if ((baseline + height) <= m_textureSize)
     {
-        m_sheetLevelVec.push_back(new SheetLevel(baseline, height));
+        std::unique_ptr<SheetLevel> sheetLevel(new SheetLevel(m_textureSize, baseline, height));
+        m_sheetLevelVec.push_back(std::move(sheetLevel));
         return true;
     }
     else
@@ -39,30 +37,25 @@ bool Cache::Sheet::AddNewLevel(uint32_t height)
     }
 }
 
-void Cache::Sheet::SubloadGlyph(Glyph& glyph)
-{
-    TextureSubLoad(m_glTexObj, m_textureFormat, glyph.m_origin, glyph.m_size, glyph.m_image);
-}
-
 void Cache::Sheet::Clear()
 {
     m_sheetLevelVec.clear();
 }
 
-bool Cache::SheetLevel::Insert(Glyph& glyph)
+bool Cache::SheetLevel::Insert(std::shared_ptr<Glyph> glyph)
 {
-    Glyph* prevGlyph = m_glyphVec.empty() ? nullptr : m_glyphVec.last().get();
-    if (prevGlyph && prevGlyph->m_origin.x + prevGlyph->m_size.x + glyph.m_size.x <= m_textureSize)
+    Glyph* prevGlyph = m_glyphVec.empty() ? nullptr : m_glyphVec.back().get();
+    if (prevGlyph && prevGlyph->GetOrigin().x + prevGlyph->GetSize().x + glyph->GetSize().x <= m_textureSize)
     {
-        glyph->origin.x = prevGlyph->origin.x + prevGlyph->m_size.x;
-        glyph->origin.y = m_baseline;
+        auto o = IntPoint{prevGlyph->GetOrigin().x + prevGlyph->GetSize().x, (int)m_baseline};
+        glyph->SetOrigin(o);
         m_glyphVec.push_back(glyph);
         return true;
     }
-    else if (glyph.m_size.x <= m_textureSize)
+    else if (glyph->GetSize().x <= m_textureSize)
     {
-        glyph.m_origin.x = 0;
-        glyph.m_origin.y = m_baseline;
+        auto o = IntPoint{0, (int)m_baseline};
+        glyph->SetOrigin(o);
         m_glyphVec.push_back(glyph);
         return true;
     }
@@ -73,40 +66,42 @@ bool Cache::SheetLevel::Insert(Glyph& glyph)
     }
 }
 
-bool Cache::Sheet::Insert(Glyph& glyph)
+bool Cache::Sheet::Insert(std::shared_ptr<Glyph> glyph)
 {
-    for (auto sheetLevel : m_sheetLevelVec)
+    for (auto &sheetLevel : m_sheetLevelVec)
     {
-        if (glyph.size.y <= sheetLevel->m_height && sheetLevel->InsertGlyph(glyph))
+        if (glyph->GetSize().y <= sheetLevel->GetHeight() && sheetLevel->Insert(glyph))
         {
-            glyph->m_glTexObj = m_glTexObj;
-            sheet->SubloadGlyph(glyph);
+            glyph->SetTexObj(m_texture->GetTexObj());
+            m_texture->Subload(glyph->GetOrigin(), glyph->GetSize(), glyph->GetImage());
             return true;
         }
     }
 
     // need to add a new level
-    if (AddNewLevel(glyph->size.y) && m_sheetLevelVec.last()->InsertGlyph(glyph))
+    if (AddNewLevel(glyph->GetSize().y) && m_sheetLevelVec.back()->Insert(glyph))
     {
-        glyph->m_glTexObj = m_glTexObj;
-        sheet->SubloadGlyph(glyph);
+        glyph->SetTexObj(m_texture->GetTexObj());
+        m_texture->Subload(glyph->GetOrigin(), glyph->GetSize(), glyph->GetImage());
         return true;
     }
     else
     {
         // out of room
-        glyph->glTexObj = 0;
+        glyph->SetTexObj(0);
         return false;
     }
 }
 
 Cache::Cache(uint32_t textureSize, uint32_t numSheets, TextureFormat textureFormat) :
-    m_textureSize(textureSize),
-    m_full(false)
+    m_textureSize(textureSize)
 {
     m_sheetVec.reserve(numSheets);
     for (uint32_t i = 0; i < numSheets; i++)
-        m_sheetVec.push_back(new Sheet(textureSize, textureFormat));
+    {
+        std::unique_ptr<Sheet> sheet(new Sheet(textureSize, textureFormat));
+        m_sheetVec.push_back(std::move(sheet));
+    }
 }
 
 Cache::~Cache()
@@ -114,9 +109,9 @@ Cache::~Cache()
     ;
 }
 
-bool Cache::InsertIntoSheets(Glyph& glyph)
+bool Cache::InsertIntoSheets(std::shared_ptr<Glyph> glyph)
 {
-    for (auto sheet : m_sheetVec)
+    for (auto &sheet : m_sheetVec)
     {
         if (sheet->Insert(glyph))
             return true;
@@ -126,71 +121,29 @@ bool Cache::InsertIntoSheets(Glyph& glyph)
 
 void Cache::Compact()
 {
-    Context* context = Context::Get();
+    Context& context = Context::Get();
 
     // build a vector of all glyphs in the context.
     std::vector<std::shared_ptr<Glyph>> glyphVec;
-    glyphVec.reserve(context->m_glyphMap.size());
-    for (auto kv : m_glyphMap)
-    {
-        if (!kv->second.expired())
-        {
-            glyphVec.push_back(kv->second.lock());
-        }
-    }
+    context.GetAllGlyphs(glyphVec);
 
     // clear all sheets
-    for (auto sheet : m_sheetVec)
+    for (auto &sheet : m_sheetVec)
     {
         sheet->Clear();
     }
 
     // sort glyphs in decreasing height
-    std::sort(glyphVec.begin(), glyphVec.end(), [](Glyph* a, Glyph* b)
+    std::sort(glyphVec.begin(), glyphVec.end(), [](std::shared_ptr<Glyph> a, std::shared_ptr<Glyph> b)
     {
         return b->GetSize().y - a->GetSize().y;
     });
 
     // re-insert glyphs into the sheets in sorted order.
     // which should improve packing efficiency.
-    for (auto glyph : glyphVec)
+    for (auto &glyph : glyphVec)
     {
-        InsertGlyph(glyph);
-    }
-}
-
-void Cache::Insert(std::vector<std::shared_ptr<Glyph>> glyphVec);
-{
-    Context* context = Context::Get();
-
-    // sort glyphs in decreasing height
-    std::sort(glyphVec.begin(), glyphVec.end(), [](Glyph* a, Glyph* b)
-    {
-        return b->GetSize().y - a->GetSize().y;
-    });
-
-    bool full = false;
-
-    // decreasing height find-first heuristic.
-    for (auto glyph : glyphVec)
-    {
-        // make sure duplicates don't end up in the texture
-        if (m_glyphVec.find(glyph->GetKey()) == m_glyphVec.end())
-        {
-            if (!InsertIntoSheets(glyph))
-            {
-                if (!full)
-                {
-                    // compact and try again.
-                    Compact();
-                    if (!InsertIntoSheets(glyph))
-                    {
-                        // TODO: could try adding another texture sheet in the future.
-                        full = true;
-                    }
-                }
-            }
-        }
+        InsertIntoSheets(glyph);
     }
 }
 

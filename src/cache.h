@@ -2,46 +2,57 @@
 #define GLYPH_CACHE_H
 
 #include <stdint.h>
+#include <memory>
+#include <vector>
 #include "glyphblaster.h"
+#include "glyph.h"
 
 namespace gb {
 
+class Texture;
+
 class Cache
 {
+    friend class Context;
 public:
     Cache(uint32_t textureSize, uint32_t numSheets, TextureFormat textureFormat);
     ~Cache();
-    void Insert(std::vector<std::shared_ptr<Glyph>> glyphVec);
     void Compact();
+    uint32_t GetTextureSize() const { return m_textureSize; }
 protected:
     bool InsertIntoSheets(std::shared_ptr<Glyph> glyph);
 
     class SheetLevel
     {
     public:
-        bool Insert(Glyph& glyph);
+        SheetLevel(uint32_t textureSize, uint32_t baseline, uint32_t height) : m_textureSize(textureSize), m_baseline(baseline), m_height(height) {}
+        bool Insert(std::shared_ptr<Glyph> glyph);
+        uint32_t GetBaseline() const { return m_baseline; }
+        uint32_t GetHeight() const { return m_height; }
     protected:
         std::vector<std::shared_ptr<Glyph>> m_glyphVec;
         uint32_t m_textureSize;
         uint32_t m_baseline;
         uint32_t m_height;
+
+        GB_NO_COPY(SheetLevel);
     };
 
     class Sheet
     {
     public:
         Sheet(uint32_t textureSize, TextureFormat textureFormat);
-        ~Sheet();
-        bool Insert(Glyph& glyph);
+        bool Insert(std::shared_ptr<Glyph> glyph);
         void Clear();
     protected:
         bool AddNewLevel(uint32_t height);
-        void SubloadGlyph(Glyph& glyph);
 
-        uint32_t m_glTexObj;
+        std::unique_ptr<Texture> m_texture;
         uint32_t m_textureSize;
         TextureFormat m_textureFormat;
-        std::vector<std::unique_ptr<Sheet>> m_sheetLevelVec;
+        std::vector<std::unique_ptr<SheetLevel>> m_sheetLevelVec;
+
+        GB_NO_COPY(Sheet);
     };
 
     std::vector<std::unique_ptr<Sheet>> m_sheetVec;

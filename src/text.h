@@ -2,10 +2,14 @@
 #define GB_TEXT_H
 
 #include <stdint.h>
+#include <string>
 #include <harfbuzz/hb.h>
-#include "gb_error.h"
+#include "glyphblaster.h"
+#include "context.h"
 
 namespace gb {
+
+class Font;
 
 enum TextHorizontalAlign {
     TextHorizontalAlign_Left = 0,
@@ -20,23 +24,9 @@ enum TextVerticalAlign {
 };
 
 enum TextOptionFlags {
+    TextOptionFlags_None = 0,
     TextOptionFlags_DisableShaping = 0x01
 };
-
-// y axis points down
-// origin is upper-left corner of glyph
-struct Quad
-{
-    IntPoint pen;
-    IntPoint origin;
-    IntPoint size;
-    FloatPoint uvOrigin;
-    FloatPoint uvSize;
-    void* userData;
-    uint32_t glTexObj;
-};
-
-typedef std::vector<Quad> QuadVec;
 
 class Text
 {
@@ -47,7 +37,7 @@ public:
          TextHorizontalAlign horizontalAlign, TextVerticalAlign verticalAlign,
          uint32_t optionFlags);
     ~Text();
-    Draw();
+    void Draw();
 
 protected:
     void UpdateCache();
@@ -57,8 +47,8 @@ protected:
     std::string m_string; // utf8 encoding.
     hb_buffer_t *m_hbBuffer;  // harfbuzz buffer, used for shaping
     void* m_userData;
-    IntPoint m_origin[2];  // bounding rectangle, used for word-wrapping & alignment
-    IntPoint m_size[2];
+    IntPoint m_origin;  // bounding rectangle, used for word-wrapping & alignment
+    IntPoint m_size;
     TextHorizontalAlign m_horizontalAlign;
     TextVerticalAlign m_verticalAlign;
     uint32_t m_optionFlags;

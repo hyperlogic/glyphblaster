@@ -2,6 +2,8 @@
 
 require 'rake/clean'
 
+$CC = "clang"
+
 $C_FLAGS = ['-Wall',
             '--std=c++11',
             `sdl2-config --cflags`.chomp,
@@ -19,22 +21,19 @@ $L_FLAGS = [`sdl2-config --libs`.chomp,
             `freetype-config --libs`.chomp,
             '-lstdc++',
             '-lharfbuzz',
-            #'-licuuc',
             '-framework Cocoa',
             '-framework OpenGL',
             '-framework CoreServices',
             '-framework ApplicationServices'
            ]
 
-$OBJECTS = [#'SDLMain.o',
-            'main.o',
+$OBJECTS = ['main.o',
             '../src/cache.o',
-            #'../src/context.o',
-            #'../src/error.o',
-            #'../src/font.o',
-            #'../src/glyph.o',
-            #'../src/text.o',
-            #'../src/texture.o',
+            '../src/context.o',
+            '../src/font.o',
+            '../src/glyph.o',
+            '../src/text.o',
+            '../src/texture.o',
            ]
 
 $DEPS = $OBJECTS.map {|f| f[0..-3] + '.d'}
@@ -43,17 +42,17 @@ $EXE = 'test'
 # Use the compiler to build makefile rules for us.
 # This will list all of the pre-processor includes this source file depends on.
 def make_deps t
-  sh "gcc -MM -MF #{t.name} #{$C_FLAGS.join ' '} -c #{t.source}"
+  sh "#{$CC} -MM -MF #{t.name} #{$C_FLAGS.join ' '} -c #{t.source}"
 end
 
 # Compile a single compilation unit into an object file
 def compile obj, src
-  sh "gcc #{$C_FLAGS.join ' '} -c #{src} -o #{obj}"
+  sh "#{$CC} #{$C_FLAGS.join ' '} -c #{src} -o #{obj}"
 end
 
 # Link all the object files to create the exe
 def do_link exe, objects
-  sh "gcc #{objects.join ' '} -o #{exe} #{$L_FLAGS.join ' '}"
+  sh "#{$CC} #{objects.join ' '} -o #{exe} #{$L_FLAGS.join ' '}"
 end
 
 # generate makefile rules from source code

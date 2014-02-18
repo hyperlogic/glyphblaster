@@ -1,3 +1,4 @@
+#include <assert.h>
 
 #ifdef __APPLE__
 #  include "TargetConditionals.h"
@@ -18,8 +19,7 @@
 #  include <GL/glu.h>
 #endif
 
-#include "gb_texture.h"
-#include "gb_context.h"
+#include "texture.h"
 #include <stdio.h>
 
 namespace gb {
@@ -58,7 +58,8 @@ void GLErrorCheck(const char *message)
 }
 #endif
 
-Texture::Texture(TextureFormat format, uint32_t textureSize, uint8_t* image)
+Texture::Texture(TextureFormat format, uint32_t textureSize, uint8_t* image) :
+    m_format(format)
 {
     glGenTextures(1, &m_texObj);
     glBindTexture(GL_TEXTURE_2D, m_texObj);
@@ -89,7 +90,7 @@ Texture::~Texture()
 void Texture::Subload(IntPoint origin, IntPoint size, uint8_t* image)
 {
     glBindTexture(GL_TEXTURE_2D, m_texObj);
-    if (format == TextureFormat_Alpha)
+    if (m_format == TextureFormat_Alpha)
         glTexSubImage2D(GL_TEXTURE_2D, 0, origin.x, origin.y, size.x, size.y, GL_ALPHA, GL_UNSIGNED_BYTE, image);
     else
         glTexSubImage2D(GL_TEXTURE_2D, 0, origin.x, origin.y, size.x, size.y, GL_RGBA, GL_UNSIGNED_BYTE, image);
@@ -97,7 +98,6 @@ void Texture::Subload(IntPoint origin, IntPoint size, uint8_t* image)
 #ifndef NDEBUG
     GLErrorCheck("Texture::Subload");
 #endif
-    return GB_ERROR_NONE;
 }
 
 } // namespace gb
