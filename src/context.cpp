@@ -162,7 +162,7 @@ void Context::RasterizeAndSubloadGlyphs(const std::vector<GlyphKey>& keyVecIn,
                 if (!m_cache->InsertIntoSheets(glyph))
                 {
                     cacheIsFull = true;
-                    fprintf(stderr, "Warning: glyphblaster texture cache is full");
+                    fprintf(stderr, "Warning: glyphblaster texture cache is full\n");
                 }
             }
 

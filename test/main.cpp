@@ -29,6 +29,7 @@
 #include "../src/context.h"
 #include "../src/font.h"
 #include "../src/text.h"
+#include "../src/cache.h"
 
 #include "abaci.h"
 
@@ -103,11 +104,8 @@ void DrawTexturedQuad(uint32_t gl_tex, Vector2f const& origin, Vector2f const& s
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, indices);
 }
 
-#if 0
 // for debug draw only
-#include "../src/gb_cache.h"
-
-void DebugDrawGlyphCache(GB_Context* gb, const Config& config)
+void DebugDrawGlyphCache(const Config& config)
 {
     // note this flips y-axis so y is down.
     Matrixf proj = Matrixf::Ortho(0, config.width, config.height, 0, -10, 10);
@@ -119,20 +117,23 @@ void DebugDrawGlyphCache(GB_Context* gb, const Config& config)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_TEXTURE_2D);
 
-    const int sheet_gap = 2;
-    const int texture_size = gb->cache->texture_size;
-    GB_Cache* cache = gb->cache;
+    gb::Context& context = gb::Context::Get();
+    const gb::Cache& cache = context.GetCache();
+
+    const int sheetGap = 2;
+    const int textureSize = cache.GetTextureSize();
+    std::vector<uint32_t> texObjVec;
+    cache.GetTextureObjects(texObjVec);
     int y = 0;
-    for (uint32_t i = 0; i < cache->num_sheets; i++) {
-        DrawTexturedQuad(cache->sheet[i].gl_tex_obj, Vector2f(0, y),
-                         Vector2f(texture_size, texture_size),
+    for (auto texObj : texObjVec)
+    {
+        DrawTexturedQuad(texObj, Vector2f(0, y),
+                         Vector2f(textureSize, textureSize),
                          Vector2f(0, 0), Vector2f(1, 1),
                          MakeColor(255, 255, 255, 255));
-        y += texture_size + sheet_gap;
+        y += textureSize + sheetGap;
     }
 }
-
-#endif
 
 void TextRenderFunc(const std::vector<gb::Quad>& quadVec)
 {
@@ -188,7 +189,7 @@ int main(int argc, char* argv[])
     SDL_GL_SwapWindow(displayWindow);
 
     // create the context
-    gb::Context::Init(4096, 3, gb::TextureFormat_Alpha);
+    gb::Context::Init(256, 1, gb::TextureFormat_Alpha);
 
     // load lorem.txt
     int fd = open("lorem.txt", O_RDONLY);
@@ -209,7 +210,7 @@ int main(int argc, char* argv[])
     // we are lazy, don't unmap the file.
 
     // create a font
-    std::shared_ptr<gb::Font> mainFont(new gb::Font("Droid-Sans/DroidSans.ttf", 12, gb::FontRenderOption_Normal, gb::FontHintOption_ForceAuto));
+    std::shared_ptr<gb::Font> mainFont(new gb::Font("Droid-Sans/DroidSans.ttf", 50, gb::FontRenderOption_Normal, gb::FontHintOption_ForceAuto));
     //err = GB_FontMake(gb, "Droid-Sans/DroidSans.ttf", 20, GB_RENDER_NORMAL, GB_HINT_FORCE_AUTO, &mainFont);
     //err = GB_FontMake(gb, "Arial.ttf", 48, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);
     //err = GB_FontMake(gb, "Ayuthaya.ttf", 16, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);
@@ -298,9 +299,10 @@ int main(int argc, char* argv[])
             glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-            //DebugDrawGlyphCache(gb, config);
+            DebugDrawGlyphCache(*s_config);
 
             helloText->Draw();
+
             SDL_GL_SwapWindow(displayWindow);
         }
     }

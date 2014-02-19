@@ -42,15 +42,28 @@ void Cache::Sheet::Clear()
     m_sheetLevelVec.clear();
 }
 
+uint32_t Cache::Sheet::GetTexObj() const
+{
+    return m_texture->GetTexObj();
+}
+
 bool Cache::SheetLevel::Insert(std::shared_ptr<Glyph> glyph)
 {
     Glyph* prevGlyph = m_glyphVec.empty() ? nullptr : m_glyphVec.back().get();
-    if (prevGlyph && prevGlyph->GetOrigin().x + prevGlyph->GetSize().x + glyph->GetSize().x <= m_textureSize)
+    if (prevGlyph)
     {
-        auto o = IntPoint{prevGlyph->GetOrigin().x + prevGlyph->GetSize().x, (int)m_baseline};
-        glyph->SetOrigin(o);
-        m_glyphVec.push_back(glyph);
-        return true;
+        if (prevGlyph && prevGlyph->GetOrigin().x + prevGlyph->GetSize().x + glyph->GetSize().x <= m_textureSize)
+        {
+            auto o = IntPoint{prevGlyph->GetOrigin().x + prevGlyph->GetSize().x, (int)m_baseline};
+            glyph->SetOrigin(o);
+            m_glyphVec.push_back(glyph);
+            return true;
+        }
+        else
+        {
+            // does not fit on this level
+            return false;
+        }
     }
     else if (glyph->GetSize().x <= m_textureSize)
     {
@@ -121,6 +134,8 @@ bool Cache::InsertIntoSheets(std::shared_ptr<Glyph> glyph)
 
 void Cache::Compact()
 {
+    printf("Cache::Compact()\n");
+
     Context& context = Context::Get();
 
     // build a vector of all glyphs in the context.
@@ -134,9 +149,9 @@ void Cache::Compact()
     }
 
     // sort glyphs in decreasing height
-    std::sort(glyphVec.begin(), glyphVec.end(), [](std::shared_ptr<Glyph> a, std::shared_ptr<Glyph> b)
+    std::sort(glyphVec.begin(), glyphVec.end(), [](const std::shared_ptr<Glyph>& a, const std::shared_ptr<Glyph>& b)
     {
-        return b->GetSize().y - a->GetSize().y;
+        return b->GetSize().y < a->GetSize().y;
     });
 
     // re-insert glyphs into the sheets in sorted order.
@@ -144,6 +159,15 @@ void Cache::Compact()
     for (auto &glyph : glyphVec)
     {
         InsertIntoSheets(glyph);
+    }
+}
+
+void Cache::GetTextureObjects(std::vector<uint32_t>& texVec) const
+{
+    texVec.clear();
+    for (auto &sheet : m_sheetVec)
+    {
+        texVec.push_back(sheet->GetTexObj());
     }
 }
 

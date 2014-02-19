@@ -19,6 +19,10 @@ public:
     ~Cache();
     void Compact();
     uint32_t GetTextureSize() const { return m_textureSize; }
+
+    // for debugging
+    void GetTextureObjects(std::vector<uint32_t>& texVec) const;
+
 protected:
     bool InsertIntoSheets(std::shared_ptr<Glyph> glyph);
 
@@ -44,6 +48,7 @@ protected:
         Sheet(uint32_t textureSize, TextureFormat textureFormat);
         bool Insert(std::shared_ptr<Glyph> glyph);
         void Clear();
+        uint32_t GetTexObj() const;
     protected:
         bool AddNewLevel(uint32_t height);
 

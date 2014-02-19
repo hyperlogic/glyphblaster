@@ -39,6 +39,7 @@ public:
     void SetRenderFunc(RenderFunc renderFunc);
     void ClearRenderFunc();
     void Compact();
+    const Cache& GetCache() { return *(m_cache.get()); }
 
 protected:
     // Used by Font objects
@@ -54,7 +55,6 @@ protected:
 
     void InsertIntoMap(std::shared_ptr<Glyph> glyph);
     const Texture& GetFallbackTexture() { return *(m_fallbackTexture.get()); }
-    const Cache& GetCache() { return *(m_cache.get()); }
 
     // Used to avoid creating multiple copies of the same glyph.
     std::weak_ptr<Glyph> FindInMap(GlyphKey key);
