@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <string>
+#include <vector>
 #include <harfbuzz/hb.h>
 #include "glyphblaster.h"
 #include "context.h"
@@ -19,23 +20,25 @@ enum TextHorizontalAlign {
 
 enum TextVerticalAlign {
     TextVerticalAlign_Top = 0,
-    TextVerticalAligh_Bottom,
-    TextVerticalAligh_Center
+    TextVerticalAlign_Bottom,
+    TextVerticalAlign_Center
 };
 
 enum TextOptionFlags {
     TextOptionFlags_None = 0,
-    TextOptionFlags_DisableShaping = 0x01
+    TextOptionFlags_DisableShaping = 0x01,
+    TextOptionFlags_DirectionRightToLeft = 0x02
 };
 
 class Text
 {
 public:
     // string is assumed to be utf8 encoded.
+    // script tag is 4 char code from iso 15952, http://unicode.org/iso15924/
     Text(const std::string& string, std::shared_ptr<Font> font,
          void* userData, IntPoint origin, IntPoint size,
          TextHorizontalAlign horizontalAlign, TextVerticalAlign verticalAlign,
-         uint32_t optionFlags);
+         uint32_t optionFlags, const char* script = nullptr);
     ~Text();
     void Draw();
 

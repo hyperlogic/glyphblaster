@@ -189,10 +189,10 @@ int main(int argc, char* argv[])
     SDL_GL_SwapWindow(displayWindow);
 
     // create the context
-    gb::Context::Init(256, 1, gb::TextureFormat_Alpha);
+    gb::Context::Init(128, 1, gb::TextureFormat_Alpha);
 
     // load lorem.txt
-    int fd = open("lorem.txt", O_RDONLY);
+    int fd = open("arabic.txt", O_RDONLY);
     if (fd < 0) {
         fprintf(stderr, "open failed\n");
         exit(1);
@@ -209,36 +209,53 @@ int main(int argc, char* argv[])
     }
     // we are lazy, don't unmap the file.
 
+
     // create a font
-    std::shared_ptr<gb::Font> mainFont(new gb::Font("Droid-Sans/DroidSans.ttf", 50, gb::FontRenderOption_Normal, gb::FontHintOption_ForceAuto));
-    //err = GB_FontMake(gb, "Droid-Sans/DroidSans.ttf", 20, GB_RENDER_NORMAL, GB_HINT_FORCE_AUTO, &mainFont);
-    //err = GB_FontMake(gb, "Arial.ttf", 48, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);
-    //err = GB_FontMake(gb, "Ayuthaya.ttf", 16, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);
-    //std::shared_ptr<gb::Font> mainFont(new gb::Font("dejavu-fonts-ttf-2.33/ttf/DejaVuSans.ttf", 15, gb::FontRenderOption_Normal, gb::FontHintOption_Default));
-    //err = GB_FontMake(gb, "Zar/XB Zar.ttf", 48, GB_RENDER_NORMAL, GB_HINT_DEFAULT, &mainFont);
-    //err = GB_FontMake(gb, "Times New Roman.ttf", 20, GB_RENDER_NORMAL, GB_HINT_FORCE_AUTO, &mainFont);
 
     /*
-    std::shared_ptr<gb::Font> arabicFont;
-    // create an arabic font
-    err = GB_FontMake(gb, "Zar/XB Zar.ttf", 48, &arabicFont);
-    if (err != GB_ERROR_NONE) {
-        fprintf(stderr, "GB_MakeFont Error %s\n", GB_ErrorToString(err));
-        exit(1);
-    }
+    auto droidSans = std::make_shared<gb::Font>("Droid-Sans/DroidSans.ttf", 30,
+                                                gb::FontRenderOption_Normal,
+                                                gb::FontHintOption_ForceAuto);
     */
 
+
+    /*
+    auto dejaVuSans = std::make_shared<gb::Font>("dejavu-fonts-ttf-2.33/ttf/DejaVuSans.ttf", 30,
+                                                 gb::FontRenderOption_Normal,
+                                                 gb::FontHintOption_Default);
+    */
+
+    /*
+    auto arial = std::make_shared<gb::Font>("Arial.ttf", 50,
+                                            gb::FontRenderOption_Normal,
+                                            gb::FontHintOption_Default);
+    */
+
+
+    auto zar = std::make_shared<gb::Font>("Zar/XB Zar.ttf", 48,
+                                          gb::FontRenderOption_Normal,
+                                          gb::FontHintOption_Default);
+
     // create a text
-    gb::IntPoint origin = {0, 0};
+    gb::IntPoint origin = {0, s_config->height / 2};
     gb::IntPoint size = {s_config->width - 1, s_config->height};
     uint32_t textColor = MakeColor(255, 255, 255, 255);
     uint32_t* userData = (uint32_t*)malloc(sizeof(uint32_t));
     *userData = textColor;
 
-    std::shared_ptr<gb::Text> helloText(new gb::Text(lorem, mainFont, userData, origin, size,
-                                                     gb::TextHorizontalAlign_Left,
-                                                     gb::TextVerticalAligh_Center,
-                                                     gb::TextOptionFlags_None));
+    // hebrew test
+    /*
+    auto helloText = std::make_shared<gb::Text>(lorem, arial, userData, origin, size,
+                                                gb::TextHorizontalAlign_Left,
+                                                gb::TextVerticalAlign_Center,
+                                                gb::TextOptionFlags_DirectionRightToLeft, "Hebr");
+    */
+
+    // arabic
+    auto helloText = std::make_shared<gb::Text>(lorem, zar, userData, origin, size,
+                                                gb::TextHorizontalAlign_Left,
+                                                gb::TextVerticalAlign_Center,
+                                                gb::TextOptionFlags_DirectionRightToLeft, "Arab");
 
     //GB_TextRelease(gb, helloText);
 

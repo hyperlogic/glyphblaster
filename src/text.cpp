@@ -1,7 +1,4 @@
 #include <assert.h>
-//#include <unicode/ubidi.h>
-//#include <unicode/ustring.h>
-#include <deque>
 #include "text.h"
 #include "context.h"
 #include "cache.h"
@@ -167,7 +164,7 @@ void Text::WordWrapAndGenerateQuads()
     hb_direction_t dir = hb_buffer_get_direction(m_hbBuffer);
 
     // create a queue to hold word-wrapped glyphs
-    std::deque<GlyphInfo> q;
+    std::vector<GlyphInfo> q;
 
     fit_func_t fit;
     advance_func_t pre_advance, post_advance;
@@ -193,13 +190,12 @@ void Text::WordWrapAndGenerateQuads()
         prev = loop_next_rtl;
     }
 
-    int32_t i = 0;
     int32_t pen_x = 0;
     uint32_t cp;
     int32_t inside_word = 0;
     uint32_t word_start_i = 0, word_end_i = 0;
     int32_t word_start_x = 0, word_end_x = 0;
-    for (i = begin(num_glyphs); i != end(num_glyphs); i = next(i))
+    for (int i = begin(num_glyphs); i != end(num_glyphs); i = next(i))
     {
         // NOTE: cluster is an offset to the first byte in the utf8 encoded string which represents this glyph.
         NextCodePoint(m_string.c_str() + glyphs[i].cluster, &cp);
@@ -336,10 +332,10 @@ void Text::WordWrapAndGenerateQuads()
     int32_t y = m_origin.y + line_height;
 
     // horizontal justification
-    uint32_t j;
     uint32_t line_start = 0;
-    for (auto &info : q)
+    for (int i = 0; i < q.size(); i++)
     {
+        GlyphInfo& info = q[i];
         if (info.type == NEWLINE_GLYPH)
         {
             int32_t left_edge = (dir == HB_DIRECTION_RTL) ? info.x : 0;
@@ -358,9 +354,9 @@ void Text::WordWrapAndGenerateQuads()
                 break;
             }
             // apply offset to each glyphinfo.x
-            for (j = line_start; j < i; j++)
+            for (int j = line_start; j < i; j++)
             {
-                info.x += offset;
+                q[j].x += offset;
             }
             line_start = i + 1;
         }
@@ -411,7 +407,7 @@ static void ft_shape(hb_buffer_t *hb_buffer, FT_Face ft_face, const char* utf8_s
 Text::Text(const std::string& string, std::shared_ptr<Font> font,
            void* userData, IntPoint origin, IntPoint size,
            TextHorizontalAlign horizontalAlign, TextVerticalAlign verticalAlign,
-           uint32_t optionFlags) :
+           uint32_t optionFlags, const char* script) :
     m_font(font),
     m_string(string),
     m_hbBuffer(hb_buffer_create()),
@@ -422,7 +418,15 @@ Text::Text(const std::string& string, std::shared_ptr<Font> font,
     m_verticalAlign(verticalAlign),
     m_optionFlags(optionFlags)
 {
-    hb_buffer_set_direction(m_hbBuffer, HB_DIRECTION_LTR);
+    hb_direction_t direction = optionFlags & TextOptionFlags_DirectionRightToLeft ? HB_DIRECTION_RTL : HB_DIRECTION_LTR;
+    hb_buffer_set_direction(m_hbBuffer, direction);
+
+    hb_script_t scriptTag = HB_SCRIPT_LATIN;
+    if (script)
+        scriptTag = hb_script_from_string(script, 4);
+
+    hb_buffer_set_script(m_hbBuffer, scriptTag);
+
     hb_buffer_add_utf8(m_hbBuffer, m_string.c_str(), m_string.size(), 0, m_string.size());
 
     if (!(m_optionFlags & TextOptionFlags_DisableShaping))
@@ -430,7 +434,6 @@ Text::Text(const std::string& string, std::shared_ptr<Font> font,
         // Use harf-buzz to perform glyph shaping
         hb_shape(m_font->GetHarfbuzzFont(), m_hbBuffer, NULL, 0);
 
-        /*
         // debug print detected direction & script
         hb_direction_t dir = hb_buffer_get_direction(m_hbBuffer);
         hb_script_t script = hb_buffer_get_script(m_hbBuffer);
@@ -443,7 +446,6 @@ Text::Text(const std::string& string, std::shared_ptr<Font> font,
         tag_str[3] = tag;
         tag_str[4] = 0;
         printf("AJT: script = %s\n", tag_str);
-        */
 
     } else {
         // TODO: need a compile time option to remove dependency on harf-buzz
