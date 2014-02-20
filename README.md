@@ -22,25 +22,6 @@ Should Context be a singleton? YES. simplifies things, i can sort this out later
 The Context holds a weak collection of all gyphs ever created.
 Each Text object holds a collection of glyphs it is activly using.
 
-## C++11 Port WIP
-
-### glyphblaster header
-
-### Cache - cache.cpp, cache.h
-* good
-### Context - context.cpp, context.h
-* good
-### Error - error.cpp, error.h
-* i'm not sure if im even using it...
-* delete?
-### Font - font.cpp, font.h
-* good
-### Glyph - glyph.cpp, glyph.h
-* good
-### Text - text.cpp, text.h
-* good
-### Texture - texture.cpp, texture.h
-* good
 ## Features
 
 * Pluggable render function, to integrate into existing engines.
@@ -52,15 +33,14 @@ Each Text object holds a collection of glyphs it is activly using.
 
 ## Dependencies
 
-* icu4c
 * FreeType2
-* HarfBuzz-0.9.0
+* HarfBuzz-0.9
 
 ## Implementation Notes
 
 * When cache is full, glyphs will use a fallback texture, which is 1/2 alpha.
 * When glyph is not present in the font, the replacement character is used. �
-* Bidi makes word-wrapping a pain.  do this after word wrapping/justification is functional for rtl & ltr text.
+* Bidi text is not supported, it makes word-wrapping a pain.
 * I still don't know how slow a full repack is. Benchmark it.
 * I'm not sure if the interface is very good.
   * Text's are not mutable, they must be destroyed and re-created.
@@ -72,18 +52,17 @@ Each Text object holds a collection of glyphs it is activly using.
 
 ### Dependency Build Tasks
 
-* compile option to make dependency on HarfBuzz & icu4c optional
+* compile option to make dependency on HarfBuzz optional
 * Bundle harf-buzz, to make building easier
-* Minimize/control use of icu4c, might have to implement some stuff for harf-buzz as well.
 
 ### Implementation Tasks
 
 * Split MakeGlyphQuadRuns into two parts.
   * Build metrics/do word wrapping.
   * Build quads from metrics.
-* Add get metrics function to text.
+* Group quads that share the same texture into a single mesh.
+* Add metrics function to text.
 * Add ability to set pen position.
-* assertion and more graceful failure when static buffers overflow.
 * Test support of LCD subpixel decimated RGB using shader and GL_COLOR_MASK
 * Enable sRGB aware blending, during rendering. (if available) provide a sample renderer
 * Justify-Vertical: top, center, bottom
