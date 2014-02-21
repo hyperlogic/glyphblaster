@@ -24,11 +24,6 @@ static Texture* CreateFallbackTexture()
 
 static void NullRenderFunc(const QuadVec& quadVec) {}
 
-static int IsPowerOfTwo(uint32_t x)
-{
-    return ((x != 0) && !(x & (x - 1)));
-}
-
 static int PowerOfTwoRoundUp(int x)
 {
     if (x < 0)

@@ -4,7 +4,9 @@
 #include <stdint.h>
 #include <string>
 #include <vector>
+#ifdef GB_USE_HARFBUZZ
 #include <harfbuzz/hb.h>
+#endif
 #include "glyphblaster.h"
 #include "context.h"
 
@@ -48,7 +50,11 @@ protected:
 
     std::shared_ptr<Font> m_font;
     std::string m_string; // utf8 encoding.
+    enum Direction { Direction_LTR = 0, Direction_RTL };
+    Direction m_dir;
+#ifdef GB_USE_HARFBUZZ
     hb_buffer_t *m_hbBuffer;  // harfbuzz buffer, used for shaping
+#endif
     void* m_userData;
     IntPoint m_origin;  // bounding rectangle, used for word-wrapping & alignment
     IntPoint m_size;

@@ -92,10 +92,12 @@ static int NextCodePoint(const char *p, uint32_t *codePointOut)
 
 void Text::UpdateCache()
 {
+    Context& context = Context::Get();
+
+#ifdef GB_USE_HARFBUZZ
     // hold a temp array of glyph ptrs, this is so we can sort glyphs by height before
     // adding them to the GlyphCache, which improves texture utilization for long strings of glyphs.
     int numGlyphs = hb_buffer_get_length(m_hbBuffer);
-    Context& context = Context::Get();
 
     assert(m_hbBuffer);
 
@@ -115,6 +117,24 @@ void Text::UpdateCache()
             keyVec.push_back(GlyphKey(glyphs[i].codepoint, m_font->GetIndex()));
         }
     }
+#else
+
+    // build a vector of GlyphKeys
+    std::vector<GlyphKey> keyVec;
+    const char* p = m_string.c_str();
+    while (*p)
+    {
+        uint32_t cp;
+        int offset = NextCodePoint(p, &cp);
+        uint32_t index = FT_Get_Char_Index(m_font->GetFTFace(), cp);
+        if (!IsNewline(cp))
+        {
+            keyVec.push_back(GlyphKey(index, m_font->GetIndex()));
+        }
+        p += offset;
+    }
+
+#endif
 
     // add glyphs to cache and context, doing rasterization and sub-loads if necessary.
     context.RasterizeAndSubloadGlyphs(keyVec, m_glyphVec);
@@ -125,7 +145,9 @@ enum GlyphType { NEWLINE_GLYPH = 0, SPACE_GLYPH, NORMAL_GLYPH };
 struct GlyphInfo
 {
     enum GlyphType type;
+#ifdef GB_USE_HARFBUZZ
     hb_glyph_info_t *hbGlyph;
+#endif
     Glyph *gbGlyph;
     int32_t x;
 };
@@ -169,7 +191,7 @@ void Text::WordWrapAndGenerateQuads()
     fit_func_t fit;
     advance_func_t pre_advance, post_advance;
     iter_func_t begin, end, next, prev;
-    if (dir == HB_DIRECTION_RTL)
+    if (m_dir == Direction_RTL)
     {
         fit = loop_fit_rtl;
         pre_advance = loop_advance_rtl;
@@ -410,7 +432,10 @@ Text::Text(const std::string& string, std::shared_ptr<Font> font,
            uint32_t optionFlags, const char* script) :
     m_font(font),
     m_string(string),
+    m_dir(optionFlags & TextOptionFlags_DirectionRightToLeft ? Direction_RTL : Direction_LTR),
+#ifdef GB_USE_HARFBUZZ
     m_hbBuffer(hb_buffer_create()),
+#endif
     m_userData(userData),
     m_origin(origin),
     m_size(size),
@@ -418,13 +443,11 @@ Text::Text(const std::string& string, std::shared_ptr<Font> font,
     m_verticalAlign(verticalAlign),
     m_optionFlags(optionFlags)
 {
-    hb_direction_t direction = optionFlags & TextOptionFlags_DirectionRightToLeft ? HB_DIRECTION_RTL : HB_DIRECTION_LTR;
-    hb_buffer_set_direction(m_hbBuffer, direction);
-
+#ifdef GB_USE_HARFBUZZ
+    hb_buffer_set_direction(m_hbBuffer, m_dir == Direction_RTL ? HB_DIRECTION_RTL : HB_DIRECTION_LTR);
     hb_script_t scriptTag = HB_SCRIPT_LATIN;
     if (script)
         scriptTag = hb_script_from_string(script, 4);
-
     hb_buffer_set_script(m_hbBuffer, scriptTag);
 
     hb_buffer_add_utf8(m_hbBuffer, m_string.c_str(), m_string.size(), 0, m_string.size());
@@ -433,7 +456,7 @@ Text::Text(const std::string& string, std::shared_ptr<Font> font,
     {
         // Use harf-buzz to perform glyph shaping
         hb_shape(m_font->GetHarfbuzzFont(), m_hbBuffer, NULL, 0);
-
+        /*
         // debug print detected direction & script
         hb_direction_t dir = hb_buffer_get_direction(m_hbBuffer);
         hb_script_t script = hb_buffer_get_script(m_hbBuffer);
@@ -446,12 +469,14 @@ Text::Text(const std::string& string, std::shared_ptr<Font> font,
         tag_str[3] = tag;
         tag_str[4] = 0;
         printf("AJT: script = %s\n", tag_str);
+        */
 
-    } else {
-        // TODO: need a compile time option to remove dependency on harf-buzz
-        // just use FT_Get_Char_Index to look up glyph index
+    }
+    else
+    {
         ft_shape(m_hbBuffer, m_font->GetFTFace(), m_string.c_str());
     }
+#endif
 
     UpdateCache();
     WordWrapAndGenerateQuads();
@@ -462,7 +487,9 @@ Text::~Text()
     if (m_userData)
         free(m_userData);
 
+#ifdef GB_USE_HARFBUZZ
     hb_buffer_destroy(m_hbBuffer);
+#endif
 }
 
 // Renders given text using renderer func.

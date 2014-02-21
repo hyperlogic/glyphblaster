@@ -2,13 +2,15 @@
 
 require 'rake/clean'
 
+$USE_HARFBUZZ = true
+
 $CC = "clang"
 
 $C_FLAGS = ['-Wall',
             '--std=c++11',
             `sdl2-config --cflags`.chomp,
             `freetype-config --cflags`.chomp,
-            '-DDARWIN'
+            '-DDARWIN',
            ]
 
 $DEBUG_C_FLAGS = ['-g',
@@ -20,12 +22,16 @@ $OPT_C_FLAGS = ['-O3', '-DNDEBUG'];
 $L_FLAGS = [`sdl2-config --libs`.chomp,
             `freetype-config --libs`.chomp,
             '-lstdc++',
-            '-lharfbuzz',
             '-framework Cocoa',
             '-framework OpenGL',
             '-framework CoreServices',
             '-framework ApplicationServices'
            ]
+
+if $USE_HARFBUZZ
+  $C_FLAGS << '-DGB_USE_HARFBUZZ'
+  $L_FLAGS << '-lharfbuzz'
+end
 
 $OBJECTS = ['main.o',
             '../src/cache.o',
