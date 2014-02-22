@@ -15,7 +15,7 @@ Justifications.
 
 Should Context be a singleton? YES. simplifies things, i can sort this out later if necessary.
 
-### Proposed Architecture Diagram
+### Architecture Diagram
 
 ![Image](docs/glyphblaster.png)
 
@@ -34,7 +34,7 @@ Each Text object holds a collection of glyphs it is activly using.
 ## Dependencies
 
 * FreeType2
-* HarfBuzz-0.9
+* HarfBuzz-0.9 (optional)
 
 ## Implementation Notes
 
@@ -52,7 +52,6 @@ Each Text object holds a collection of glyphs it is activly using.
 
 ### Dependency Build Tasks
 
-* compile option to make dependency on HarfBuzz optional
 * Bundle harf-buzz, to make building easier
 
 ### Implementation Tasks
