@@ -189,10 +189,10 @@ int main(int argc, char* argv[])
     SDL_GL_SwapWindow(displayWindow);
 
     // create the context
-    gb::Context::Init(128, 1, gb::TextureFormat_Alpha);
+    gb::Context::Init(512, 1, gb::TextureFormat_Alpha);
 
     // load lorem.txt
-    int fd = open("arabic.txt", O_RDONLY);
+    int fd = open("utf8-test.txt", O_RDONLY);
     if (fd < 0) {
         fprintf(stderr, "open failed\n");
         exit(1);
@@ -213,31 +213,36 @@ int main(int argc, char* argv[])
     // create a font
 
     /*
-    auto droidSans = std::make_shared<gb::Font>("Droid-Sans/DroidSans.ttf", 30,
+    auto droidSans = std::make_shared<gb::Font>("Droid-Sans/DroidSans.ttf", 10,
                                                 gb::FontRenderOption_Normal,
                                                 gb::FontHintOption_ForceAuto);
     */
 
 
     /*
-    auto dejaVuSans = std::make_shared<gb::Font>("dejavu-fonts-ttf-2.33/ttf/DejaVuSans.ttf", 30,
+    auto dejaVuSans = std::make_shared<gb::Font>("dejavu-fonts-ttf-2.33/ttf/DejaVuSans.ttf", 10,
                                                  gb::FontRenderOption_Normal,
                                                  gb::FontHintOption_Default);
     */
 
+    auto dejaVuSans = std::make_shared<gb::Font>("dejavu-fonts-ttf-2.33/ttf/DejaVuSansMono.ttf", 10,
+                                                 gb::FontRenderOption_Normal,
+                                                 gb::FontHintOption_Default);
+
     /*
-    auto arial = std::make_shared<gb::Font>("Arial.ttf", 50,
+    auto arial = std::make_shared<gb::Font>("Arial.ttf", 20,
                                             gb::FontRenderOption_Normal,
                                             gb::FontHintOption_Default);
     */
 
-
+    /*
     auto zar = std::make_shared<gb::Font>("Zar/XB Zar.ttf", 48,
                                           gb::FontRenderOption_Normal,
                                           gb::FontHintOption_Default);
+    */
 
     // create a text
-    gb::IntPoint origin = {0, s_config->height / 2};
+    gb::IntPoint origin = {0, s_config->height / 4};
     gb::IntPoint size = {s_config->width - 1, s_config->height};
     uint32_t textColor = MakeColor(255, 255, 255, 255);
     uint32_t* userData = (uint32_t*)malloc(sizeof(uint32_t));
@@ -252,10 +257,11 @@ int main(int argc, char* argv[])
     */
 
     // arabic
-    auto helloText = std::make_shared<gb::Text>(lorem, zar, userData, origin, size,
+    auto helloText = std::make_shared<gb::Text>(lorem, dejaVuSans, userData, origin, size,
                                                 gb::TextHorizontalAlign_Left,
-                                                gb::TextVerticalAlign_Center,
-                                                gb::TextOptionFlags_DirectionRightToLeft, "Arab");
+                                                gb::TextVerticalAlign_Center);
+                                                /*gb::TextOptionFlags_DirectionRightToLeft, "Hebr");*/
+                                                /*gb::TextOptionFlags_DirectionRightToLeft, "Arab");*/
 
     //GB_TextRelease(gb, helloText);
 

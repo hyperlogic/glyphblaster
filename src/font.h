@@ -34,11 +34,15 @@ public:
 protected:
     uint32_t GetIndex() const { return m_index; }
     FT_Face GetFTFace() const { return m_ftFace; }
-    hb_font_t* GetHarfbuzzFont() const { return m_hbFont; }
+#ifdef GB_USE_HARFBUZZ
+    hb_font_t* GetHarfBuzzFont() const { return m_hbFont; }
+#endif
 
     uint32_t m_index;
     FT_Face m_ftFace;
+#ifdef GB_USE_HARFBUZZ
     hb_font_t* m_hbFont;
+#endif
     FontRenderOption m_renderOption;
     FontHintOption m_hintOption;
 };

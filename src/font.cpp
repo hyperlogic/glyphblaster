@@ -14,7 +14,9 @@ namespace gb {
 Font::Font(const std::string filename, uint32_t pointSize,
            FontRenderOption renderOption, FontHintOption hintOption) :
     m_ftFace(nullptr),
+#ifdef GB_USE_HARFBUZZ
     m_hbFont(nullptr),
+#endif
     m_renderOption(renderOption),
     m_hintOption(hintOption)
 {
@@ -30,9 +32,11 @@ Font::Font(const std::string filename, uint32_t pointSize,
     // set point size
     FT_Set_Char_Size(m_ftFace, (int)(pointSize * 64), 0, 72, 72);
 
+#ifdef GB_USE_HARFBUZZ
     // create harfbuzz font
     m_hbFont = hb_ft_font_create(m_ftFace, 0);
     hb_ft_font_set_funcs(m_hbFont);
+#endif
 
     // notify context
     context.OnFontCreate(this);
@@ -48,8 +52,10 @@ Font::~Font()
     if (m_ftFace)
         FT_Done_Face(m_ftFace);
 
+#ifdef GB_USE_HARFBUZZ
     if (m_hbFont)
         hb_font_destroy(m_hbFont);
+#endif
 }
 
 int Font::GetMaxAdvance() const
