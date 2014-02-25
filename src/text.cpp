@@ -62,8 +62,9 @@ static bool IsNewline(uint32_t codePoint)
 
 // returns the number of bytes to advance
 // fills cp_out with the code point at p.
-static int NextCodePoint(const char *p, uint32_t *codePointOut)
+static int NextCodePoint(const char *str, uint32_t *codePointOut)
 {
+    const uint8_t* p = (const uint8_t*)str;
     if ((*p & 0x80) == 0)
     {
         *codePointOut = *p;
