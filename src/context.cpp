@@ -146,7 +146,7 @@ void Context::RasterizeAndSubloadGlyphs(const std::vector<GlyphKey>& keyVecIn,
             assert(font);
 
             // will rasterize and initialize glyph
-            std::shared_ptr<Glyph> glyph(new Glyph(key.GetGlyphIndex(), *font));
+            auto glyph = std::make_shared<Glyph>(key.GetGlyphIndex(), *font);
 
             // will subload glyph into texture atlas
             if (!cacheIsFull && !m_cache->InsertIntoSheets(glyph))
