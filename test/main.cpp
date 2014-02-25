@@ -192,7 +192,7 @@ int main(int argc, char* argv[])
     gb::Context::Init(512, 1, gb::TextureFormat_Alpha);
 
     // load lorem.txt
-    int fd = open("utf8-test.txt", O_RDONLY);
+    int fd = open("arabic.txt", O_RDONLY);
     if (fd < 0) {
         fprintf(stderr, "open failed\n");
         exit(1);
@@ -218,16 +218,17 @@ int main(int argc, char* argv[])
                                                 gb::FontHintOption_ForceAuto);
     */
 
-
     /*
-    auto dejaVuSans = std::make_shared<gb::Font>("dejavu-fonts-ttf-2.33/ttf/DejaVuSans.ttf", 10,
+    auto dejaVuSans = std::make_shared<gb::Font>("dejavu-fonts-ttf-2.33/ttf/DejaVuSans.ttf", 30,
                                                  gb::FontRenderOption_Normal,
                                                  gb::FontHintOption_Default);
     */
 
-    auto dejaVuSans = std::make_shared<gb::Font>("dejavu-fonts-ttf-2.33/ttf/DejaVuSansMono.ttf", 10,
+    /*
+    auto dejaVuSans = std::make_shared<gb::Font>("dejavu-fonts-ttf-2.33/ttf/DejaVuSansMono.ttf", 20,
                                                  gb::FontRenderOption_Normal,
                                                  gb::FontHintOption_Default);
+    */
 
     /*
     auto arial = std::make_shared<gb::Font>("Arial.ttf", 20,
@@ -235,11 +236,11 @@ int main(int argc, char* argv[])
                                             gb::FontHintOption_Default);
     */
 
-    /*
+
     auto zar = std::make_shared<gb::Font>("Zar/XB Zar.ttf", 48,
                                           gb::FontRenderOption_Normal,
                                           gb::FontHintOption_Default);
-    */
+
 
     // create a text
     gb::IntPoint origin = {0, s_config->height / 4};
@@ -248,31 +249,12 @@ int main(int argc, char* argv[])
     uint32_t* userData = (uint32_t*)malloc(sizeof(uint32_t));
     *userData = textColor;
 
-    // hebrew test
-    /*
-    auto helloText = std::make_shared<gb::Text>(lorem, arial, userData, origin, size,
+    // create a text object
+    auto helloText = std::make_shared<gb::Text>(lorem, zar, userData, origin, size,
                                                 gb::TextHorizontalAlign_Left,
                                                 gb::TextVerticalAlign_Center,
-                                                gb::TextOptionFlags_DirectionRightToLeft, "Hebr");
-    */
-
-    // arabic
-    auto helloText = std::make_shared<gb::Text>(lorem, dejaVuSans, userData, origin, size,
-                                                gb::TextHorizontalAlign_Left,
-                                                gb::TextVerticalAlign_Center);
                                                 /*gb::TextOptionFlags_DirectionRightToLeft, "Hebr");*/
-                                                /*gb::TextOptionFlags_DirectionRightToLeft, "Arab");*/
-
-    //GB_TextRelease(gb, helloText);
-
-    /*
-    // أبجد hello
-    const char abjad[] = {0xd8, 0xa3, 0xd8, 0xa8, 0xd8, 0xac, 0xd8, 0xaf, 0x00};
-    char XXX[1024];
-    sprintf(XXX, "%s hello", abjad);
-    err = GB_TextMake(gb, XXX, mainFont, 0xffffffff, origin, size,
-                      GB_HORIZONTAL_ALIGN_CENTER, GB_VERTICAL_ALIGN_CENTER, &helloText);
-    */
+                                                gb::TextOptionFlags_DirectionRightToLeft, "Arab");
 
     gb::Context::Get().SetRenderFunc(TextRenderFunc);
 
@@ -329,31 +311,6 @@ int main(int argc, char* argv[])
             SDL_GL_SwapWindow(displayWindow);
         }
     }
-
-#if 0
-    err = GB_TextRelease(gb, helloText);
-    if (err != GB_ERROR_NONE) {
-        fprintf(stderr, "GB_ReleaseText Error %s\n", GB_ErrorToString(err));
-        exit(1);
-    }
-    err = GB_FontRelease(gb, mainFont);
-    if (err != GB_ERROR_NONE) {
-        fprintf(stderr, "GB_ReleaseFont Error %s\n", GB_ErrorToString(err));
-        exit(1);
-    }
-    if (arabicFont) {
-        err = GB_FontRelease(gb, arabicFont);
-        if (err != GB_ERROR_NONE) {
-            fprintf(stderr, "GB_ReleaseFont Error %s\n", GB_ErrorToString(err));
-            exit(1);
-        }
-    }
-    err = GB_ContextRelease(gb);
-    if (err != GB_ERROR_NONE) {
-        fprintf(stderr, "GB_Shutdown Error %s\n", GB_ErrorToString(err));
-        exit(1);
-    }
-#endif
 
     return 0;
 }
