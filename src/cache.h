@@ -21,6 +21,7 @@ public:
     uint32_t GetTextureSize() const { return m_textureSize; }
 
     // for debugging
+    // fills up texVec with the OpenGL GLuint texture handles for each sheet.
     void GetTextureObjects(std::vector<uint32_t>& texVec) const;
 
 protected:
