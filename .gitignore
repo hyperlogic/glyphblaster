@@ -1,4 +1,4 @@
 *.o
 *.d
-gbtest
+test/test
 .DS_Store

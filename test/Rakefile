@@ -1,59 +1,64 @@
-# build quadapult sdl version
+# build test program using sdl2
 
 require 'rake/clean'
 
+$USE_HARFBUZZ = true
+
+$CC = "clang"
+
 $C_FLAGS = ['-Wall',
-            `sdl-config --cflags`.chomp,
+            '--std=c++11',
+            `sdl2-config --cflags`.chomp,
             `freetype-config --cflags`.chomp,
-            '-DDARWIN'
+            '-DDARWIN',
            ]
 
 $DEBUG_C_FLAGS = ['-g',
                   '-DDEBUG',
-                  '-DHASH_DEBUG'  # for uthash
                  ]
 
 $OPT_C_FLAGS = ['-O3', '-DNDEBUG'];
 
-$L_FLAGS = [`sdl-config --libs`.chomp,
+$L_FLAGS = [`sdl2-config --libs`.chomp,
             `freetype-config --libs`.chomp,
             '-lstdc++',
-            '-lharfbuzz',
-            '-licuuc',
             '-framework Cocoa',
             '-framework OpenGL',
             '-framework CoreServices',
             '-framework ApplicationServices'
            ]
 
-$OBJECTS = ['SDLMain.o',
-            'main.o',
-            '../src/gb_cache.o',
-            '../src/gb_context.o',
-            '../src/gb_error.o',
-            '../src/gb_font.o',
-            '../src/gb_glyph.o',
-            '../src/gb_text.o',
-            '../src/gb_texture.o',
+if $USE_HARFBUZZ
+  $C_FLAGS << '-DGB_USE_HARFBUZZ'
+  $L_FLAGS << '-lharfbuzz'
+end
+
+$OBJECTS = ['main.o',
+            '../src/cache.o',
+            '../src/context.o',
+            '../src/font.o',
+            '../src/glyph.o',
+            '../src/text.o',
+            '../src/texture.o',
            ]
 
 $DEPS = $OBJECTS.map {|f| f[0..-3] + '.d'}
-$EXE = 'gbtest'
+$EXE = 'test'
 
 # Use the compiler to build makefile rules for us.
 # This will list all of the pre-processor includes this source file depends on.
 def make_deps t
-  sh "gcc -MM -MF #{t.name} #{$C_FLAGS.join ' '} -c #{t.source}"
+  sh "#{$CC} -MM -MF #{t.name} #{$C_FLAGS.join ' '} -c #{t.source}"
 end
 
 # Compile a single compilation unit into an object file
 def compile obj, src
-  sh "gcc #{$C_FLAGS.join ' '} -c #{src} -o #{obj}"
+  sh "#{$CC} #{$C_FLAGS.join ' '} -c #{src} -o #{obj}"
 end
 
 # Link all the object files to create the exe
 def do_link exe, objects
-  sh "gcc #{objects.join ' '} -o #{exe} #{$L_FLAGS.join ' '}"
+  sh "#{$CC} #{objects.join ' '} -o #{exe} #{$L_FLAGS.join ' '}"
 end
 
 # generate makefile rules from source code

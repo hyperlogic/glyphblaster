@@ -1,3 +1,4 @@
+#include <assert.h>
 
 #ifdef __APPLE__
 #  include "TargetConditionals.h"
@@ -18,9 +19,10 @@
 #  include <GL/glu.h>
 #endif
 
-#include "gb_texture.h"
-#include "gb_context.h"
+#include "texture.h"
 #include <stdio.h>
+
+namespace gb {
 
 #ifndef NDEBUG
 // If there is a glError this outputs it along with a message to stderr.
@@ -56,45 +58,46 @@ void GLErrorCheck(const char *message)
 }
 #endif
 
-GB_ERROR GB_TextureInit(enum GB_TextureFormat format, uint32_t texture_size, uint8_t *image, uint32_t *tex_out)
+Texture::Texture(TextureFormat format, uint32_t textureSize, uint8_t* image) :
+    m_format(format)
 {
-    glGenTextures(1, tex_out);
-    glBindTexture(GL_TEXTURE_2D, *tex_out);
+    glGenTextures(1, &m_texObj);
+    glBindTexture(GL_TEXTURE_2D, m_texObj);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    if (format == GB_TEXTURE_FORMAT_ALPHA)
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, texture_size, texture_size, 0, GL_ALPHA, GL_UNSIGNED_BYTE, image);
+    if (format == TextureFormat_Alpha)
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, textureSize, textureSize, 0, GL_ALPHA, GL_UNSIGNED_BYTE, image);
     else
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texture_size, texture_size, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureSize, textureSize, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
 
 #ifndef NDEBUG
-    GLErrorCheck("_GB_InitOpenGLTexture");
+    GLErrorCheck("Texture::Texture");
 #endif
-
-    return GB_ERROR_NONE;
 }
 
-GB_ERROR GB_TextureDestroy(uint32_t tex)
+Texture::~Texture()
 {
-    glDeleteTextures(1, &tex);
-    return GB_ERROR_NONE;
-}
-
-
-GB_ERROR GB_TextureSubLoad(uint32_t tex, enum GB_TextureFormat format, uint32_t origin[2], uint32_t size[2],
-                           uint8_t *image)
-{
-    glBindTexture(GL_TEXTURE_2D, tex);
-    if (format == GB_TEXTURE_FORMAT_ALPHA)
-        glTexSubImage2D(GL_TEXTURE_2D, 0, origin[0], origin[1], size[0], size[1], GL_ALPHA, GL_UNSIGNED_BYTE, image);
-    else
-        glTexSubImage2D(GL_TEXTURE_2D, 0, origin[0], origin[1], size[0], size[1], GL_RGBA, GL_UNSIGNED_BYTE, image);
+    glDeleteTextures(1, &m_texObj);
 
 #ifndef NDEBUG
-    GLErrorCheck("_GB_SheetSubloadGlyph");
+    GLErrorCheck("Texture::~Texture");
 #endif
-    return GB_ERROR_NONE;
 }
+
+void Texture::Subload(IntPoint origin, IntPoint size, uint8_t* image)
+{
+    glBindTexture(GL_TEXTURE_2D, m_texObj);
+    if (m_format == TextureFormat_Alpha)
+        glTexSubImage2D(GL_TEXTURE_2D, 0, origin.x, origin.y, size.x, size.y, GL_ALPHA, GL_UNSIGNED_BYTE, image);
+    else
+        glTexSubImage2D(GL_TEXTURE_2D, 0, origin.x, origin.y, size.x, size.y, GL_RGBA, GL_UNSIGNED_BYTE, image);
+
+#ifndef NDEBUG
+    GLErrorCheck("Texture::Subload");
+#endif
+}
+
+} // namespace gb
