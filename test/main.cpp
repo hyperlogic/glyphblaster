@@ -205,7 +205,7 @@ int main(int argc, char* argv[])
     SDL_GL_SwapWindow(displayWindow);
 
     // create the context
-    gb::Context::Init(512, 1, gb::TextureFormat_Alpha);
+    gb::Context::Init(512, 1, gb::TextureFormat_RGBA);
 
     // load lorem.txt
     int fd = open("lorem.txt", O_RDONLY);
@@ -230,7 +230,7 @@ int main(int argc, char* argv[])
 
 
     // create a font
-    auto droidSans = std::make_shared<gb::Font>("Droid-Sans/DroidSans.ttf", 15,
+    auto droidSans = std::make_shared<gb::Font>("Droid-Sans/DroidSans.ttf", 15, 0,
                                                 gb::FontRenderOption_Normal,
                                                 gb::FontHintOption_ForceAuto);
 

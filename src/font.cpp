@@ -11,12 +11,13 @@
 
 namespace gb {
 
-Font::Font(const std::string filename, uint32_t pointSize,
+Font::Font(const std::string filename, uint32_t pointSize, uint32_t paddingBorder,
            FontRenderOption renderOption, FontHintOption hintOption) :
     m_ftFace(nullptr),
 #ifdef GB_USE_HARFBUZZ
     m_hbFont(nullptr),
 #endif
+    m_paddingBorder(paddingBorder),
     m_renderOption(renderOption),
     m_hintOption(hintOption)
 {
