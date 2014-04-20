@@ -5,6 +5,7 @@
 #include <memory>
 #include <vector>
 #include <map>
+#include <functional>
 #include <ft2build.h>
 #include FT_FREETYPE_H
 

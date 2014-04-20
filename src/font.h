@@ -5,7 +5,9 @@
 #include <string>
 #include <ft2build.h>
 #include FT_FREETYPE_H
+#ifdef GB_USE_HARFBUZZ
 #include <harfbuzz/hb.h>
+#endif
 #include "glyphblaster.h"
 
 namespace gb {

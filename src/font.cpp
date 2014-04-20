@@ -1,5 +1,7 @@
+#ifdef GB_USE_HARFBUZZ
 #include <harfbuzz/hb.h>
 #include <harfbuzz/hb-ft.h>
+#endif
 #include "font.h"
 #include "context.h"
 #include "glyph.h"

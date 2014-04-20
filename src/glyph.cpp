@@ -12,7 +12,9 @@ namespace gb {
 Glyph::Glyph(uint32_t index, const Font& font) :
     m_key(index, font.GetIndex()),
     m_texObj(0),
-    m_origin{0, 0}
+    m_origin{0, 0},
+    m_size{0, 0},
+    m_bearing{0, 0}
 {
     Context& context = Context::Get();
     assert(font.GetFTFace());
