@@ -37,7 +37,8 @@ public:
     int GetAdvance() const { return m_advance; }
 
 protected:
-    void InitImageAndSize(FT_Bitmap* ftBitmap, TextureFormat textureFormat, FontRenderOption renderOption);
+    void InitImageAndSize(FT_Bitmap* ftBitmap, TextureFormat textureFormat,
+                          FontRenderOption renderOption, uint32_t paddingBorder);
 
     GlyphKey m_key;
     uint32_t m_texObj;

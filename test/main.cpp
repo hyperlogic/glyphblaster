@@ -45,7 +45,7 @@ struct Config
     int height;
     bool dumpRenderInfo;
     bool dumpExtensionInfo;
-    
+
     std::string title;
 };
 
@@ -120,7 +120,7 @@ void DrawLine(Vector2f p0, Vector2f p1, uint32_t color)
     glColorPointer(4, GL_UNSIGNED_BYTE, 0, colors);
 
     static uint16_t indices[] = {0, 1};
-    glDrawElements(GL_LINES, 6, GL_UNSIGNED_SHORT, indices);
+    glDrawElements(GL_LINES, 2, GL_UNSIGNED_SHORT, indices);
 }
 
 void DrawTexturedQuad(uint32_t gl_tex, Vector2f origin, Vector2f size,
@@ -212,8 +212,8 @@ void TextRenderFunc(const std::vector<gb::Quad>& quadVec)
     glLoadIdentity();
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glEnable(GL_TEXTURE_2D);
 
+    static bool drawGlyphOutline = true;
     static int count = 1;  // set to 0 to enable dumping
     int i = 0;
     for (auto &quad : quadVec)
@@ -227,6 +227,24 @@ void TextRenderFunc(const std::vector<gb::Quad>& quadVec)
             printf("    uv_size = [%.3f, %.3f]\n", quad.uvSize.x, quad.uvSize.y);
             printf("    gl_tex_obj = %u\n", quad.glTexObj);
             printf("    user_data = %p\n", quad.userData);
+        }
+
+        if (drawGlyphOutline)
+        {
+            glDisable(GL_TEXTURE_2D);
+            Vector2f corners[4] = {
+                Vector2f(quad.origin.x, quad.origin.y),
+                Vector2f(quad.origin.x, quad.origin.y + quad.size.y),
+                Vector2f(quad.origin.x + quad.size.x, quad.origin.y + quad.size.y),
+                Vector2f(quad.origin.x + quad.size.x, quad.origin.y),
+            };
+
+            for (int i = 0, p = 3; i < 4; p = i, i++)
+            {
+                DrawLine(corners[p], corners[i], MakeColor(255, 0, 0, 255));
+            }
+            glEnable(GL_TEXTURE_2D);
+
         }
 
         DrawTexturedQuad(quad.glTexObj,
@@ -252,7 +270,7 @@ static int LoadFileToMemory(const char *filename, unsigned char **result)
 #else
     FILE *f = fopen(filename, "rb");
 #endif
-    if (f == NULL) 
+    if (f == NULL)
     {
         *result = NULL;
         return CouldNotOpenFile;
@@ -289,7 +307,7 @@ int main(int argc, char* argv[])
 	SDL_RendererInfo displayRendererInfo;
     SDL_GetRendererInfo(displayRenderer, &displayRendererInfo);
     /* TODO: Check that we have OpenGL */
-    if ((displayRendererInfo.flags & SDL_RENDERER_ACCELERATED) == 0 || 
+    if ((displayRendererInfo.flags & SDL_RENDERER_ACCELERATED) == 0 ||
         (displayRendererInfo.flags & SDL_RENDERER_TARGETTEXTURE) == 0) {
         /* TODO: Handle this. We have no render surface and not accelerated. */
         fprintf(stderr, "NO RENDERER wtf!\n");
@@ -309,7 +327,7 @@ int main(int argc, char* argv[])
     SDL_GL_SwapWindow(displayWindow);
 
     // create the context
-    gb::Context::Init(512, 1, gb::TextureFormat_Alpha);
+    gb::Context::Init(256, 1, gb::TextureFormat_RGBA);
 
     char* lorem = nullptr;
     int result = LoadFileToMemory("lorem.txt", (unsigned char **)&lorem);
@@ -320,7 +338,7 @@ int main(int argc, char* argv[])
     }
 
     // create a font
-    auto droidSans = std::make_shared<gb::Font>("Droid-Sans/DroidSans.ttf", 15,
+    auto droidSans = std::make_shared<gb::Font>("Droid-Sans/DroidSans.ttf", 30, 10,
                                                 gb::FontRenderOption_Normal,
                                                 gb::FontHintOption_ForceAuto);
 
@@ -351,7 +369,7 @@ int main(int argc, char* argv[])
 
 
     // create a text
-    gb::IntPoint origin = {0, s_config->height / 4};
+    gb::IntPoint origin = {0, 256}; //s_config->height / 4};
     gb::IntPoint size = {s_config->width - 1, s_config->height};
     uint32_t textColor = MakeColor(255, 255, 255, 255);
     uint32_t* userData = (uint32_t*)malloc(sizeof(uint32_t));

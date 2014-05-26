@@ -111,7 +111,7 @@ Glyph::Glyph(uint32_t index, const Font& font) :
                  (int)FIXED_TO_INT(ftFace->glyph->metrics.horiBearingY)};
 
     FT_Bitmap* ftBitmap = &ftFace->glyph->bitmap;
-    InitImageAndSize(ftBitmap, context.GetTextureFormat(), font.GetRenderOption());
+    InitImageAndSize(ftBitmap, context.GetTextureFormat(), font.GetRenderOption(), font.GetPaddingBorder());
 }
 
 Glyph::~Glyph()
@@ -119,7 +119,8 @@ Glyph::~Glyph()
 
 }
 
-void Glyph::InitImageAndSize(FT_Bitmap* ftBitmap, TextureFormat textureFormat, FontRenderOption renderOption)
+void Glyph::InitImageAndSize(FT_Bitmap* ftBitmap, TextureFormat textureFormat,
+                             FontRenderOption renderOption, uint32_t paddingBorder)
 {
     if (ftBitmap->width > 0 && ftBitmap->rows > 0)
     {
@@ -137,25 +138,36 @@ void Glyph::InitImageAndSize(FT_Bitmap* ftBitmap, TextureFormat textureFormat, F
         case FontRenderOption_Normal:
         case FontRenderOption_Light:
         {
+            const int width = (ftBitmap->width + 2 * paddingBorder);
+            const int height = (ftBitmap->rows + 2 * paddingBorder);
+            const int numPixels =  width * height;
+
             if (textureFormat == TextureFormat_Alpha)
             {
                 // allocate an image to hold a copy of the rasterized glyph
-                std::unique_ptr<uint8_t> image(new uint8_t[ftBitmap->width * ftBitmap->rows]);
+                std::unique_ptr<uint8_t> image(new uint8_t[numPixels]);
                 m_image = std::move(image);
+
+                // clear dest image
+                memset(m_image.get(), 0, numPixels);
 
                 // copy image from ft_bitmap.buffer into image, row by row.
                 // The pitch of each row in the ft_bitmap maybe >= width,
                 // so we can't do this as a single memcpy.
                 uint8_t* img = m_image.get();
-                for (int i = 0; i < ftBitmap->rows; i++) {
-                    memcpy(img + (i * ftBitmap->width), ftBitmap->buffer + (i * ftBitmap->pitch), ftBitmap->width);
+                for (int i = 0; i < ftBitmap->rows; i++)
+                {
+                    memcpy(img + ((i + paddingBorder) * width) + paddingBorder, ftBitmap->buffer + (i * ftBitmap->pitch), ftBitmap->width);
                 }
             }
-            else
+            else if (textureFormat == TextureFormat_RGBA)
             {
                 // allocate an image to hold a copy of the rasterized glyph
-                std::unique_ptr<uint8_t> image(new uint8_t[4 * ftBitmap->width * ftBitmap->rows]);
+                std::unique_ptr<uint8_t> image(new uint8_t[4 * numPixels]);
                 m_image = std::move(image);
+
+                // clear dest image
+                memset(m_image.get(), 0, 4 * numPixels);
 
                 // copy image from ft_bitmap.buffer into image, row by row.
                 // The pitch of each row in the ft_bitmap maybe >= width,
@@ -168,44 +180,37 @@ void Glyph::InitImageAndSize(FT_Bitmap* ftBitmap, TextureFormat textureFormat, F
                     for (int j = 0; j < ftBitmap->width; j++)
                     {
                         // white with alpha, i.e. non-premultiplied alpha.
-                        img[i * ftBitmap->width * 4 + (j * 4) + 0] = 0xff;
-                        img[i * ftBitmap->width * 4 + (j * 4) + 1] = 0xff;
-                        img[i * ftBitmap->width * 4 + (j * 4) + 2] = 0xff;
-                        img[i * ftBitmap->width * 4 + (j * 4) + 3] = ftBitmap->buffer[i * ftBitmap->pitch + j];
-                    }
-                }
-            }
-            m_size = {ftBitmap->width, ftBitmap->rows};
-            break;
-        }
-
-        case FontRenderOption_Mono:
-        {
-            // ftBitmap is 1 bit per pixel.
-            if (textureFormat == TextureFormat_Alpha)
-            {
-                // allocate an image to hold a copy of the rasterized glyph
-                std::unique_ptr<uint8_t> image(new uint8_t[ftBitmap->width * ftBitmap->rows]);
-                m_image = std::move(image);
-
-                // copy image from ft_bitmap.buffer into image
-                uint8_t byte, mask;
-                uint8_t* img = m_image.get();
-                for (int i = 0; i < ftBitmap->rows; i++)
-                {
-                    for (int j = 0; j < ftBitmap->width; j++)
-                    {
-                        byte = ftBitmap->buffer[i * ftBitmap->pitch + (j/8)];
-                        mask = 0x1 << (7 - (j % 8));
-                        img[i * ftBitmap->width + j] = (byte & mask) ? 0xff : 0x00;
+                        const uint8_t intensity = ftBitmap->buffer[i * ftBitmap->pitch + j];
+                        img[(i + paddingBorder) * width * 4 + ((j + paddingBorder) * 4) + 0] = 0xff;
+                        img[(i + paddingBorder) * width * 4 + ((j + paddingBorder) * 4) + 1] = 0xff;
+                        img[(i + paddingBorder) * width * 4 + ((j + paddingBorder) * 4) + 2] = 0xff;
+                        img[(i + paddingBorder) * width * 4 + ((j + paddingBorder) * 4) + 3] = intensity;
                     }
                 }
             }
             else
             {
+                assert(0);
+            }
+            m_size = {width, height};
+            break;
+        }
+
+        case FontRenderOption_Mono:
+        {
+            const int width = (ftBitmap->width + 2 * paddingBorder);
+            const int height = (ftBitmap->rows + 2 * paddingBorder);
+            const int numPixels =  width * height;
+
+            // ftBitmap is 1 bit per pixel.
+            if (textureFormat == TextureFormat_Alpha)
+            {
                 // allocate an image to hold a copy of the rasterized glyph
-                std::unique_ptr<uint8_t> image(new uint8_t[4 * ftBitmap->width * ftBitmap->rows]);
+                std::unique_ptr<uint8_t> image(new uint8_t[numPixels]);
                 m_image = std::move(image);
+
+                // clear dest image
+                memset(m_image.get(), 0, numPixels);
 
                 // copy image from ft_bitmap.buffer into image
                 uint8_t byte, mask;
@@ -216,14 +221,40 @@ void Glyph::InitImageAndSize(FT_Bitmap* ftBitmap, TextureFormat textureFormat, F
                     {
                         byte = ftBitmap->buffer[i * ftBitmap->pitch + (j/8)];
                         mask = 0x1 << (7 - (j % 8));
-                        img[i * ftBitmap->width * 4 + j * 4 + 0] = 0xff;
-                        img[i * ftBitmap->width * 4 + j * 4 + 1] = 0xff;
-                        img[i * ftBitmap->width * 4 + j * 4 + 2] = 0xff;
-                        img[i * ftBitmap->width * 4 + j * 4 + 3] = (byte & mask) ? 0xff : 0x00;
+                        img[(i + paddingBorder) * width + j + paddingBorder] = (byte & mask) ? 0xff : 0x00;
                     }
                 }
             }
-            m_size = {ftBitmap->width, ftBitmap->rows};
+            else if (textureFormat == TextureFormat_RGBA)
+            {
+                // allocate an image to hold a copy of the rasterized glyph
+                std::unique_ptr<uint8_t> image(new uint8_t[4 * numPixels]);
+                m_image = std::move(image);
+
+                // clear dest image
+                memset(m_image.get(), 0, 4 * numPixels);
+
+                // copy image from ft_bitmap.buffer into image
+                uint8_t byte, mask;
+                uint8_t* img = m_image.get();
+                for (int i = 0; i < ftBitmap->rows; i++)
+                {
+                    for (int j = 0; j < ftBitmap->width; j++)
+                    {
+                        byte = ftBitmap->buffer[i * ftBitmap->pitch + (j/8)];
+                        mask = 0x1 << (7 - (j % 8));
+                        img[(i + paddingBorder) * width * 4 + (j + paddingBorder) * 4 + 0] = 0xff;
+                        img[(i + paddingBorder) * width * 4 + (j + paddingBorder) * 4 + 1] = 0xff;
+                        img[(i + paddingBorder) * width * 4 + (j + paddingBorder) * 4 + 2] = 0xff;
+                        img[(i + paddingBorder) * width * 4 + (j + paddingBorder) * 4 + 3] = (byte & mask) ? 0xff : 0x00;
+                    }
+                }
+            }
+            else
+            {
+                assert(0);
+            }
+            m_size = {width, height};
             break;
         }
 
@@ -232,12 +263,20 @@ void Glyph::InitImageAndSize(FT_Bitmap* ftBitmap, TextureFormat textureFormat, F
         case FontRenderOption_LCD_RGB_V:
         case FontRenderOption_LCD_BGR_V:
         {
+
+            const int width = (ftBitmap->width / 3 + 2 * paddingBorder);
+            const int height = (ftBitmap->rows + 2 * paddingBorder);
+            const int numPixels =  width * height;
+
             assert(textureFormat == TextureFormat_RGBA);
             if (textureFormat == TextureFormat_RGBA)
             {
                 // allocate an image to hold a copy of the rasterized glyph
-                std::unique_ptr<uint8_t> image(new uint8_t[4 * ftBitmap->width * ftBitmap->rows]);
+                std::unique_ptr<uint8_t> image(new uint8_t[4 * numPixels]);
                 m_image = std::move(image);
+
+                // clear dest image
+                memset(m_image.get(), 0, 4 * numPixels);
 
                 if (renderOption == FontRenderOption_LCD_RGB || renderOption == FontRenderOption_LCD_RGB_V)
                 {
@@ -245,18 +284,19 @@ void Glyph::InitImageAndSize(FT_Bitmap* ftBitmap, TextureFormat textureFormat, F
                     // The pitch of each row in the ft_bitmap maybe >= width,
                     // convert from RGB to RGBA
                     // TODO: Is this pre mulitplied alpha?  What should the alpha be, currently I'm just using 255.
-                    const uint32_t width = ftBitmap->width / 3;
                     uint8_t* img = m_image.get();
-                    for (int i = 0; i < ftBitmap->rows; i++) {
-                        for (int j = 0; j < width; j++) {
-                            img[i * width * 4 + (j * 4) + 0] = ftBitmap->buffer[i * ftBitmap->pitch + (j * 3) + 0];
-                            img[i * width * 4 + (j * 4) + 1] = ftBitmap->buffer[i * ftBitmap->pitch + (j * 3) + 1];
-                            img[i * width * 4 + (j * 4) + 2] = ftBitmap->buffer[i * ftBitmap->pitch + (j * 3) + 2];
-                            img[i * width * 4 + (j * 4) + 3] = 0xff;
+                    for (int i = 0; i < ftBitmap->rows; i++)
+                    {
+                        for (int j = 0; j < (ftBitmap->width / 3); j++)
+                        {
+                            img[(i + paddingBorder) * width * 4 + ((j + paddingBorder) * 4) + 0] = ftBitmap->buffer[i * ftBitmap->pitch + (j * 3) + 0];
+                            img[(i + paddingBorder) * width * 4 + ((j + paddingBorder) * 4) + 1] = ftBitmap->buffer[i * ftBitmap->pitch + (j * 3) + 1];
+                            img[(i + paddingBorder) * width * 4 + ((j + paddingBorder) * 4) + 2] = ftBitmap->buffer[i * ftBitmap->pitch + (j * 3) + 2];
+                            img[(i + paddingBorder) * width * 4 + ((j + paddingBorder) * 4) + 3] = 0xff;
                         }
                     }
                 }
-                else
+                else if (textureFormat == TextureFormat_RGBA)
                 {
                     // copy image from ft_bitmap.buffer into image, row by row.
                     // The pitch of each row in the ft_bitmap maybe >= width,
@@ -264,16 +304,22 @@ void Glyph::InitImageAndSize(FT_Bitmap* ftBitmap, TextureFormat textureFormat, F
                     // TODO: Is this pre mulitplied alpha?  What should the alpha be, currently I'm just using 255
                     const uint32_t width = ftBitmap->width / 3;
                     uint8_t* img = m_image.get();
-                    for (int i = 0; i < ftBitmap->rows; i++) {
-                        for (int j = 0; j < width; j++) {
-                            img[i * width * 4 + (j * 4) + 0] = ftBitmap->buffer[i * ftBitmap->pitch + (j * 3) + 2];
-                            img[i * width * 4 + (j * 4) + 1] = ftBitmap->buffer[i * ftBitmap->pitch + (j * 3) + 1];
-                            img[i * width * 4 + (j * 4) + 2] = ftBitmap->buffer[i * ftBitmap->pitch + (j * 3) + 0];
-                            img[i * width * 4 + (j * 4) + 3] = 0xff;
+                    for (int i = 0; i < ftBitmap->rows; i++)
+                    {
+                        for (int j = 0; j < (ftBitmap->width / 3); j++)
+                        {
+                            img[(i + paddingBorder) * width * 4 + ((j + paddingBorder) * 4) + 0] = ftBitmap->buffer[i * ftBitmap->pitch + (j * 3) + 2];
+                            img[(i + paddingBorder) * width * 4 + ((j + paddingBorder) * 4) + 1] = ftBitmap->buffer[i * ftBitmap->pitch + (j * 3) + 1];
+                            img[(i + paddingBorder) * width * 4 + ((j + paddingBorder) * 4) + 2] = ftBitmap->buffer[i * ftBitmap->pitch + (j * 3) + 0];
+                            img[(i + paddingBorder) * width * 4 + ((j + paddingBorder) * 4) + 3] = 0xff;
                         }
                     }
                 }
-                m_size = {ftBitmap->width / 3, ftBitmap->rows};
+                else
+                {
+                    assert(0);
+                }
+                m_size = {width, height};
             }
             else
             {

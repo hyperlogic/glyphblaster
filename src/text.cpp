@@ -360,8 +360,10 @@ void Text::WordWrapAndGenerateQuads(const GlyphCursorVec& glyphCursorVec)
             IntPoint glyphOrigin = info.gbGlyph->GetOrigin();
             IntPoint glyphSize = info.gbGlyph->GetSize();
 
+            const int pad = (int)m_font->GetPaddingBorder();
+
             IntPoint pen = {m_origin.x + info.x, y};
-            IntPoint origin = {m_origin.x + info.x + glyphBearing.x, y - glyphBearing.y};
+            IntPoint origin = {m_origin.x + info.x + glyphBearing.x - pad, y - glyphBearing.y - pad};
             IntPoint size = glyphSize;
             FloatPoint uvOrigin = {glyphOrigin.x / texture_size, glyphOrigin.y / texture_size};
             FloatPoint uvSize = {glyphSize.x / texture_size, glyphSize.y / texture_size};
