@@ -327,7 +327,7 @@ int main(int argc, char* argv[])
     SDL_GL_SwapWindow(displayWindow);
 
     // create the context
-    gb::Context::Init(512, 1, gb::TextureFormat_RGBA);
+    gb::Context::Init(256, 1, gb::TextureFormat_RGBA);
 
     char* lorem = nullptr;
     int result = LoadFileToMemory("lorem.txt", (unsigned char **)&lorem);
@@ -338,7 +338,7 @@ int main(int argc, char* argv[])
     }
 
     // create a font
-    auto droidSans = std::make_shared<gb::Font>("Droid-Sans/DroidSans.ttf", 15, 0,
+    auto droidSans = std::make_shared<gb::Font>("Droid-Sans/DroidSans.ttf", 30, 10,
                                                 gb::FontRenderOption_Normal,
                                                 gb::FontHintOption_ForceAuto);
 
@@ -369,14 +369,14 @@ int main(int argc, char* argv[])
 
 
     // create a text
-    gb::IntPoint origin = {0, 512}; //s_config->height / 4};
+    gb::IntPoint origin = {0, 256}; //s_config->height / 4};
     gb::IntPoint size = {s_config->width - 1, s_config->height};
     uint32_t textColor = MakeColor(255, 255, 255, 255);
     uint32_t* userData = (uint32_t*)malloc(sizeof(uint32_t));
     *userData = textColor;
 
     // create a text object
-    auto loremText = std::make_shared<gb::Text>("x\ny\nz", droidSans, userData, origin, size,
+    auto loremText = std::make_shared<gb::Text>(lorem, droidSans, userData, origin, size,
                                                 gb::TextHorizontalAlign_Left,
                                                 gb::TextVerticalAlign_Center);
                                                 /*gb::TextOptionFlags_DirectionRightToLeft, "Hebr");*/
