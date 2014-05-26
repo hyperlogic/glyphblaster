@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <algorithm>
 #include "cache.h"
 #include "texture.h"
 #include "context.h"

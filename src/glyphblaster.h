@@ -10,6 +10,7 @@ namespace gb {
 template <typename T>
 struct Point
 {
+    Point(T _x, T _y) : x(_x), y(_y) {}
     T x, y;
 };
 

@@ -1,7 +1,13 @@
 #include <stdio.h>
 #include <string>
 #include <memory>
+
+#if (defined _WIN32) || (defined _WIN64)
+#include "SDL.h"
+#include "SDL_opengl.h"
+#else
 #include "SDL2/SDL.h"
+#endif
 
 #ifdef __APPLE__
 #include "TargetConditionals.h"
@@ -17,14 +23,7 @@
 #include <OpenGLES/ES1/gl.h>
 #include <OpenGLES/ES1/glext.h>
 
-#else
-
-#include <GL/gl.h>
-#include <GL/glext.h>
-#include <GL/glu.h>
-
 #endif
-
 
 #include "../src/context.h"
 #include "../src/font.h"
@@ -33,24 +32,77 @@
 
 #include "abaci.h"
 
-#include <sys/mman.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-
 struct Config
 {
     Config(bool fullscreenIn, bool msaaIn, int widthIn, int heightIn) :
-        fullscreen(fullscreenIn), msaa(msaaIn), msaaSamples(4), width(widthIn), height(heightIn) {};
+        fullscreen(fullscreenIn), msaa(msaaIn), msaaSamples(4), width(widthIn), height(heightIn),
+        dumpRenderInfo(true), dumpExtensionInfo(true) {};
 
 	bool fullscreen;
     bool msaa;
     int msaaSamples;
     int width;
     int height;
+    bool dumpRenderInfo;
+    bool dumpExtensionInfo;
+    
     std::string title;
 };
 
 Config* s_config = 0;
+
+// prints all available OpenGL extensions
+static void _DumpExtensions()
+{
+    const GLubyte* extensions = glGetString(GL_EXTENSIONS);
+    printf("extensions =\n");
+
+    std::string str((const char *)extensions);
+    size_t s = 0;
+    size_t t = str.find_first_of(' ', s);
+    while (t != std::string::npos)
+    {
+        printf("    %s\n", str.substr(s, t - s).c_str());
+        s = t + 1;
+        t = str.find_first_of(' ', s);
+    }
+}
+
+void RenderInit(const Config& config)
+{
+    // print out gl version info
+    if (config.dumpRenderInfo)
+    {
+        const GLubyte* version = glGetString(GL_VERSION);
+        printf("OpenGL\n");
+        printf("    version = %s\n", version);
+
+        const GLubyte* vendor = glGetString(GL_VENDOR);
+        printf("    vendor = %s\n", vendor);
+
+        const GLubyte* renderer = glGetString(GL_RENDERER);
+        printf("    renderer = %s\n", renderer);
+
+        const GLubyte* shadingLanguageVersion = glGetString(GL_SHADING_LANGUAGE_VERSION);
+        printf("    shader language version = %s\n", shadingLanguageVersion);
+
+        int maxTextureUnits;
+        glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &maxTextureUnits);
+        printf("    max texture units = %d\n", maxTextureUnits);
+
+#ifndef GL_ES_VERSION_2_0
+        int maxVertexUniforms, maxFragmentUniforms;
+        glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS, &maxVertexUniforms);
+        glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_COMPONENTS, &maxFragmentUniforms);
+        printf("    max vertex uniforms = %d\n", maxVertexUniforms);
+        printf("    max fragment uniforms = %d\n", maxFragmentUniforms);
+#endif
+    }
+
+    if (config.dumpExtensionInfo)
+        _DumpExtensions();
+}
+
 
 static uint32_t MakeColor(uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha)
 {
@@ -97,10 +149,10 @@ void DrawTexturedQuad(uint32_t gl_tex, Vector2f origin, Vector2f size,
     glEnableClientState(GL_COLOR_ARRAY);
     glColorPointer(4, GL_UNSIGNED_BYTE, 0, colors);
 
-    glClientActiveTexture(GL_TEXTURE0);
+   // glClientActiveTexture(GL_TEXTURE0);
     glTexCoordPointer(2, GL_FLOAT, 0, uvs);
 
-    glActiveTexture(GL_TEXTURE0);
+    //glActiveTexture(GL_TEXTURE0);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
     static uint16_t indices[] = {0, 2, 1, 2, 3, 1};
@@ -188,15 +240,67 @@ void TextRenderFunc(const std::vector<gb::Quad>& quadVec)
     count++;
 }
 
+// helper
+// TODO: use mmap instead?
+enum LoadFileToMemoryResult { CouldNotOpenFile = -1, CouldNotReadFile = -2 };
+static int LoadFileToMemory(const char *filename, unsigned char **result)
+{
+    int size = 0;
+#if (defined _WIN32) || (defined _WIN64)
+	FILE *f = NULL;
+	int err = fopen_s(&f, filename, "rb");
+#else
+    FILE *f = fopen(filename, "rb");
+#endif
+    if (f == NULL) 
+    {
+        *result = NULL;
+        return CouldNotOpenFile;
+    }
+    fseek(f, 0, SEEK_END);
+    size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    *result = (unsigned char*)malloc(sizeof(unsigned char) * (size + 1));
+
+    int newSize = (int)fread(*result, sizeof(char), size, f);
+    if (size != newSize)
+    {
+        printf("size = %d, newSize = %d\n", size, newSize);
+        free(*result);
+        return CouldNotReadFile;
+    }
+    fclose(f);
+    (*result)[size] = 0;  // make sure it's null terminated.
+    return size;
+}
+
 int main(int argc, char* argv[])
 {
     s_config = new Config(false, false, 800, 600);
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK);
     SDL_Window* displayWindow;
     SDL_Renderer* displayRenderer;
-    SDL_CreateWindowAndRenderer(s_config->width, s_config->height, SDL_WINDOW_OPENGL, &displayWindow, &displayRenderer);
+
+	int err = SDL_CreateWindowAndRenderer(s_config->width, s_config->height, SDL_WINDOW_OPENGL, &displayWindow, &displayRenderer);
+	if (err == -1 || !displayWindow || !displayRenderer) {
+		fprintf(stderr, "SDL_CreateWindowAndRenderer failed!\n");
+	}
+
+	SDL_RendererInfo displayRendererInfo;
+    SDL_GetRendererInfo(displayRenderer, &displayRendererInfo);
+    /* TODO: Check that we have OpenGL */
+    if ((displayRendererInfo.flags & SDL_RENDERER_ACCELERATED) == 0 || 
+        (displayRendererInfo.flags & SDL_RENDERER_TARGETTEXTURE) == 0) {
+        /* TODO: Handle this. We have no render surface and not accelerated. */
+        fprintf(stderr, "NO RENDERER wtf!\n");
+    }
 
     atexit(SDL_Quit);
+
+	SDL_GLContext context = SDL_GL_CreateContext(displayWindow);
+	SDL_GL_MakeCurrent(displayWindow, context);
+
+    RenderInit(*s_config);
 
     // clear to white
     Vector4f clearColor(0, 0, 1, 1);
@@ -207,27 +311,13 @@ int main(int argc, char* argv[])
     // create the context
     gb::Context::Init(512, 1, gb::TextureFormat_RGBA);
 
-    // load lorem.txt
-    int fd = open("lorem.txt", O_RDONLY);
-    if (fd < 0)
+    char* lorem = nullptr;
+    int result = LoadFileToMemory("lorem.txt", (unsigned char **)&lorem);
+    if (result <= 0)
     {
-        fprintf(stderr, "open failed\n");
+        fprintf(stderr, "LoadFileToMemory failed\n result = %d\n", result);
         exit(1);
     }
-    struct stat s;
-    if (fstat(fd, &s) < 0)
-    {
-        fprintf(stderr, "fstat failed\n errno = %d\n", errno);
-        exit(1);
-    }
-    const char* lorem = (char*)mmap(0, s.st_size + 1, PROT_READ, MAP_PRIVATE, fd, 0);
-    if (lorem < 0)
-    {
-        fprintf(stderr, "mmap failed\n errno = %d\n", errno);
-        exit(1);
-    }
-    // we are lazy, don't unmap the file.
-
 
     // create a font
     auto droidSans = std::make_shared<gb::Font>("Droid-Sans/DroidSans.ttf", 15, 0,

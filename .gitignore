@@ -2,3 +2,9 @@
 *.d
 test/test
 .DS_Store
+
+# windows build artifacts
+test/SDL2.dll
+test/freetype6.dll
+test/test.exe
+

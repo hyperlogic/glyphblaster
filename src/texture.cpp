@@ -13,6 +13,8 @@
 #elif TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
 #  include <OpenGLES/ES1/gl.h>
 #  include <OpenGLES/ES1/glext.h>
+#elif (defined _WIN32) || (defined _WIN64)
+#  include "SDL_opengl.h"
 #else
 #  include <GL/gl.h>
 #  include <GL/glext.h>
