@@ -40,6 +40,7 @@ public:
          uint32_t optionFlags = TextOptionFlags_None, const char* script = nullptr);
     ~Text();
     void Draw();
+    const QuadVec& GetQuadVec() const { return m_quadVec; }
 
 protected:
     struct GlyphCursor
