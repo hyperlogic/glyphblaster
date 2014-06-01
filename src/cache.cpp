@@ -48,6 +48,11 @@ uint32_t Cache::Sheet::GetTexObj() const
     return m_texture->GetTexObj();
 }
 
+const Texture* Cache::Sheet::GetTexture() const
+{
+    return m_texture.get();
+}
+
 bool Cache::SheetLevel::Insert(std::shared_ptr<Glyph> glyph)
 {
     Glyph* prevGlyph = m_glyphVec.empty() ? nullptr : m_glyphVec.back().get();
@@ -169,6 +174,14 @@ void Cache::GetTextureObjects(std::vector<uint32_t>& texVec) const
     for (auto &sheet : m_sheetVec)
     {
         texVec.push_back(sheet->GetTexObj());
+    }
+}
+
+void Cache::GenerateMipmap() const
+{
+    for (auto &sheet : m_sheetVec)
+    {
+        sheet->GetTexture()->GenerateMipmap();
     }
 }
 

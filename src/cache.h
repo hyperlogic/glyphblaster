@@ -24,6 +24,8 @@ public:
     // fills up texVec with the OpenGL GLuint texture handles for each sheet.
     void GetTextureObjects(std::vector<uint32_t>& texVec) const;
 
+    void GenerateMipmap() const;
+
 protected:
     bool InsertIntoSheets(std::shared_ptr<Glyph> glyph);
 
@@ -50,6 +52,7 @@ protected:
         bool Insert(std::shared_ptr<Glyph> glyph);
         void Clear();
         uint32_t GetTexObj() const;
+        const Texture* GetTexture() const;
     protected:
         bool AddNewLevel(uint32_t height);
 

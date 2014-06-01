@@ -65,15 +65,24 @@ Texture::Texture(TextureFormat format, uint32_t textureSize, uint8_t* image) :
 {
     glGenTextures(1, &m_texObj);
     glBindTexture(GL_TEXTURE_2D, m_texObj);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    /*
+    GLfloat largest_supported_anisotropy;
+    glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &largest_supported_anisotropy);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, largest_supported_anisotropy);
+    */
+
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     if (format == TextureFormat_Alpha)
         glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, textureSize, textureSize, 0, GL_ALPHA, GL_UNSIGNED_BYTE, image);
     else
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureSize, textureSize, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    m_mipDirty = false;
 
 #ifndef NDEBUG
     GLErrorCheck("Texture::Texture");
@@ -97,9 +106,20 @@ void Texture::Subload(IntPoint origin, IntPoint size, uint8_t* image)
     else
         glTexSubImage2D(GL_TEXTURE_2D, 0, origin.x, origin.y, size.x, size.y, GL_RGBA, GL_UNSIGNED_BYTE, image);
 
+    m_mipDirty = true;
 #ifndef NDEBUG
     GLErrorCheck("Texture::Subload");
 #endif
+}
+
+void Texture::GenerateMipmap() const
+{
+    if (m_mipDirty)
+    {
+        glBindTexture(GL_TEXTURE_2D, m_texObj);
+        glGenerateMipmap(GL_TEXTURE_2D);
+        m_mipDirty = false;
+    }
 }
 
 } // namespace gb

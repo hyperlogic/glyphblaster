@@ -13,9 +13,11 @@ public:
     ~Texture();
     uint32_t GetTexObj() const { return m_texObj; }
     void Subload(IntPoint origin, IntPoint size, uint8_t* image);
+    void GenerateMipmap() const;
 protected:
     uint32_t m_texObj;
     TextureFormat m_format;
+    mutable bool m_mipDirty;
 };
 
 } // namespace gb

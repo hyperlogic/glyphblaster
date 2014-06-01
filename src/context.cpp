@@ -169,6 +169,7 @@ void Context::RasterizeAndSubloadGlyphs(const std::vector<GlyphKey>& keyVecIn,
             glyphVecOut.push_back(glyph.lock());
         }
     }
+    m_cache->GenerateMipmap();
 }
 
 void Context::GetAllGlyphs(std::vector<std::shared_ptr<Glyph>>& glyphVecOut) const
