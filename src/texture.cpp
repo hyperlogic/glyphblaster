@@ -16,6 +16,7 @@
 #elif (defined _WIN32) || (defined _WIN64)
 #  include "SDL_opengl.h"
 #else
+#  define GL_GLEXT_PROTOTYPES 1
 #  include <GL/gl.h>
 #  include <GL/glext.h>
 #  include <GL/glu.h>
@@ -80,7 +81,9 @@ Texture::Texture(TextureFormat format, uint32_t textureSize, uint8_t* image) :
         glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, textureSize, textureSize, 0, GL_ALPHA, GL_UNSIGNED_BYTE, image);
     else
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureSize, textureSize, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
+
     glGenerateMipmap(GL_TEXTURE_2D);
+
     m_mipDirty = false;
 
 #ifndef NDEBUG
